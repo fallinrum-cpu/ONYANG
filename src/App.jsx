@@ -4,12 +4,12 @@ import { getFirestore, doc, onSnapshot, setDoc } from 'firebase/firestore';
 import {
   Music, Calendar, BookOpen, Image as ImageIcon, Heart, Youtube, Instagram,
   ChevronRight, ChevronLeft, X, CheckCircle2, XCircle, Sparkles, Lock,
-  ExternalLink, Sun, UserPlus, Trash2, Edit3, BarChart3, Users, AlertTriangle,
-  Download, Plus, Award, Send, Camera, Phone, Cake, Globe, Loader2
+  Sun, UserPlus, Trash2, Edit3, BarChart3, AlertTriangle,
+  Download, Plus, Award, Send, Camera, Phone, Cake, Globe, Loader2, Settings
 } from 'lucide-react';
 
 // ==========================================
-// 1. 온양장로교회 & 클라우드 연동 설정 (완료)
+// 1. 온양장로교회 & 클라우드 연동 설정
 // ==========================================
 const firebaseConfig = {
   apiKey: "AIzaSyD3P1V9bvJq9Q2WZRL6EdwLuepn2EdoLG0",
@@ -28,7 +28,10 @@ const CHURCH_LINKS = {
   homepage: "https://www.oych.org/",
   youtube: "https://www.youtube.com/@oychurch",
   instagram: "https://www.instagram.com/do_bbyyyyyyyyy?exln=N2hwc2FjZ2NsYjI4",
-  adminPin: "1234" // 원하시는 4자리 비밀번호로 변경 가능
+  // 역할별 비밀번호 (원하시는 4자리 숫자로 변경 가능)
+  adminPin: "1234",    // 목사님 & 선생님 전용 (전체 관리)
+  praisePin: "2222",   // 찬양팀 학생 전용 (찬양 리스트 수정)
+  officerPin: "3333"   // 학생 임원 전용 (기도/성경봉독/월력 수정)
 };
 
 // Firebase 초기화
@@ -42,7 +45,6 @@ const STATE_DOC_REF = doc(db, "onyang_youth", "main_data");
 const SEASONS = {
   creation: {
     name: '창조절',
-    desc: '생명과 창조의 은총을 묵상하는 절기',
     gradient: 'from-emerald-600 via-teal-600 to-green-700',
     badgeBg: 'bg-emerald-900/30 text-emerald-50 border-emerald-300/30',
     accentText: 'text-emerald-700',
@@ -50,7 +52,6 @@ const SEASONS = {
   },
   advent: {
     name: '대림절 / 사순절',
-    desc: '주님의 오심과 십자가를 기다리는 절기',
     gradient: 'from-purple-700 via-indigo-700 to-violet-800',
     badgeBg: 'bg-purple-950/30 text-purple-100 border-purple-300/30',
     accentText: 'text-purple-700',
@@ -58,7 +59,6 @@ const SEASONS = {
   },
   pentecost: {
     name: '성령강림절',
-    desc: '성령의 불과 교회의 탄생을 기념하는 절기',
     gradient: 'from-rose-600 via-red-600 to-orange-700',
     badgeBg: 'bg-red-950/30 text-red-50 border-red-300/30',
     accentText: 'text-rose-600',
@@ -66,7 +66,6 @@ const SEASONS = {
   },
   easter: {
     name: '부활절 / 성탄절',
-    desc: '기쁨과 영광의 주님을 찬양하는 절기',
     gradient: 'from-amber-500 via-yellow-600 to-orange-500',
     badgeBg: 'bg-amber-950/25 text-amber-50 border-amber-200/40',
     accentText: 'text-amber-700',
@@ -125,84 +124,49 @@ const INITIAL_DATA = {
     completers: ['중2 김민준', '고1 이서연', '중3 최유진', '고2 박지훈', '중1 정하은', '고3 강현우']
   },
   classes: {
-    m1: {
-      id: 'm1', grade: '중1', teacher: '김은혜 선생님',
-      students: [
-        { id: 's1', name: '정하은', birth: '03.14', phone: '010-1234-5671' },
-        { id: 's2', name: '오민재', birth: '07.22', phone: '010-1234-5672' }
-      ]
-    },
-    m2: {
-      id: 'm2', grade: '중2', teacher: '박준영 선생님',
-      students: [
-        { id: 's3', name: '김민준', birth: '05.09', phone: '010-2345-6781' },
-        { id: 's4', name: '한소율', birth: '11.30', phone: '010-2345-6782' }
-      ]
-    },
-    m3: {
-      id: 'm3', grade: '중3', teacher: '이수진 선생님',
-      students: [
-        { id: 's5', name: '최유진', birth: '02.18', phone: '010-3456-7891' }
-      ]
-    },
-    h1: {
-      id: 'h1', grade: '고1', teacher: '정성훈 선생님',
-      students: [
-        { id: 's6', name: '이서연', birth: '08.25', phone: '010-4567-8901' }
-      ]
-    },
-    h2: {
-      id: 'h2', grade: '고2', teacher: '최지민 선생님',
-      students: [
-        { id: 's7', name: '박지훈', birth: '04.12', phone: '010-5678-9012' }
-      ]
-    },
-    h3: {
-      id: 'h3', grade: '고3', teacher: '윤태호 선생님',
-      students: [
-        { id: 's8', name: '강현우', birth: '09.03', phone: '010-6789-0123' }
-      ]
-    }
+    m1: { id: 'm1', grade: '중1', teacher: '김은혜 선생님', students: [{ id: 's1', name: '정하은', birth: '03.14', phone: '010-1234-5671' }] },
+    m2: { id: 'm2', grade: '중2', teacher: '박준영 선생님', students: [{ id: 's3', name: '김민준', birth: '05.09', phone: '010-2345-6781' }] },
+    m3: { id: 'm3', grade: '중3', teacher: '이수진 선생님', students: [{ id: 's5', name: '최유진', birth: '02.18', phone: '010-3456-7891' }] },
+    h1: { id: 'h1', grade: '고1', teacher: '정성훈 선생님', students: [{ id: 's6', name: '이서연', birth: '08.25', phone: '010-4567-8901' }] },
+    h2: { id: 'h2', grade: '고2', teacher: '최지민 선생님', students: [{ id: 's7', name: '박지훈', birth: '04.12', phone: '010-5678-9012' }] },
+    h3: { id: 'h3', grade: '고3', teacher: '윤태호 선생님', students: [{ id: 's8', name: '강현우', birth: '09.03', phone: '010-6789-0123' }] }
   },
-  // 날짜별 출석 기록: { "2026-11-15": { "s1": { status: "present", reason: "" }, "s2": { status: "absent", reason: "가족 여행" } } }
   attendanceRecords: {}
 };
 
-// 오늘 날짜(YYYY-MM-DD) 구하기
 const getTodayStr = () => {
   const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, '0');
-  const d = String(now.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 };
 
-// 가장 최근 주일 날짜(YYYY-MM-DD) 구하기
 const getLatestSundayStr = () => {
   const now = new Date();
-  const day = now.getDay();
-  const diff = now.getDate() - day;
-  const sun = new Date(now.setDate(diff));
-  const y = sun.getFullYear();
-  const m = String(sun.getMonth() + 1).padStart(2, '0');
-  const d = String(sun.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
+  const sun = new Date(now.setDate(now.getDate() - now.getDay()));
+  return `${sun.getFullYear()}-${String(sun.getMonth() + 1).padStart(2, '0')}-${String(sun.getDate()).padStart(2, '0')}`;
 };
 
 export default function App() {
   const [data, setData] = useState(INITIAL_DATA);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [activeTab, setActiveTab] = useState('home'); // home, praise, calendar, order, photo, quiz, admin
+  const [activeTab, setActiveTab] = useState('home');
   const [showVersePopup, setShowVersePopup] = useState(false);
 
-  // 관리자 인증
-  const [showPinModal, setShowPinModal] = useState(false);
+  // 역할별 인증 상태 ('admin' | 'praise' | 'officer' | null)
+  const [pinModalRole, setPinModalRole] = useState(null);
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState(false);
-  const [isAdminAuth, setIsAdminAuth] = useState(false);
+  const [authRoles, setAuthRoles] = useState({ admin: false, praise: false, officer: false });
+
+  // 편집 모드 토글 (찬양팀용, 임원용)
+  const [isEditingPraise, setIsEditingPraise] = useState(false);
+  const [isEditingOrder, setIsEditingOrder] = useState(false);
+  const [isEditingCalendar, setIsEditingCalendar] = useState(false);
+
+  // 새 찬양 입력 폼
+  const [newSong, setNewSong] = useState({ title: '', artist: '', key: '', url: '' });
 
   // 관리자 하위 탭
-  const [adminTab, setAdminTab] = useState('attendance'); // attendance, roster, stats, content
+  const [adminTab, setAdminTab] = useState('attendance');
   const [selectedClassId, setSelectedClassId] = useState(null);
   const [selectedDate, setSelectedDate] = useState(getLatestSundayStr());
 
@@ -230,7 +194,7 @@ export default function App() {
   const [newQuizOpts, setNewQuizOpts] = useState(['', '', '', '']);
   const [newQuizAns, setNewQuizAns] = useState(0);
 
-  // 1. Firebase 실시간 데이터 구독 (최초 접속 시 초기 데이터 자동 세팅)
+  // Firebase 실시간 동기화
   useEffect(() => {
     const unsubscribe = onSnapshot(STATE_DOC_REF, async (snapshot) => {
       if (snapshot.exists()) {
@@ -246,7 +210,6 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // Firestore 업데이트 헬퍼 함수
   const syncDataToCloud = async (updatedFields) => {
     const nextData = { ...data, ...updatedFields };
     setData(nextData);
@@ -258,18 +221,16 @@ export default function App() {
     }
   };
 
-  // 2. 매일 아침 '오늘의 말씀' 팝업 체크
+  // 매일 아침 오늘의 말씀 팝업
   useEffect(() => {
     const today = getTodayStr();
-    const hiddenDate = localStorage.getItem('onyang_verse_hidden_date');
-    if (hiddenDate !== today) {
+    if (localStorage.getItem('onyang_verse_hidden_date') !== today) {
       setShowVersePopup(true);
     }
   }, []);
 
   const todayVerse = useMemo(() => {
-    const dayOfMonth = new Date().getDate();
-    return DAILY_VERSES[dayOfMonth % DAILY_VERSES.length];
+    return DAILY_VERSES[new Date().getDate() % DAILY_VERSES.length];
   }, []);
 
   const hideVerseForToday = () => {
@@ -285,49 +246,97 @@ export default function App() {
     syncDataToCloud({ season: keys[nextIdx] });
   };
 
-  // 관리자 PIN 확인
+  // 역할별 PIN 확인 (목사님/선생님 PIN '1234'는 모든 권한 통과)
   const handlePinSubmit = (e) => {
     e.preventDefault();
-    if (pinInput === CHURCH_LINKS.adminPin) {
-      setIsAdminAuth(true);
-      setShowPinModal(false);
+    const isMaster = pinInput === CHURCH_LINKS.adminPin;
+
+    if (pinModalRole === 'admin' && isMaster) {
+      setAuthRoles({ admin: true, praise: true, officer: true });
+      setPinModalRole(null);
       setPinInput('');
       setPinError(false);
       setActiveTab('admin');
+    } else if (pinModalRole === 'praise' && (pinInput === CHURCH_LINKS.praisePin || isMaster)) {
+      setAuthRoles((prev) => ({ ...prev, praise: true }));
+      setPinModalRole(null);
+      setPinInput('');
+      setPinError(false);
+      setIsEditingPraise(true);
+    } else if (pinModalRole === 'officer' && (pinInput === CHURCH_LINKS.officerPin || isMaster)) {
+      setAuthRoles((prev) => ({ ...prev, officer: true }));
+      setPinModalRole(null);
+      setPinInput('');
+      setPinError(false);
+      setIsEditingOrder(true);
+      setIsEditingCalendar(true);
     } else {
       setPinError(true);
     }
   };
 
-  // 출석 상태 변경
+  // 찬양 추가 / 삭제 (찬양팀 & 관리자)
+  const handleAddSong = (e) => {
+    e.preventDefault();
+    if (!newSong.title.trim()) return;
+    const songObj = {
+      id: Date.now(),
+      title: newSong.title.trim(),
+      artist: newSong.artist.trim() || '찬양팀',
+      key: newSong.key.trim() || 'Key 미정',
+      url: newSong.url.trim() || `https://www.youtube.com/results?search_query=${encodeURIComponent(newSong.title.trim())}`
+    };
+    syncDataToCloud({ praises: [...data.praises, songObj] });
+    setNewSong({ title: '', artist: '', key: '', url: '' });
+  };
+
+  const handleDeleteSong = (songId) => {
+    syncDataToCloud({ praises: data.praises.filter((s) => s.id !== songId) });
+  };
+
+  // 예배 순서(성경봉독/기도) 수정 (임원 & 관리자)
+  const handleOrderChange = (weekKey, field, val) => {
+    syncDataToCloud({
+      worshipOrder: {
+        ...data.worshipOrder,
+        [weekKey]: {
+          ...data.worshipOrder[weekKey],
+          [field]: val
+        }
+      }
+    });
+  };
+
+  // 월력 수정 (임원 & 관리자)
+  const handleCalendarChange = (idx, field, val) => {
+    const updated = data.calendar.map((item, i) => (i === idx ? { ...item, [field]: val } : item));
+    syncDataToCloud({ calendar: updated });
+  };
+
+  // 출석 상태 및 사유 변경
   const setStudentAttendance = (studentId, status) => {
     const dayRecord = data.attendanceRecords[selectedDate] || {};
     const prevStudentRec = dayRecord[studentId] || { status: 'present', reason: '' };
-    const updatedRecords = {
-      ...data.attendanceRecords,
-      [selectedDate]: {
-        ...dayRecord,
-        [studentId]: { ...prevStudentRec, status }
+    syncDataToCloud({
+      attendanceRecords: {
+        ...data.attendanceRecords,
+        [selectedDate]: { ...dayRecord, [studentId]: { ...prevStudentRec, status } }
       }
-    };
-    syncDataToCloud({ attendanceRecords: updatedRecords });
+    });
   };
 
-  // 결석 사유 변경
   const setStudentReason = (studentId, reason) => {
     const dayRecord = data.attendanceRecords[selectedDate] || {};
     const prevStudentRec = dayRecord[studentId] || { status: 'absent', reason: '' };
-    const updatedRecords = {
-      ...data.attendanceRecords,
-      [selectedDate]: {
-        ...dayRecord,
-        [studentId]: { ...prevStudentRec, status: 'absent', reason }
+    syncDataToCloud({
+      attendanceRecords: {
+        ...data.attendanceRecords,
+        [selectedDate]: { ...dayRecord, [studentId]: { ...prevStudentRec, status: 'absent', reason } }
       }
-    };
-    syncDataToCloud({ attendanceRecords: updatedRecords });
+    });
   };
 
-  // 학생 추가
+  // 학생 추가 / 삭제 / 담임교사 수정
   const handleAddStudent = (e) => {
     e.preventDefault();
     if (!newStudent.name.trim() || !selectedClassId) return;
@@ -338,46 +347,38 @@ export default function App() {
       birth: newStudent.birth.trim() || '-',
       phone: newStudent.phone.trim() || '-'
     };
-    const updatedClasses = {
-      ...data.classes,
-      [selectedClassId]: {
-        ...targetClass,
-        students: [...targetClass.students, added]
+    syncDataToCloud({
+      classes: {
+        ...data.classes,
+        [selectedClassId]: { ...targetClass, students: [...targetClass.students, added] }
       }
-    };
-    syncDataToCloud({ classes: updatedClasses });
+    });
     setNewStudent({ name: '', birth: '', phone: '' });
   };
 
-  // 학생 삭제
   const handleDeleteStudent = (studentId) => {
     if (!window.confirm("정말 이 학생을 명단에서 삭제하시겠습니까?")) return;
     const targetClass = data.classes[selectedClassId];
-    const updatedClasses = {
-      ...data.classes,
-      [selectedClassId]: {
-        ...targetClass,
-        students: targetClass.students.filter(s => s.id !== studentId)
+    syncDataToCloud({
+      classes: {
+        ...data.classes,
+        [selectedClassId]: { ...targetClass, students: targetClass.students.filter(s => s.id !== studentId) }
       }
-    };
-    syncDataToCloud({ classes: updatedClasses });
+    });
   };
 
-  // 담임교사 이름 저장
   const handleSaveTeacher = () => {
     if (!teacherNameInput.trim() || !selectedClassId) return;
-    const updatedClasses = {
-      ...data.classes,
-      [selectedClassId]: {
-        ...data.classes[selectedClassId],
-        teacher: teacherNameInput.trim()
+    syncDataToCloud({
+      classes: {
+        ...data.classes,
+        [selectedClassId]: { ...data.classes[selectedClassId], teacher: teacherNameInput.trim() }
       }
-    };
-    syncDataToCloud({ classes: updatedClasses });
+    });
     setEditingTeacher(false);
   };
 
-  // Cloudinary 사진 업로드 및 등록
+  // Cloudinary 사진 업로드
   const handlePhotoUpload = async (e) => {
     e.preventDefault();
     if (!photoTitle.trim() || !photoFile) {
@@ -417,7 +418,7 @@ export default function App() {
     }
   };
 
-  // 퀴즈 제출
+  // 퀴즈 제출 & 발행
   const handleQuizSubmit = (e) => {
     e.preventDefault();
     if (!quizStudentName.trim()) {
@@ -429,32 +430,25 @@ export default function App() {
       ? data.quiz.completers
       : [nameBadge, ...data.quiz.completers];
 
-    syncDataToCloud({
-      quiz: {
-        ...data.quiz,
-        completers: updatedCompleters
-      }
-    });
+    syncDataToCloud({ quiz: { ...data.quiz, completers: updatedCompleters } });
     setQuizSubmitted(true);
   };
 
-  // 새 퀴즈 발행 (명단 초기화)
   const handlePublishNewQuiz = (e) => {
     e.preventDefault();
     if (!newQuizTitle.trim() || !newQuizQ.trim()) return;
-    const updatedQuiz = {
-      title: newQuizTitle.trim(),
-      passage: newQuizPassage.trim() || '주일 설교 본문',
-      questions: [
-        {
+    syncDataToCloud({
+      quiz: {
+        title: newQuizTitle.trim(),
+        passage: newQuizPassage.trim() || '주일 설교 본문',
+        questions: [{
           q: newQuizQ.trim(),
           options: newQuizOpts.map((o, i) => o.trim() || `보기 ${i + 1}`),
           answer: Number(newQuizAns)
-        }
-      ],
-      completers: []
-    };
-    syncDataToCloud({ quiz: updatedQuiz });
+        }],
+        completers: []
+      }
+    });
     setNewQuizTitle('');
     setNewQuizPassage('');
     setNewQuizQ('');
@@ -470,21 +464,17 @@ export default function App() {
     const currentYear = new Date().getFullYear().toString();
     const currentMonth = getTodayStr().slice(0, 7);
 
-    // 월별 출석률 (1~12월)
     const monthlyRates = Array.from({ length: 12 }, (_, idx) => {
       const mStr = `${currentYear}-${String(idx + 1).padStart(2, '0')}`;
       const mDates = dates.filter(d => d.startsWith(mStr));
       if (mDates.length === 0 || totalCount === 0) return { month: `${idx + 1}월`, rate: 0 };
       let presentSum = 0;
       mDates.forEach(d => {
-        const rec = data.attendanceRecords[d] || {};
-        presentSum += Object.values(rec).filter(r => r.status === 'present').length;
+        presentSum += Object.values(data.attendanceRecords[d] || {}).filter(r => r.status === 'present').length;
       });
-      const avgRate = Math.round((presentSum / (mDates.length * totalCount)) * 100);
-      return { month: `${idx + 1}월`, rate: avgRate };
+      return { month: `${idx + 1}월`, rate: Math.round((presentSum / (mDates.length * totalCount)) * 100) };
     });
 
-    // 이번 달 평균 출석률
     const thisMonthDates = dates.filter(d => d.startsWith(currentMonth));
     let thisMonthRate = 0;
     if (thisMonthDates.length > 0 && totalCount > 0) {
@@ -495,28 +485,21 @@ export default function App() {
       thisMonthRate = Math.round((sum / (thisMonthDates.length * totalCount)) * 100);
     }
 
-    // 2주 이상 연속 결석자 추출
     const recentTwoDates = dates.slice(-2);
     const consecutiveAbsentees = recentTwoDates.length === 2
-      ? allStudents.filter(stu =>
-          recentTwoDates.every(d => data.attendanceRecords[d]?.[stu.id]?.status === 'absent')
-        )
+      ? allStudents.filter(stu => recentTwoDates.every(d => data.attendanceRecords[d]?.[stu.id]?.status === 'absent'))
       : [];
 
-    return { totalCount, thisMonthRate, monthlyRates, consecutiveAbsentees, dates };
+    return { totalCount, thisMonthRate, monthlyRates, consecutiveAbsentees };
   }, [data.classes, data.attendanceRecords]);
 
-  // CSV 엑셀 다운로드
   const downloadCSV = () => {
     const allStudents = Object.values(data.classes).flatMap(c => c.students.map(s => ({ ...s, grade: c.grade })));
     const dates = Object.keys(data.attendanceRecords).sort();
     let csv = '\uFEFF학년,이름,생일,연락처,' + dates.join(',') + '\n';
     allStudents.forEach(stu => {
       const row = [
-        stu.grade,
-        stu.name,
-        stu.birth,
-        stu.phone,
+        stu.grade, stu.name, stu.birth, stu.phone,
         ...dates.map(d => {
           const rec = data.attendanceRecords[d]?.[stu.id];
           if (!rec) return '-';
@@ -543,7 +526,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-100 flex justify-center">
-      {/* 흐르는 전광판(Marquee) 애니메이션 CSS */}
       <style>{`
         @keyframes marqueeScroll {
           0% { transform: translateX(0%); }
@@ -559,10 +541,9 @@ export default function App() {
         }
       `}</style>
 
-      {/* 모바일 앱 프레임 */}
       <div className="w-full max-w-md bg-white min-h-screen shadow-xl flex flex-col justify-between relative overflow-x-hidden">
         
-        {/* 1. 상단 고정 헤더 (교회명 + 오늘의 말씀 버튼만 간결하게 배치) */}
+        {/* 상단 고정 헤더 */}
         <header className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-slate-100 px-4 py-3 flex items-center justify-between">
           <button
             onClick={() => { setActiveTab('home'); setSelectedClassId(null); }}
@@ -591,7 +572,7 @@ export default function App() {
           {/* ========================================== */}
           {activeTab === 'home' && (
             <>
-              {/* 절기 메인 배너 (창조절 녹색 그라데이션 기본) */}
+              {/* 절기 메인 배너 ('함께 지어져 가는 청소년부' 한 줄 배치) */}
               <div className={`rounded-3xl p-5 text-white bg-gradient-to-br ${currentSeason.gradient} shadow-lg relative overflow-hidden`}>
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-white/15 backdrop-blur-sm">
@@ -606,8 +587,8 @@ export default function App() {
                   </button>
                 </div>
 
-                <h1 className="text-2xl font-extrabold tracking-tight leading-snug mb-1.5">
-                  함께 지어져 가는<br />청소년부
+                <h1 className="text-[22px] sm:text-2xl font-extrabold tracking-tight whitespace-nowrap mb-1.5">
+                  함께 지어져 가는 청소년부
                 </h1>
                 <p className="text-xs text-white/85 leading-relaxed">
                   "그리스도 예수 안에서 함께 지어져 가느니라" (엡 2:22)
@@ -640,7 +621,7 @@ export default function App() {
                 </div>
               </div>
 
-              {/* 주간 설교 말씀 퀴즈 & 흐르는 명예의 전당 */}
+              {/* 주간 설교 말씀 퀴즈 ('도전하기 →' 문구 변경 반영) */}
               <div
                 onClick={() => { setActiveTab('quiz'); setQuizSubmitted(false); }}
                 className="cursor-pointer rounded-2xl bg-gradient-to-r from-slate-800 to-slate-900 text-white p-4 shadow-md hover:shadow-lg transition"
@@ -655,12 +636,11 @@ export default function App() {
                       <h2 className="text-sm font-bold">{data.quiz.title}</h2>
                     </div>
                   </div>
-                  <span className="text-xs bg-white/15 px-2.5 py-1 rounded-full font-semibold">
-                    풀러가기 →
+                  <span className="text-xs bg-white/15 px-3 py-1 rounded-full font-semibold">
+                    도전하기 →
                   </span>
                 </div>
 
-                {/* 완료자 흐르는 전광판 */}
                 <div className="mt-3 pt-2.5 border-t border-white/10 overflow-hidden">
                   <div className="text-[10px] text-slate-400 mb-1.5">
                     🎉 이번 주 퀴즈 완료 친구들 ({data.quiz.completers.length}명)
@@ -734,67 +714,189 @@ export default function App() {
           )}
 
           {/* ========================================== */}
-          {/* 1. 이번 달 찬양 화면 */}
+          {/* 1. 이번 달 찬양 화면 (찬양팀 학생 전용 편집 기능 포함) */}
           {/* ========================================== */}
           {activeTab === 'praise' && (
             <div className="space-y-4">
-              <button onClick={() => setActiveTab('home')} className="flex items-center gap-1 text-xs font-bold text-slate-500">
-                <ChevronLeft className="w-4 h-4" /> 홈으로 돌아가기
-              </button>
+              <div className="flex items-center justify-between">
+                <button onClick={() => { setActiveTab('home'); setIsEditingPraise(false); }} className="flex items-center gap-1 text-xs font-bold text-slate-500">
+                  <ChevronLeft className="w-4 h-4" /> 홈으로
+                </button>
+                <button
+                  onClick={() => {
+                    if (authRoles.praise || authRoles.admin) {
+                      setIsEditingPraise(!isEditingPraise);
+                    } else {
+                      setPinModalRole('praise');
+                    }
+                  }}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold"
+                >
+                  <Settings className="w-3.5 h-3.5" />
+                  {isEditingPraise ? '편집 완료' : '찬양팀 관리'}
+                </button>
+              </div>
+
               <div>
                 <h2 className="text-xl font-extrabold text-slate-900">이번 달 찬양 리스트</h2>
                 <p className="text-xs text-slate-500 mt-1">찬양을 누르면 유튜브 영상으로 바로 연결됩니다.</p>
               </div>
+
+              {/* 찬양팀 인증 후 곡 추가 폼 */}
+              {isEditingPraise && (
+                <form onSubmit={handleAddSong} className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-2.5">
+                  <div className="text-xs font-extrabold text-emerald-900">+ 새 찬양 추가하기 (찬양팀 전용)</div>
+                  <input
+                    type="text"
+                    required
+                    placeholder="찬양 제목 (예: 예수 늘 함께 하시네)"
+                    value={newSong.title}
+                    onChange={(e) => setNewSong({ ...newSong, title: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white"
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      placeholder="찬양팀/가수 (예: 마커스)"
+                      value={newSong.artist}
+                      onChange={(e) => setNewSong({ ...newSong, artist: e.target.value })}
+                      className="px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white"
+                    />
+                    <input
+                      type="text"
+                      placeholder="코드 Key (예: G Key)"
+                      value={newSong.key}
+                      onChange={(e) => setNewSong({ ...newSong, key: e.target.value })}
+                      className="px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white"
+                    />
+                  </div>
+                  <input
+                    type="url"
+                    placeholder="유튜브 링크 (비워두면 자동 검색 연결)"
+                    value={newSong.url}
+                    onChange={(e) => setNewSong({ ...newSong, url: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white"
+                  />
+                  <button type="submit" className="w-full py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold">
+                    찬양 리스트에 추가
+                  </button>
+                </form>
+              )}
+
               <div className="space-y-2.5">
                 {data.praises.map((song, idx) => (
-                  <a
+                  <div
                     key={song.id}
-                    href={song.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-between p-4 rounded-2xl bg-white border border-slate-200 hover:border-emerald-400 hover:shadow-sm transition"
+                    className="flex items-center justify-between p-4 rounded-2xl bg-white border border-slate-200 hover:border-emerald-400 transition"
                   >
-                    <div className="flex items-center gap-3">
-                      <span className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-700 font-bold text-xs flex items-center justify-center">
+                    <a
+                      href={song.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3 flex-1 min-w-0"
+                    >
+                      <span className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-700 font-bold text-xs flex items-center justify-center shrink-0">
                         {idx + 1}
                       </span>
-                      <div>
-                        <div className="font-bold text-sm text-slate-800">{song.title}</div>
+                      <div className="truncate">
+                        <div className="font-bold text-sm text-slate-800 truncate">{song.title}</div>
                         <div className="text-xs text-slate-500">{song.artist} · {song.key}</div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-1 text-rose-600 text-xs font-bold bg-rose-50 px-2.5 py-1.5 rounded-xl">
-                      <Youtube className="w-4 h-4" /> 듣기
-                    </div>
-                  </a>
+                    </a>
+
+                    {isEditingPraise ? (
+                      <button
+                        onClick={() => handleDeleteSong(song.id)}
+                        className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl ml-2"
+                        title="곡 삭제"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    ) : (
+                      <a
+                        href={song.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-rose-600 text-xs font-bold bg-rose-50 px-2.5 py-1.5 rounded-xl ml-2 shrink-0"
+                      >
+                        <Youtube className="w-4 h-4" /> 듣기
+                      </a>
+                    )}
+                  </div>
                 ))}
               </div>
             </div>
           )}
 
           {/* ========================================== */}
-          {/* 2. 청소년부 월력 화면 */}
+          {/* 2. 청소년부 월력 화면 (임원/관리자 수정 가능) */}
           {/* ========================================== */}
           {activeTab === 'calendar' && (
             <div className="space-y-4">
-              <button onClick={() => setActiveTab('home')} className="flex items-center gap-1 text-xs font-bold text-slate-500">
-                <ChevronLeft className="w-4 h-4" /> 홈으로 돌아가기
-              </button>
+              <div className="flex items-center justify-between">
+                <button onClick={() => { setActiveTab('home'); setIsEditingCalendar(false); }} className="flex items-center gap-1 text-xs font-bold text-slate-500">
+                  <ChevronLeft className="w-4 h-4" /> 홈으로
+                </button>
+                <button
+                  onClick={() => {
+                    if (authRoles.officer || authRoles.admin) {
+                      setIsEditingCalendar(!isEditingCalendar);
+                    } else {
+                      setPinModalRole('officer');
+                    }
+                  }}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-sky-50 text-sky-700 border border-sky-200 text-xs font-bold"
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                  {isEditingCalendar ? '수정 완료' : '임원 수정'}
+                </button>
+              </div>
+
               <div>
                 <h2 className="text-xl font-extrabold text-slate-900">청소년부 월력</h2>
                 <p className="text-xs text-slate-500 mt-1">주별 특별 프로그램과 예배 일정을 확인하세요.</p>
               </div>
+
               <div className="space-y-3">
                 {data.calendar.map((item, idx) => (
-                  <div key={idx} className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80">
-                    <div className="flex items-center justify-between mb-1.5">
+                  <div key={idx} className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
+                    <div className="flex items-center justify-between">
                       <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-sky-100 text-sky-800">
                         {item.week}
                       </span>
-                      <span className="text-xs font-semibold text-slate-400">{item.date}</span>
+                      {isEditingCalendar ? (
+                        <input
+                          type="text"
+                          value={item.date}
+                          onChange={(e) => handleCalendarChange(idx, 'date', e.target.value)}
+                          className="text-xs font-bold px-2 py-1 rounded border border-slate-300 bg-white w-24 text-right"
+                        />
+                      ) : (
+                        <span className="text-xs font-semibold text-slate-400">{item.date}</span>
+                      )}
                     </div>
-                    <div className="font-bold text-slate-900 text-sm">{item.title}</div>
-                    <p className="text-xs text-slate-600 mt-1 leading-relaxed">{item.desc}</p>
+
+                    {isEditingCalendar ? (
+                      <>
+                        <input
+                          type="text"
+                          value={item.title}
+                          onChange={(e) => handleCalendarChange(idx, 'title', e.target.value)}
+                          className="w-full text-sm font-bold px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white"
+                        />
+                        <input
+                          type="text"
+                          value={item.desc}
+                          onChange={(e) => handleCalendarChange(idx, 'desc', e.target.value)}
+                          className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white"
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <div className="font-bold text-slate-900 text-sm">{item.title}</div>
+                        <p className="text-xs text-slate-600 leading-relaxed">{item.desc}</p>
+                      </>
+                    )}
                   </div>
                 ))}
               </div>
@@ -802,50 +904,90 @@ export default function App() {
           )}
 
           {/* ========================================== */}
-          {/* 3. 성경봉독 / 기도자 화면 */}
+          {/* 3. 성경봉독 / 기도자 화면 (임원 학생 전용 수정 기능 포함) */}
           {/* ========================================== */}
           {activeTab === 'order' && (
             <div className="space-y-4">
-              <button onClick={() => setActiveTab('home')} className="flex items-center gap-1 text-xs font-bold text-slate-500">
-                <ChevronLeft className="w-4 h-4" /> 홈으로 돌아가기
-              </button>
+              <div className="flex items-center justify-between">
+                <button onClick={() => { setActiveTab('home'); setIsEditingOrder(false); }} className="flex items-center gap-1 text-xs font-bold text-slate-500">
+                  <ChevronLeft className="w-4 h-4" /> 홈으로
+                </button>
+                <button
+                  onClick={() => {
+                    if (authRoles.officer || authRoles.admin) {
+                      setIsEditingOrder(!isEditingOrder);
+                    } else {
+                      setPinModalRole('officer');
+                    }
+                  }}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 text-amber-800 border border-amber-200 text-xs font-bold"
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                  {isEditingOrder ? '수정 완료' : '임원 수정'}
+                </button>
+              </div>
+
               <h2 className="text-xl font-extrabold text-slate-900">성경봉독 및 대표기도</h2>
 
-              <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-3">
-                <div className="text-xs font-extrabold text-emerald-800">이번 주일 예배 순서</div>
-                <div className="bg-white p-3.5 rounded-xl space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">대표기도</span>
-                    <span className="font-bold text-slate-900">{data.worshipOrder.thisWeek.prayer}</span>
+              {['thisWeek', 'nextWeek'].map((wk) => {
+                const isThis = wk === 'thisWeek';
+                const orderObj = data.worshipOrder[wk];
+                return (
+                  <div
+                    key={wk}
+                    className={`p-4 rounded-2xl border space-y-3 ${
+                      isThis ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-200'
+                    }`}
+                  >
+                    <div className={`text-xs font-extrabold ${isThis ? 'text-emerald-800' : 'text-slate-600'}`}>
+                      {isThis ? '이번 주일 예배 순서' : '다음 주일 예고'}
+                    </div>
+                    <div className="bg-white p-3.5 rounded-xl space-y-2.5 text-sm">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-slate-500 shrink-0">대표기도</span>
+                        {isEditingOrder ? (
+                          <input
+                            type="text"
+                            value={orderObj.prayer}
+                            onChange={(e) => handleOrderChange(wk, 'prayer', e.target.value)}
+                            className="text-right font-bold text-xs px-2.5 py-1.5 rounded-lg border border-slate-300 w-40"
+                          />
+                        ) : (
+                          <span className="font-bold text-slate-900">{orderObj.prayer}</span>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-slate-500 shrink-0">성경봉독</span>
+                        {isEditingOrder ? (
+                          <input
+                            type="text"
+                            value={orderObj.scripture}
+                            onChange={(e) => handleOrderChange(wk, 'scripture', e.target.value)}
+                            className="text-right font-bold text-xs px-2.5 py-1.5 rounded-lg border border-slate-300 w-40"
+                          />
+                        ) : (
+                          <span className="font-bold text-slate-900">{orderObj.scripture}</span>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-slate-500 shrink-0">말씀본문</span>
+                        {isEditingOrder ? (
+                          <input
+                            type="text"
+                            value={orderObj.passage}
+                            onChange={(e) => handleOrderChange(wk, 'passage', e.target.value)}
+                            className="text-right font-bold text-xs px-2.5 py-1.5 rounded-lg border border-slate-300 w-40"
+                          />
+                        ) : (
+                          <span className={`font-bold ${isThis ? 'text-emerald-700' : 'text-slate-700'}`}>
+                            {orderObj.passage}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">성경봉독</span>
-                    <span className="font-bold text-slate-900">{data.worshipOrder.thisWeek.scripture}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">말씀본문</span>
-                    <span className="font-bold text-emerald-700">{data.worshipOrder.thisWeek.passage}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
-                <div className="text-xs font-extrabold text-slate-600">다음 주일 예고</div>
-                <div className="bg-white p-3.5 rounded-xl space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">대표기도</span>
-                    <span className="font-bold text-slate-900">{data.worshipOrder.nextWeek.prayer}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">성경봉독</span>
-                    <span className="font-bold text-slate-900">{data.worshipOrder.nextWeek.scripture}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">말씀본문</span>
-                    <span className="font-bold text-slate-700">{data.worshipOrder.nextWeek.passage}</span>
-                  </div>
-                </div>
-              </div>
+                );
+              })}
             </div>
           )}
 
@@ -966,9 +1108,9 @@ export default function App() {
           )}
 
           {/* ========================================== */}
-          {/* 6. 교사 / 목사님 전용 관리자 페이지 (하단 ♥) */}
+          {/* 6. 교사 / 목사님 전용 전체 관리자 페이지 (하단 ♥) */}
           {/* ========================================== */}
-          {activeTab === 'admin' && isAdminAuth && (
+          {activeTab === 'admin' && authRoles.admin && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <button
@@ -978,17 +1120,16 @@ export default function App() {
                   <ChevronLeft className="w-4 h-4" /> 학생 화면으로
                 </button>
                 <span className="text-xs font-bold text-rose-600 bg-rose-50 px-2.5 py-1 rounded-full">
-                  교사·교역자 전용 공간
+                  교사·교역자 전체 관리
                 </span>
               </div>
 
-              {/* 관리자 4개 메뉴 탭 */}
               <div className="grid grid-cols-4 gap-1.5 bg-slate-100 p-1 rounded-xl">
                 {[
                   { id: 'attendance', label: '출석체크' },
                   { id: 'roster', label: '명단관리' },
                   { id: 'stats', label: '출석통계' },
-                  { id: 'content', label: '퀴즈/사진' }
+                  { id: 'content', label: '콘텐츠관리' }
                 ].map((t) => (
                   <button
                     key={t.id}
@@ -1002,7 +1143,7 @@ export default function App() {
                 ))}
               </div>
 
-              {/* (A) 출석 체크 탭 & (B) 반별 명단 관리 탭 공통: 2x3 학년 배열 */}
+              {/* (A) 출석 체크 & (B) 반별 명단 관리: 2x3 학년 배열 */}
               {(adminTab === 'attendance' || adminTab === 'roster') && !selectedClassId && (
                 <div className="space-y-3">
                   {adminTab === 'attendance' && (
@@ -1017,13 +1158,6 @@ export default function App() {
                     </div>
                   )}
 
-                  <p className="text-xs text-slate-500">
-                    {adminTab === 'attendance'
-                      ? '담당 반을 선택해 출석/결석 및 결석 사유를 체크하세요.'
-                      : '담당 반을 선택해 선생님 성함과 학생 명단을 직접 추가·수정하세요.'}
-                  </p>
-
-                  {/* 요청하신 2x3 배열 (학년 / 선생님이름 2줄 구성) */}
                   <div className="grid grid-cols-2 gap-3">
                     {Object.values(data.classes).map((cls) => {
                       const dayRec = data.attendanceRecords[selectedDate] || {};
@@ -1053,7 +1187,7 @@ export default function App() {
                 </div>
               )}
 
-              {/* 반 선택 후 상세 화면: (A) 출석 체크 실행 */}
+              {/* 반 선택 후: 출석 체크 */}
               {adminTab === 'attendance' && selectedClassId && (
                 <div className="space-y-3">
                   <button
@@ -1063,11 +1197,9 @@ export default function App() {
                     <ChevronLeft className="w-4 h-4" /> 전체 학년(2×3) 목록으로
                   </button>
 
-                  <div className="p-3.5 rounded-2xl bg-slate-800 text-white flex items-center justify-between">
-                    <div>
-                      <div className="text-base font-extrabold">{data.classes[selectedClassId].grade} 출석부</div>
-                      <div className="text-xs text-slate-300">{data.classes[selectedClassId].teacher} · {selectedDate}</div>
-                    </div>
+                  <div className="p-3.5 rounded-2xl bg-slate-800 text-white">
+                    <div className="text-base font-extrabold">{data.classes[selectedClassId].grade} 출석부</div>
+                    <div className="text-xs text-slate-300">{data.classes[selectedClassId].teacher} · {selectedDate}</div>
                   </div>
 
                   <div className="space-y-2.5">
@@ -1086,7 +1218,6 @@ export default function App() {
                               </div>
                             </div>
 
-                            {/* 지각 없이 출석 / 결석 2가지 버튼 */}
                             <div className="flex gap-1.5">
                               <button
                                 onClick={() => setStudentAttendance(stu.id, 'present')}
@@ -1111,7 +1242,6 @@ export default function App() {
                             </div>
                           </div>
 
-                          {/* 결석 선택 시 사유 입력창 자동 노출 */}
                           {rec.status === 'absent' && (
                             <input
                               type="text"
@@ -1128,7 +1258,7 @@ export default function App() {
                 </div>
               )}
 
-              {/* 반 선택 후 상세 화면: (B) 선생님 직접 명단 입력·관리 */}
+              {/* 반 선택 후: 명단 관리 */}
               {adminTab === 'roster' && selectedClassId && (
                 <div className="space-y-4">
                   <button
@@ -1138,7 +1268,6 @@ export default function App() {
                     <ChevronLeft className="w-4 h-4" /> 전체 학년(2×3) 목록으로
                   </button>
 
-                  {/* 담임 선생님 이름 수정 */}
                   <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
                     <div className="text-xs font-bold text-slate-500 mb-1.5">
                       {data.classes[selectedClassId].grade} 담당 선생님 성함
@@ -1161,17 +1290,13 @@ export default function App() {
                           onChange={(e) => setTeacherNameInput(e.target.value)}
                           className="flex-1 px-3 py-1.5 rounded-lg border border-slate-300 text-xs bg-white"
                         />
-                        <button
-                          onClick={handleSaveTeacher}
-                          className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold"
-                        >
+                        <button onClick={handleSaveTeacher} className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold">
                           저장
                         </button>
                       </div>
                     )}
                   </div>
 
-                  {/* 새 학생 추가 폼 */}
                   <form onSubmit={handleAddStudent} className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 space-y-2.5">
                     <div className="text-xs font-extrabold text-emerald-900 flex items-center gap-1">
                       <UserPlus className="w-3.5 h-3.5" /> {data.classes[selectedClassId].grade} 새 학생 등록
@@ -1200,15 +1325,11 @@ export default function App() {
                         className="px-2.5 py-2 rounded-xl border border-slate-300 text-xs bg-white"
                       />
                     </div>
-                    <button
-                      type="submit"
-                      className="w-full py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700"
-                    >
+                    <button type="submit" className="w-full py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700">
                       + 명단에 학생 추가하기
                     </button>
                   </form>
 
-                  {/* 현재 등록된 학생 목록 */}
                   <div className="space-y-2">
                     <div className="text-xs font-bold text-slate-600">등록된 학생 ({data.classes[selectedClassId].students.length}명)</div>
                     {data.classes[selectedClassId].students.map((stu) => (
@@ -1217,11 +1338,7 @@ export default function App() {
                           <div className="text-sm font-bold text-slate-800">{stu.name}</div>
                           <div className="text-[11px] text-slate-500">생일: {stu.birth} · {stu.phone}</div>
                         </div>
-                        <button
-                          onClick={() => handleDeleteStudent(stu.id)}
-                          className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg"
-                          title="삭제"
-                        >
+                        <button onClick={() => handleDeleteStudent(stu.id)} className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
@@ -1230,7 +1347,7 @@ export default function App() {
                 </div>
               )}
 
-              {/* (C) 월간 / 연간 출석 통계 대시보드 */}
+              {/* (C) 출석 통계 */}
               {adminTab === 'stats' && (
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-3">
@@ -1244,22 +1361,16 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* 올해 월별 출석률 막대 차트 */}
                   <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                        <BarChart3 className="w-4 h-4 text-emerald-600" /> 올해 월별 평균 출석률 (%)
-                      </span>
-                    </div>
+                    <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                      <BarChart3 className="w-4 h-4 text-emerald-600" /> 올해 월별 평균 출석률 (%)
+                    </span>
                     <div className="grid grid-cols-6 gap-2 pt-2">
                       {statsSummary.monthlyRates.map((m, idx) => (
                         <div key={idx} className="flex flex-col items-center gap-1">
                           <span className="text-[10px] font-bold text-slate-500">{m.rate}%</span>
                           <div className="w-full h-20 bg-slate-100 rounded-lg flex items-end overflow-hidden">
-                            <div
-                              style={{ height: `${Math.max(m.rate, 6)}%` }}
-                              className={`w-full rounded-t-md ${m.rate > 0 ? 'bg-emerald-500' : 'bg-slate-200'}`}
-                            />
+                            <div style={{ height: `${Math.max(m.rate, 6)}%` }} className={`w-full rounded-t-md ${m.rate > 0 ? 'bg-emerald-500' : 'bg-slate-200'}`} />
                           </div>
                           <span className="text-[10px] text-slate-600 font-medium">{m.month}</span>
                         </div>
@@ -1267,7 +1378,6 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* 2주 연속 결석자 심방 알림 */}
                   <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 space-y-2">
                     <div className="text-xs font-extrabold text-rose-800 flex items-center gap-1.5">
                       <AlertTriangle className="w-4 h-4" /> 연속 결석 관심·심방 대상자
@@ -1285,20 +1395,41 @@ export default function App() {
                     )}
                   </div>
 
-                  {/* 엑셀(CSV) 내보내기 버튼 */}
-                  <button
-                    onClick={downloadCSV}
-                    className="w-full py-3 rounded-2xl bg-slate-900 text-white text-xs font-bold flex items-center justify-center gap-2 hover:bg-slate-800"
-                  >
+                  <button onClick={downloadCSV} className="w-full py-3 rounded-2xl bg-slate-900 text-white text-xs font-bold flex items-center justify-center gap-2 hover:bg-slate-800">
                     <Download className="w-4 h-4" /> 전체 출석 기록 엑셀(CSV) 다운로드
                   </button>
                 </div>
               )}
 
-              {/* (D) 주간 설교 퀴즈 출제 & 사진첩 업로드 */}
+              {/* (D) 콘텐츠 관리 (목사님은 여기서 모든 탭으로 바로 이동해 수정 가능) */}
               {adminTab === 'content' && (
-                <div className="space-y-5">
-                  {/* 사진첩 업로드 폼 (Cloudinary 연동) */}
+                <div className="space-y-4">
+                  {/* 목사님 전체 바로가기 편집 버튼 */}
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+                    <div className="text-xs font-extrabold text-slate-700">빠른 콘텐츠 편집 바로가기</div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <button
+                        onClick={() => { setIsEditingPraise(true); setActiveTab('praise'); }}
+                        className="py-2.5 px-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-emerald-700"
+                      >
+                        찬양 수정 →
+                      </button>
+                      <button
+                        onClick={() => { setIsEditingOrder(true); setActiveTab('order'); }}
+                        className="py-2.5 px-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-amber-700"
+                      >
+                        기도/봉독 →
+                      </button>
+                      <button
+                        onClick={() => { setIsEditingCalendar(true); setActiveTab('calendar'); }}
+                        className="py-2.5 px-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-sky-700"
+                      >
+                        월력 수정 →
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 사진첩 업로드 */}
                   <form onSubmit={handlePhotoUpload} className="p-4 rounded-2xl bg-white border border-slate-200 space-y-3">
                     <div className="text-sm font-extrabold text-slate-900 flex items-center gap-1.5">
                       <Camera className="w-4 h-4 text-rose-500" /> 활동 사진첩 새 사진 올리기
@@ -1334,7 +1465,7 @@ export default function App() {
                     </button>
                   </form>
 
-                  {/* 목사님 주간 설교 퀴즈 출제 폼 */}
+                  {/* 주간 설교 퀴즈 출제 */}
                   <form onSubmit={handlePublishNewQuiz} className="p-4 rounded-2xl bg-white border border-slate-200 space-y-3">
                     <div className="text-sm font-extrabold text-slate-900 flex items-center gap-1.5">
                       <Award className="w-4 h-4 text-amber-500" /> 새 주간 설교 퀴즈 출제
@@ -1392,10 +1523,7 @@ export default function App() {
                         <option value={3}>4번 보기</option>
                       </select>
                     </div>
-                    <button
-                      type="submit"
-                      className="w-full py-2.5 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800"
-                    >
+                    <button type="submit" className="w-full py-2.5 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800">
                       새 퀴즈 발행 (완료자 명단 초기화)
                     </button>
                   </form>
@@ -1406,44 +1534,44 @@ export default function App() {
         </main>
 
         {/* ========================================== */}
-        {/* 하단 푸터: 교회 공식 SNS 바로가기 + 교사용 작은 하트(♥) */}
+        {/* 하단 푸터: 한글 텍스트 제거 & 큼직한 원형 로고 3개 */}
         {/* ========================================== */}
-        <footer className="bg-slate-50 border-t border-slate-200/80 px-4 py-5 text-center space-y-3">
-          <div className="flex items-center justify-center gap-2.5">
+        <footer className="bg-slate-50 border-t border-slate-200/80 px-4 py-5 text-center space-y-3.5">
+          <div className="flex items-center justify-center gap-5">
             <a
               href={CHURCH_LINKS.homepage}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 text-xs font-bold hover:bg-slate-100 transition"
+              aria-label="온양장로교회 홈페이지"
+              className="w-12 h-12 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center text-emerald-600 hover:scale-105 hover:border-emerald-300 transition"
             >
-              <Globe className="w-3.5 h-3.5 text-emerald-600" />
-              <span>교회 홈페이지</span>
+              <Globe className="w-6 h-6" />
             </a>
             <a
               href={CHURCH_LINKS.youtube}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 text-xs font-bold hover:bg-rose-50 hover:text-rose-600 transition"
+              aria-label="온양장로교회 유튜브"
+              className="w-12 h-12 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center text-rose-600 hover:scale-105 hover:border-rose-300 transition"
             >
-              <Youtube className="w-4 h-4 text-rose-600" />
-              <span>교회 유튜브</span>
+              <Youtube className="w-6 h-6" />
             </a>
             <a
               href={CHURCH_LINKS.instagram}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 text-xs font-bold hover:bg-pink-50 hover:text-pink-600 transition"
+              aria-label="온양장로교회 청소년부 인스타그램"
+              className="w-12 h-12 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center text-pink-600 hover:scale-105 hover:border-pink-300 transition"
             >
-              <Instagram className="w-4 h-4 text-pink-600" />
-              <span>청소년부 인스타</span>
+              <Instagram className="w-6 h-6" />
             </a>
           </div>
 
-          <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400 pt-1">
+          <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400">
             <span>한국기독교장로회 온양장로교회 청소년부</span>
             <button
-              onClick={() => (isAdminAuth ? setActiveTab('admin') : setShowPinModal(true))}
-              title="교사 전용 페이지"
+              onClick={() => (authRoles.admin ? setActiveTab('admin') : setPinModalRole('admin'))}
+              title="교사·교역자 전용 페이지"
               className="p-1 text-rose-400 hover:text-rose-600 transition"
             >
               <Heart className="w-3.5 h-3.5 fill-current" />
@@ -1451,12 +1579,10 @@ export default function App() {
           </div>
         </footer>
 
-        {/* ========================================== */}
         {/* 팝업 1: 매일 아침 오늘의 말씀 */}
-        {/* ========================================== */}
         {showVersePopup && (
           <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-            <div className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl space-y-4 relative animate-in fade-in zoom-in-95">
+            <div className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl space-y-4 relative">
               <button
                 onClick={() => setShowVersePopup(false)}
                 className="absolute top-4 right-4 p-1.5 rounded-full bg-slate-100 text-slate-500"
@@ -1495,18 +1621,20 @@ export default function App() {
           </div>
         )}
 
-        {/* ========================================== */}
-        {/* 팝업 2: 교사 전용 비밀번호 입력 */}
-        {/* ========================================== */}
-        {showPinModal && (
+        {/* 팝업 2: 역할별 비밀번호 인증 (교사/찬양팀/임원) */}
+        {pinModalRole && (
           <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
             <form onSubmit={handlePinSubmit} className="w-full max-w-xs bg-white rounded-3xl p-6 shadow-2xl space-y-4 text-center">
-              <div className="w-11 h-11 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto">
+              <div className="w-11 h-11 rounded-2xl bg-slate-100 text-slate-700 flex items-center justify-center mx-auto">
                 <Lock className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="font-extrabold text-slate-900 text-base">교사·교역자 전용 인증</h3>
-                <p className="text-xs text-slate-500 mt-1">선생님 비밀번호 4자리를 입력하세요.</p>
+                <h3 className="font-extrabold text-slate-900 text-base">
+                  {pinModalRole === 'admin' && '교사·교역자 전용 인증'}
+                  {pinModalRole === 'praise' && '찬양팀 학생 전용 인증'}
+                  {pinModalRole === 'officer' && '청소년부 임원 전용 인증'}
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">담당 비밀번호 4자리를 입력하세요.</p>
               </div>
               <input
                 type="password"
@@ -1516,31 +1644,29 @@ export default function App() {
                 value={pinInput}
                 onChange={(e) => setPinInput(e.target.value)}
                 placeholder="••••"
-                className="w-full text-center tracking-[0.5em] text-lg font-extrabold py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-rose-500"
+                className="w-full text-center tracking-[0.5em] text-lg font-extrabold py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-emerald-500"
               />
               {pinError && <p className="text-xs text-rose-600 font-semibold">비밀번호가 일치하지 않습니다.</p>}
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => { setShowPinModal(false); setPinInput(''); setPinError(false); }}
+                  onClick={() => { setPinModalRole(null); setPinInput(''); setPinError(false); }}
                   className="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-600 text-xs font-bold"
                 >
                   취소
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 rounded-xl bg-rose-600 text-white text-xs font-bold"
+                  className="flex-1 py-2.5 rounded-xl bg-slate-900 text-white text-xs font-bold"
                 >
-                  입장하기
+                  확인
                 </button>
               </div>
             </form>
           </div>
         )}
 
-        {/* ========================================== */}
         {/* 팝업 3: 사진첩 크게 보기 */}
-        {/* ========================================== */}
         {selectedPhoto && (
           <div className="fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4" onClick={() => setSelectedPhoto(null)}>
             <div className="w-full max-w-sm bg-white rounded-3xl overflow-hidden shadow-2xl" onClick={(e) => e.stopPropagation()}>
