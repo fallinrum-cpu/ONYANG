@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getFirestore, doc, onSnapshot, setDoc } from 'firebase/firestore';
+import { getFirestore, doc, onSnapshot, setDoc, getDoc } from 'firebase/firestore';
 import {
   Music, Calendar, BookOpen, Image as ImageIcon, Heart, Youtube, Instagram,
   ChevronRight, ChevronLeft, X, CheckCircle2, XCircle, Sparkles, Lock,
   Sun, UserPlus, Trash2, Edit3, BarChart3, AlertTriangle,
   Download, Award, Send, Camera, Phone, Cake, Globe, Loader2, Settings,
-  Gamepad2, Trophy, RotateCcw, Clock
+  Gamepad2, Trophy, RotateCcw, Clock, ShieldCheck
 } from 'lucide-react';
 
 // ==========================================
@@ -36,7 +36,10 @@ const CHURCH_LINKS = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-const STATE_DOC_REF = doc(db, "onyang_youth", "main_data");
+
+// 보안 분리: 공개 데이터와 교사 전용 비공개 개인정보 금고 분리
+const PUBLIC_DOC_REF = doc(db, "onyang_youth", "main_data");
+const PRIVATE_DOC_REF = doc(db, "onyang_youth", "private_admin_data");
 
 // 고정 반 배치 순서: 왼쪽 열(중1, 중2, 중3), 오른쪽 열(고1, 고2, 고3)
 const CLASS_DISPLAY_ORDER = ['m1', 'h1', 'm2', 'h2', 'm3', 'h3'];
@@ -131,7 +134,7 @@ const MERGE_LEVELS = [
   { level: 6, name: '면류관', emoji: '👑', radius: 68, color: '#fef08a', border: '#ca8a04', score: 800 }
 ];
 
-const INITIAL_DATA = {
+const INITIAL_PUBLIC_DATA = {
   season: 'creation',
   praises: [
     { id: 1, title: '함께 지어져 가네', artist: '청소년부 찬양팀', key: '이번 달 찬양', url: 'https://www.youtube.com/watch?v=TtH4qHWdTto&list=RDTtH4qHWdTto&start_radio=1' },
@@ -170,7 +173,10 @@ const INITIAL_DATA = {
     ],
     completers: []
   },
-  gameRanking: [],
+  gameRanking: []
+};
+
+const INITIAL_PRIVATE_DATA = {
   classes: {
     m1: { id: 'm1', grade: '중1', teacher: '김은혜 선생님', students: [] },
     m2: { id: 'm2', grade: '중2', teacher: '박준영 선생님', students: [] },
@@ -628,7 +634,11 @@ function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
 // 6. 메인 애플리케이션
 // ==========================================
 export default function App() {
-  const [data, setData] = useState(INITIAL_DATA);
+  // 공개 상태 (모든 방문자용 - 개인정보 미포함)
+  const [publicData, setPublicData] = useState(INITIAL_PUBLIC_DATA);
+  // 비공개 상태 (교역자·교사 PIN 인증 후에만 로드)
+  const [privateData, setPrivateData] = useState(INITIAL_PRIVATE_DATA);
+
   const [isLoaded, setIsLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState('home');
   const [showVersePopup, setShowVersePopup] = useState(false);
@@ -676,30 +686,77 @@ export default function App() {
   const [newQuizOpts, setNewQuizOpts] = useState(['', '', '', '']);
   const [newQuizAns, setNewQuizAns] = useState(0);
 
-  // Firebase 실시간 동기화
+  // 1) 공개 데이터 실시간 동기화 (항상 연결)
   useEffect(() => {
-    const unsubscribe = onSnapshot(STATE_DOC_REF, async (snapshot) => {
+    const unsubscribe = onSnapshot(PUBLIC_DOC_REF, async (snapshot) => {
       if (snapshot.exists()) {
-        setData((prev) => ({ ...prev, ...snapshot.data() }));
+        const raw = snapshot.data();
+        setPublicData((prev) => ({
+          ...prev,
+          season: raw.season ?? prev.season,
+          praises: raw.praises ?? prev.praises,
+          calendar: raw.calendar ?? prev.calendar,
+          worshipOrder: raw.worshipOrder ?? prev.worshipOrder,
+          photos: raw.photos ?? prev.photos,
+          quiz: raw.quiz ?? prev.quiz,
+          gameRanking: raw.gameRanking ?? prev.gameRanking
+        }));
       } else {
-        await setDoc(STATE_DOC_REF, INITIAL_DATA);
+        await setDoc(PUBLIC_DOC_REF, INITIAL_PUBLIC_DATA);
       }
       setIsLoaded(true);
     }, (error) => {
-      console.error("Firebase 연결 오류:", error);
+      console.error("공개 데이터 연결 오류:", error);
       setIsLoaded(true);
     });
     return () => unsubscribe();
   }, []);
 
-  const syncDataToCloud = async (updatedFields) => {
-    const nextData = { ...data, ...updatedFields };
-    setData(nextData);
+  // 2) 비공개 명단·출석 데이터 동기화 (교역자·교사 PIN 인증 후에만 구독 시작!)
+  useEffect(() => {
+    if (!authRoles.admin) return;
+
+    const unsubscribePrivate = onSnapshot(PRIVATE_DOC_REF, async (snapshot) => {
+      if (snapshot.exists()) {
+        setPrivateData((prev) => ({ ...prev, ...snapshot.data() }));
+      } else {
+        // 기존 main_data에 저장되어 있던 44명 명단·출석 기록을 자동으로 안전 이전
+        const legacySnap = await getDoc(PUBLIC_DOC_REF);
+        const legacy = legacySnap.exists() ? legacySnap.data() : {};
+        const migrated = {
+          classes: legacy.classes || INITIAL_PRIVATE_DATA.classes,
+          attendanceRecords: legacy.attendanceRecords || {}
+        };
+        await setDoc(PRIVATE_DOC_REF, migrated);
+        setPrivateData(migrated);
+      }
+    });
+
+    return () => unsubscribePrivate();
+  }, [authRoles.admin]);
+
+  // 공개 데이터 저장
+  const syncPublicData = async (updatedFields) => {
+    const nextData = { ...publicData, ...updatedFields };
+    setPublicData(nextData);
     try {
-      await setDoc(STATE_DOC_REF, nextData, { merge: true });
+      await setDoc(PUBLIC_DOC_REF, nextData, { merge: true });
     } catch (err) {
-      console.error("데이터 저장 실패:", err);
+      console.error("공개 데이터 저장 실패:", err);
       alert("저장에 실패했습니다. 인터넷 연결을 확인해 주세요.");
+    }
+  };
+
+  // 비공개 개인정보·출석 데이터 저장 (관리자 인증 상태에서만 허용)
+  const syncPrivateData = async (updatedFields) => {
+    if (!authRoles.admin) return;
+    const nextData = { ...privateData, ...updatedFields };
+    setPrivateData(nextData);
+    try {
+      await setDoc(PRIVATE_DOC_REF, nextData, { merge: true });
+    } catch (err) {
+      console.error("비공개 데이터 저장 실패:", err);
+      alert("출석·명단 저장에 실패했습니다. 인터넷 연결을 확인해 주세요.");
     }
   };
 
@@ -719,7 +776,7 @@ export default function App() {
     setShowVersePopup(false);
   };
 
-  const currentSeason = SEASONS[data.season] || SEASONS.creation;
+  const currentSeason = SEASONS[publicData.season] || SEASONS.creation;
   const canChangeSeason = authRoles.admin || authRoles.officer;
 
   const handleSeasonClick = () => {
@@ -728,17 +785,16 @@ export default function App() {
       return;
     }
     const keys = Object.keys(SEASONS);
-    const nextIdx = (keys.indexOf(data.season) + 1) % keys.length;
-    syncDataToCloud({ season: keys[nextIdx] });
+    const nextIdx = (keys.indexOf(publicData.season) + 1) % keys.length;
+    syncPublicData({ season: keys[nextIdx] });
   };
 
-  // 게임 최고 기록 저장
   const handleSaveGameScore = (name, newScore) => {
-    const currentList = data.gameRanking || [];
+    const currentList = publicData.gameRanking || [];
     const updated = [...currentList, { name, score: newScore }]
       .sort((a, b) => b.score - a.score)
       .slice(0, 10);
-    syncDataToCloud({ gameRanking: updated });
+    syncPublicData({ gameRanking: updated });
   };
 
   // 역할별 PIN 확인
@@ -771,8 +827,8 @@ export default function App() {
       setPinInput('');
       setPinError(false);
       const keys = Object.keys(SEASONS);
-      const nextIdx = (keys.indexOf(data.season) + 1) % keys.length;
-      syncDataToCloud({ season: keys[nextIdx] });
+      const nextIdx = (keys.indexOf(publicData.season) + 1) % keys.length;
+      syncPublicData({ season: keys[nextIdx] });
     } else {
       setPinError(true);
     }
@@ -789,71 +845,71 @@ export default function App() {
       key: newSong.key.trim() || 'Key 미정',
       url: newSong.url.trim() || `https://www.youtube.com/results?search_query=${encodeURIComponent(newSong.title.trim())}`
     };
-    syncDataToCloud({ praises: [...data.praises, songObj] });
+    syncPublicData({ praises: [...publicData.praises, songObj] });
     setNewSong({ title: '', artist: '', key: '', url: '' });
   };
 
   const handleDeleteSong = (songId) => {
-    syncDataToCloud({ praises: data.praises.filter((s) => s.id !== songId) });
+    syncPublicData({ praises: publicData.praises.filter((s) => s.id !== songId) });
   };
 
   const handleResetPraises = () => {
     if (!window.confirm("찬양 목록을 새로 등록하신 3곡으로 초기화할까요?")) return;
-    syncDataToCloud({ praises: INITIAL_DATA.praises });
+    syncPublicData({ praises: INITIAL_PUBLIC_DATA.praises });
   };
 
   // 예배 순서 & 일정 수정
   const handleOrderChange = (weekKey, field, val) => {
-    syncDataToCloud({
+    syncPublicData({
       worshipOrder: {
-        ...data.worshipOrder,
-        [weekKey]: { ...data.worshipOrder[weekKey], [field]: val }
+        ...publicData.worshipOrder,
+        [weekKey]: { ...publicData.worshipOrder[weekKey], [field]: val }
       }
     });
   };
 
   const handleCalendarChange = (idx, field, val) => {
-    const updated = data.calendar.map((item, i) => (i === idx ? { ...item, [field]: val } : item));
-    syncDataToCloud({ calendar: updated });
+    const updated = publicData.calendar.map((item, i) => (i === idx ? { ...item, [field]: val } : item));
+    syncPublicData({ calendar: updated });
   };
 
-  // 출석 상태 ('present' | 'second' | 'absent') 및 통합 메모 변경
+  // 출석 상태 ('present' | 'second' | 'absent') 및 통합 메모 변경 (비공개 저장소)
   const setStudentAttendance = (studentId, status) => {
-    const dayRecord = data.attendanceRecords[selectedDate] || {};
+    const dayRecord = privateData.attendanceRecords[selectedDate] || {};
     const prevStudentRec = dayRecord[studentId] || { status: '', reason: '' };
-    syncDataToCloud({
+    syncPrivateData({
       attendanceRecords: {
-        ...data.attendanceRecords,
+        ...privateData.attendanceRecords,
         [selectedDate]: { ...dayRecord, [studentId]: { ...prevStudentRec, status } }
       }
     });
   };
 
   const setStudentNote = (studentId, noteText) => {
-    const dayRecord = data.attendanceRecords[selectedDate] || {};
+    const dayRecord = privateData.attendanceRecords[selectedDate] || {};
     const prevStudentRec = dayRecord[studentId] || { status: '', reason: '' };
-    syncDataToCloud({
+    syncPrivateData({
       attendanceRecords: {
-        ...data.attendanceRecords,
+        ...privateData.attendanceRecords,
         [selectedDate]: { ...dayRecord, [studentId]: { ...prevStudentRec, reason: noteText } }
       }
     });
   };
 
-  // 학생 추가 / 삭제 / 담임교사 수정
+  // 학생 추가 / 삭제 / 담임교사 수정 (비공개 저장소)
   const handleAddStudent = (e) => {
     e.preventDefault();
     if (!newStudent.name.trim() || !selectedClassId) return;
-    const targetClass = data.classes[selectedClassId];
+    const targetClass = privateData.classes[selectedClassId];
     const added = {
       id: 'stu_' + Date.now(),
       name: newStudent.name.trim(),
       birth: newStudent.birth.trim() || '-',
       phone: newStudent.phone.trim() || '-'
     };
-    syncDataToCloud({
+    syncPrivateData({
       classes: {
-        ...data.classes,
+        ...privateData.classes,
         [selectedClassId]: { ...targetClass, students: [...targetClass.students, added] }
       }
     });
@@ -862,10 +918,10 @@ export default function App() {
 
   const handleDeleteStudent = (studentId) => {
     if (!window.confirm("정말 이 학생을 명단에서 삭제하시겠습니까?")) return;
-    const targetClass = data.classes[selectedClassId];
-    syncDataToCloud({
+    const targetClass = privateData.classes[selectedClassId];
+    syncPrivateData({
       classes: {
-        ...data.classes,
+        ...privateData.classes,
         [selectedClassId]: { ...targetClass, students: targetClass.students.filter(s => s.id !== studentId) }
       }
     });
@@ -873,10 +929,10 @@ export default function App() {
 
   const handleSaveTeacher = () => {
     if (!teacherNameInput.trim() || !selectedClassId) return;
-    syncDataToCloud({
+    syncPrivateData({
       classes: {
-        ...data.classes,
-        [selectedClassId]: { ...data.classes[selectedClassId], teacher: teacherNameInput.trim() }
+        ...privateData.classes,
+        [selectedClassId]: { ...privateData.classes[selectedClassId], teacher: teacherNameInput.trim() }
       }
     });
     setEditingTeacher(false);
@@ -909,7 +965,7 @@ export default function App() {
         url: result.secure_url,
         desc: photoDesc.trim() || '함께 지어져 가는 온양장로교회 청소년부 활동 사진입니다.'
       };
-      await syncDataToCloud({ photos: [newPhoto, ...data.photos] });
+      await syncPublicData({ photos: [newPhoto, ...publicData.photos] });
       setPhotoTitle('');
       setPhotoDesc('');
       setPhotoFile(null);
@@ -930,18 +986,18 @@ export default function App() {
       return;
     }
     const nameBadge = quizStudentName.trim();
-    const updatedCompleters = data.quiz.completers.includes(nameBadge)
-      ? data.quiz.completers
-      : [nameBadge, ...data.quiz.completers];
+    const updatedCompleters = publicData.quiz.completers.includes(nameBadge)
+      ? publicData.quiz.completers
+      : [nameBadge, ...publicData.quiz.completers];
 
-    syncDataToCloud({ quiz: { ...data.quiz, completers: updatedCompleters } });
+    syncPublicData({ quiz: { ...publicData.quiz, completers: updatedCompleters } });
     setQuizSubmitted(true);
   };
 
   const handlePublishNewQuiz = (e) => {
     e.preventDefault();
     if (!newQuizTitle.trim() || !newQuizQ.trim()) return;
-    syncDataToCloud({
+    syncPublicData({
       quiz: {
         title: newQuizTitle.trim(),
         passage: newQuizPassage.trim() || '주일 설교 본문',
@@ -960,12 +1016,12 @@ export default function App() {
     alert("새 설교 퀴즈가 등록되었으며 완료자 명단이 초기화되었습니다!");
   };
 
-  // 출석 통계 계산 ('출석' + '2부예배' 모두 예배 참석으로 집계)
+  // 출석 통계 계산 (비공개 데이터 기반)
   const statsSummary = useMemo(() => {
-    const orderedClasses = CLASS_SEQUENTIAL_ORDER.map(id => data.classes[id]).filter(Boolean);
+    const orderedClasses = CLASS_SEQUENTIAL_ORDER.map(id => privateData.classes[id]).filter(Boolean);
     const allStudents = orderedClasses.flatMap(c => c.students.map(s => ({ ...s, grade: c.grade })));
     const totalCount = allStudents.length;
-    const dates = Object.keys(data.attendanceRecords).sort();
+    const dates = Object.keys(privateData.attendanceRecords).sort();
     const currentYear = new Date().getFullYear().toString();
     const currentMonth = getTodayStr().slice(0, 7);
 
@@ -977,7 +1033,7 @@ export default function App() {
       if (mDates.length === 0 || totalCount === 0) return { month: `${idx + 1}월`, rate: 0 };
       let presentSum = 0;
       mDates.forEach(d => {
-        presentSum += Object.values(data.attendanceRecords[d] || {}).filter(r => isAttended(r.status)).length;
+        presentSum += Object.values(privateData.attendanceRecords[d] || {}).filter(r => isAttended(r.status)).length;
       });
       return { month: `${idx + 1}월`, rate: Math.round((presentSum / (mDates.length * totalCount)) * 100) };
     });
@@ -987,31 +1043,31 @@ export default function App() {
     if (thisMonthDates.length > 0 && totalCount > 0) {
       let sum = 0;
       thisMonthDates.forEach(d => {
-        sum += Object.values(data.attendanceRecords[d] || {}).filter(r => isAttended(r.status)).length;
+        sum += Object.values(privateData.attendanceRecords[d] || {}).filter(r => isAttended(r.status)).length;
       });
       thisMonthRate = Math.round((sum / (thisMonthDates.length * totalCount)) * 100);
     }
 
     const recentTwoDates = dates.slice(-2);
     const consecutiveAbsentees = recentTwoDates.length === 2
-      ? allStudents.filter(stu => recentTwoDates.every(d => data.attendanceRecords[d]?.[stu.id]?.status === 'absent'))
+      ? allStudents.filter(stu => recentTwoDates.every(d => privateData.attendanceRecords[d]?.[stu.id]?.status === 'absent'))
       : [];
 
     return { totalCount, thisMonthRate, monthlyRates, consecutiveAbsentees };
-  }, [data.classes, data.attendanceRecords]);
+  }, [privateData.classes, privateData.attendanceRecords]);
 
-  // 업그레이드된 엑셀(CSV) 다운로드 (출석 / 2부예배 / 결석 + 특이사항·기도제목 포함)
+  // 엑셀(CSV) 다운로드
   const downloadCSV = () => {
-    const orderedClasses = CLASS_SEQUENTIAL_ORDER.map(id => data.classes[id]).filter(Boolean);
+    const orderedClasses = CLASS_SEQUENTIAL_ORDER.map(id => privateData.classes[id]).filter(Boolean);
     const allStudents = orderedClasses.flatMap(c => c.students.map(s => ({ ...s, grade: c.grade })));
-    const dates = Object.keys(data.attendanceRecords).sort();
+    const dates = Object.keys(privateData.attendanceRecords).sort();
     let csv = '\uFEFF학년,이름,생일,연락처,총 출석(2부포함),총 결석,출석률(%),' + dates.join(',') + '\n';
 
     allStudents.forEach(stu => {
       let attendedCount = 0;
       let absentCount = 0;
       const dateCols = dates.map(d => {
-        const rec = data.attendanceRecords[d]?.[stu.id];
+        const rec = privateData.attendanceRecords[d]?.[stu.id];
         if (!rec || !rec.status) {
           return rec?.reason ? `메모(${rec.reason.replace(/,/g, ' ')})` : '-';
         }
@@ -1055,7 +1111,7 @@ export default function App() {
     );
   }
 
-  const topGameScore = data.gameRanking && data.gameRanking.length > 0 ? data.gameRanking[0].score : 0;
+  const topGameScore = publicData.gameRanking && publicData.gameRanking.length > 0 ? publicData.gameRanking[0].score : 0;
 
   return (
     <div className={`min-h-screen ${currentSeason.outerBg} transition-colors duration-700 flex justify-center relative`}>
@@ -1155,11 +1211,11 @@ export default function App() {
                 <div className="grid grid-cols-2 gap-2.5">
                   <div className="bg-slate-50/90 p-3 rounded-xl border border-slate-100">
                     <div className="text-[11px] text-slate-400 mb-0.5">대표기도</div>
-                    <div className="text-sm font-bold text-slate-800">{data.worshipOrder.thisWeek.prayer}</div>
+                    <div className="text-sm font-bold text-slate-800">{publicData.worshipOrder.thisWeek.prayer}</div>
                   </div>
                   <div className="bg-slate-50/90 p-3 rounded-xl border border-slate-100">
-                    <div className="text-[11px] text-slate-400 mb-0.5">성경봉독 ({data.worshipOrder.thisWeek.passage})</div>
-                    <div className="text-sm font-bold text-slate-800">{data.worshipOrder.thisWeek.scripture}</div>
+                    <div className="text-[11px] text-slate-400 mb-0.5">성경봉독 ({publicData.worshipOrder.thisWeek.passage})</div>
+                    <div className="text-sm font-bold text-slate-800">{publicData.worshipOrder.thisWeek.scripture}</div>
                   </div>
                 </div>
               </div>
@@ -1175,7 +1231,7 @@ export default function App() {
                     </span>
                     <div>
                       <div className="text-xs text-amber-300 font-semibold">주중 말씀 복습 챌린지</div>
-                      <h2 className="text-sm font-bold">{data.quiz.title}</h2>
+                      <h2 className="text-sm font-bold">{publicData.quiz.title}</h2>
                     </div>
                   </div>
                   <span className="text-xs bg-white/15 px-3 py-1 rounded-full font-semibold">
@@ -1185,12 +1241,12 @@ export default function App() {
 
                 <div className="mt-3 pt-2.5 border-t border-white/10 overflow-hidden">
                   <div className="text-[10px] text-slate-400 mb-1.5">
-                    🎉 이번 주 퀴즈 완료 친구들 ({data.quiz.completers.length}명)
+                    🎉 이번 주 퀴즈 완료 친구들 ({publicData.quiz.completers.length}명)
                   </div>
-                  {data.quiz.completers.length > 0 ? (
+                  {publicData.quiz.completers.length > 0 ? (
                     <div className="overflow-hidden relative w-full">
                       <div className="animate-marquee gap-2">
-                        {[...data.quiz.completers, ...data.quiz.completers].map((name, i) => (
+                        {[...publicData.quiz.completers, ...publicData.quiz.completers].map((name, i) => (
                           <span
                             key={i}
                             className="inline-block px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-200 text-xs font-medium whitespace-nowrap"
@@ -1280,7 +1336,7 @@ export default function App() {
           {/* ========================================== */}
           {activeTab === 'game' && (
             <MergePuzzleGame
-              rankings={data.gameRanking || []}
+              rankings={publicData.gameRanking || []}
               onSaveScore={handleSaveGameScore}
               onBack={() => setActiveTab('home')}
             />
@@ -1365,7 +1421,7 @@ export default function App() {
               )}
 
               <div className="space-y-2.5">
-                {data.praises.map((song, idx) => (
+                {publicData.praises.map((song, idx) => (
                   <div
                     key={song.id}
                     className="flex items-center justify-between p-4 rounded-2xl bg-white/95 backdrop-blur-md border border-white/80 shadow-2xs"
@@ -1439,7 +1495,7 @@ export default function App() {
               </div>
 
               <div className="space-y-3">
-                {data.calendar.map((item, idx) => (
+                {publicData.calendar.map((item, idx) => (
                   <div key={idx} className="p-4 rounded-2xl bg-white/95 backdrop-blur-md border border-white/80 space-y-2 shadow-2xs">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-sky-100 text-sky-800">
@@ -1514,7 +1570,7 @@ export default function App() {
 
               {['thisWeek', 'nextWeek'].map((wk) => {
                 const isThis = wk === 'thisWeek';
-                const orderObj = data.worshipOrder[wk];
+                const orderObj = publicData.worshipOrder[wk];
                 return (
                   <div
                     key={wk}
@@ -1585,7 +1641,7 @@ export default function App() {
                 <p className="text-xs text-slate-500 mt-1">사진을 누르면 크게 볼 수 있습니다.</p>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                {data.photos.map((photo) => (
+                {publicData.photos.map((photo) => (
                   <div
                     key={photo.id}
                     onClick={() => setSelectedPhoto(photo)}
@@ -1611,8 +1667,8 @@ export default function App() {
                 <ChevronLeft className="w-4 h-4" /> 홈으로 돌아가기
               </button>
               <div className="p-4 rounded-2xl bg-slate-900 text-white">
-                <div className="text-xs text-amber-300 font-semibold">{data.quiz.passage}</div>
-                <h2 className="text-lg font-extrabold mt-0.5">{data.quiz.title}</h2>
+                <div className="text-xs text-amber-300 font-semibold">{publicData.quiz.passage}</div>
+                <h2 className="text-lg font-extrabold mt-0.5">{publicData.quiz.title}</h2>
               </div>
 
               <form onSubmit={handleQuizSubmit} className="space-y-4">
@@ -1630,7 +1686,7 @@ export default function App() {
                   />
                 </div>
 
-                {data.quiz.questions.map((item, qIdx) => (
+                {publicData.quiz.questions.map((item, qIdx) => (
                   <div key={qIdx} className="p-4 rounded-2xl bg-white/95 border border-white/80 space-y-2.5">
                     <div className="text-sm font-bold text-slate-800">
                       Q{qIdx + 1}. {item.q}
@@ -1689,7 +1745,7 @@ export default function App() {
           )}
 
           {/* ========================================== */}
-          {/* 6. 교사 / 목사님 전용 전체 관리자 페이지 */}
+          {/* 6. 교사 / 목사님 전용 전체 관리자 페이지 (비공개 금고 연결) */}
           {/* ========================================== */}
           {activeTab === 'admin' && authRoles.admin && (
             <div className="space-y-4">
@@ -1700,8 +1756,8 @@ export default function App() {
                 >
                   <ChevronLeft className="w-4 h-4" /> 학생 화면으로
                 </button>
-                <span className="text-xs font-bold text-rose-600 bg-white/90 px-2.5 py-1 rounded-full">
-                  교사·교역자 전체 관리
+                <span className="text-[11px] font-bold text-emerald-700 bg-white/90 px-2.5 py-1 rounded-full flex items-center gap-1">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> 비공개 보안 금고 연결됨
                 </span>
               </div>
 
@@ -1741,9 +1797,9 @@ export default function App() {
 
                   <div className="grid grid-cols-2 gap-3">
                     {CLASS_DISPLAY_ORDER.map((classId) => {
-                      const cls = data.classes[classId];
+                      const cls = privateData.classes[classId];
                       if (!cls) return null;
-                      const dayRec = data.attendanceRecords[selectedDate] || {};
+                      const dayRec = privateData.attendanceRecords[selectedDate] || {};
                       const presentCnt = cls.students.filter(
                         (s) => dayRec[s.id]?.status === 'present' || dayRec[s.id]?.status === 'second'
                       ).length;
@@ -1783,13 +1839,13 @@ export default function App() {
                   </button>
 
                   <div className="p-3.5 rounded-2xl bg-slate-800 text-white">
-                    <div className="text-base font-extrabold">{data.classes[selectedClassId].grade} 출석부</div>
-                    <div className="text-xs text-slate-300">{data.classes[selectedClassId].teacher} · {selectedDate}</div>
+                    <div className="text-base font-extrabold">{privateData.classes[selectedClassId].grade} 출석부</div>
+                    <div className="text-xs text-slate-300">{privateData.classes[selectedClassId].teacher} · {selectedDate}</div>
                   </div>
 
                   <div className="space-y-2.5">
-                    {data.classes[selectedClassId].students.map((stu) => {
-                      const rec = data.attendanceRecords[selectedDate]?.[stu.id] || { status: '', reason: '' };
+                    {privateData.classes[selectedClassId].students.map((stu) => {
+                      const rec = privateData.attendanceRecords[selectedDate]?.[stu.id] || { status: '', reason: '' };
                       return (
                         <div key={stu.id} className="p-3.5 rounded-2xl bg-white/95 border border-white space-y-2.5 shadow-2xs">
                           <div className="flex flex-col gap-2">
@@ -1807,7 +1863,6 @@ export default function App() {
                               </div>
                             </div>
 
-                            {/* 출석 / 2부예배 / 결석 3버튼 */}
                             <div className="grid grid-cols-3 gap-1.5">
                               <button
                                 onClick={() => setStudentAttendance(stu.id, 'present')}
@@ -1842,7 +1897,6 @@ export default function App() {
                             </div>
                           </div>
 
-                          {/* 상시 노출: 특이사항 · 기도제목 · 결석사유 통합 입력칸 */}
                           <input
                             type="text"
                             placeholder="특이사항 · 기도제목 · 결석사유 (예: 시험 앞두고 많이 힘들어함)"
@@ -1873,11 +1927,11 @@ export default function App() {
 
                   <div className="p-4 rounded-2xl bg-white/95 border border-white">
                     <div className="text-xs font-bold text-slate-500 mb-1.5">
-                      {data.classes[selectedClassId].grade} 담당 선생님 성함
+                      {privateData.classes[selectedClassId].grade} 담당 선생님 성함
                     </div>
                     {!editingTeacher ? (
                       <div className="flex items-center justify-between">
-                        <span className="font-bold text-sm text-slate-900">{data.classes[selectedClassId].teacher}</span>
+                        <span className="font-bold text-sm text-slate-900">{privateData.classes[selectedClassId].teacher}</span>
                         <button
                           onClick={() => setEditingTeacher(true)}
                           className="text-xs px-2.5 py-1 rounded-lg bg-slate-100 font-semibold flex items-center gap-1"
@@ -1902,7 +1956,7 @@ export default function App() {
 
                   <form onSubmit={handleAddStudent} className="p-4 rounded-2xl bg-white/95 border border-emerald-200 space-y-2.5">
                     <div className="text-xs font-extrabold text-emerald-900 flex items-center gap-1">
-                      <UserPlus className="w-3.5 h-3.5" /> {data.classes[selectedClassId].grade} 새 학생 등록
+                      <UserPlus className="w-3.5 h-3.5" /> {privateData.classes[selectedClassId].grade} 새 학생 등록
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       <input
@@ -1934,8 +1988,8 @@ export default function App() {
                   </form>
 
                   <div className="space-y-2">
-                    <div className="text-xs font-bold text-slate-700">등록된 학생 ({data.classes[selectedClassId].students.length}명)</div>
-                    {data.classes[selectedClassId].students.map((stu) => (
+                    <div className="text-xs font-bold text-slate-700">등록된 학생 ({privateData.classes[selectedClassId].students.length}명)</div>
+                    {privateData.classes[selectedClassId].students.map((stu) => (
                       <div key={stu.id} className="p-3 rounded-xl bg-white/95 border border-white flex items-center justify-between">
                         <div>
                           <div className="text-sm font-bold text-slate-800">{stu.name}</div>
@@ -2134,7 +2188,7 @@ export default function App() {
                       type="button"
                       onClick={() => {
                         if (window.confirm("미니게임 랭킹을 초기화할까요?")) {
-                          syncDataToCloud({ gameRanking: [] });
+                          syncPublicData({ gameRanking: [] });
                         }
                       }}
                       className="px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200"
