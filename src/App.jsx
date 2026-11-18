@@ -453,7 +453,7 @@ function SeasonEffectOverlay({ type }) {
 }
 
 // ==========================================
-// 6-A. 게임 1: 👑 면류관 만들기 (수박 게임 스타일 합체 퍼즐)
+// 6-A. 게임 1: 👑 면류관 만들기 (위험선 게임 오버 판정 강화판)
 // ==========================================
 function MergePuzzleGame({ rankings, onSaveScore }) {
   const canvasRef = useRef(null);
@@ -584,7 +584,7 @@ function MergePuzzleGame({ rankings, onSaveScore }) {
                       vy: -1.0,
                       r: spec.radius,
                       age: 40,
-                      dangerFrames: 0
+                      dangerFrames: Math.max(b1.dangerFrames || 0, b2.dangerFrames || 0)
                     });
                     state.score += spec.score;
                     setScore(state.score);
@@ -628,16 +628,18 @@ function MergePuzzleGame({ rankings, onSaveScore }) {
           state.balls = state.balls.filter((b) => !mergedIds.has(b.id)).concat(newBalls);
         }
 
+        // 위험선(DANGER_Y) 접촉 시 확실한 게임 오버 판정:
+        // 드롭 후 0.7초(42프레임) 경과한 공의 윗부분이 빨간 점선(y <= 82)에 닿으면 누적 카운트가 올라가고 0.4초(24프레임) 도달 시 즉시 종료
         for (let b of state.balls) {
-          if (b.age > 55 && b.y - b.r <= DANGER_Y) {
+          if (b.age > 42 && b.y - b.r <= DANGER_Y) {
             b.dangerFrames = (b.dangerFrames || 0) + 1;
-            if (b.dangerFrames >= 35) {
+            if (b.dangerFrames >= 24) {
               state.gameOver = true;
               setGameOver(true);
               break;
             }
           } else {
-            b.dangerFrames = 0;
+            b.dangerFrames = Math.max(0, (b.dangerFrames || 0) - 0.5);
           }
         }
       }
@@ -937,10 +939,7 @@ function DoveFlightGame({ rankings, onSaveScore }) {
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
 
-      const totalPoints = Math.floor(st.distance) + st.starScore;
-
       if (st.started && !st.over) {
-        // 초반 1.8로 아주 여유롭게 시작 -> 거리가 늘어날수록 점진적 가속 (최대 5.2)
         const meterNow = Math.floor(st.distance);
         const speed = Math.min(5.2, 1.8 + meterNow * 0.0032);
         const lv = Math.min(5, Math.floor(meterNow / 140) + 1);
@@ -949,7 +948,6 @@ function DoveFlightGame({ rankings, onSaveScore }) {
         st.distance += speed * 0.14;
         setDist(Math.floor(st.distance));
 
-        // 부드러운 상승/하강 물리
         if (st.holding) {
           st.birdVy -= 0.36;
         } else {
@@ -958,7 +956,6 @@ function DoveFlightGame({ rankings, onSaveScore }) {
         st.birdVy = Math.max(-4.5, Math.min(4.8, st.birdVy));
         st.birdY += st.birdVy;
 
-        // 통로 세그먼트 이동 및 생성
         st.segments.forEach((s) => { s.x -= speed; });
         if (st.segments.length > 0 && st.segments[0].x + st.segments[0].w < -20) {
           st.segments.shift();
@@ -968,7 +965,6 @@ function DoveFlightGame({ rankings, onSaveScore }) {
         if (lastSeg && lastSeg.x + lastSeg.w <= WIDTH + 40) {
           st.segCounter += 1;
           const m = Math.floor(st.distance);
-          // 초반 통로 폭 250px(매우 넓음) -> 거리가 늘수록 점진적으로 좁아짐 (최소 145px)
           const gap = Math.max(145, 250 - m * 0.13);
           const waveAmp = Math.min(72, 22 + m * 0.06);
           const centerOffset =
@@ -995,7 +991,6 @@ function DoveFlightGame({ rankings, onSaveScore }) {
         const birdX = 72;
         const birdR = 12;
 
-        // 황금 별 획득
         st.starItems.forEach((star) => {
           star.x -= speed;
           if (!star.collected && Math.hypot(star.x - birdX, star.y - st.birdY) < 23) {
@@ -1006,7 +1001,6 @@ function DoveFlightGame({ rankings, onSaveScore }) {
         });
         st.starItems = st.starItems.filter((s) => s.x > -30 && !s.collected);
 
-        // 구름 벽 충돌 판정
         for (let s of st.segments) {
           if (birdX + birdR > s.x + 3 && birdX - birdR < s.x + s.w - 3) {
             if (st.birdY - birdR < s.topH || st.birdY + birdR > HEIGHT - s.botH) {
@@ -1018,7 +1012,6 @@ function DoveFlightGame({ rankings, onSaveScore }) {
         }
       }
 
-      // 배경 하늘 그라데이션
       const skyGrad = ctx.createLinearGradient(0, 0, 0, HEIGHT);
       skyGrad.addColorStop(0, '#0284c7');
       skyGrad.addColorStop(0.55, '#7dd3fc');
@@ -1026,7 +1019,6 @@ function DoveFlightGame({ rankings, onSaveScore }) {
       ctx.fillStyle = skyGrad;
       ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-      // 위·아래 구름 벽 그리기
       st.segments.forEach((s) => {
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(s.x, 0, s.w + 1, s.topH);
@@ -1039,7 +1031,6 @@ function DoveFlightGame({ rankings, onSaveScore }) {
         ctx.fillRect(s.x, HEIGHT - s.botH, s.w + 1, 5);
       });
 
-      // 황금 별 아이템
       st.starItems.forEach((star) => {
         ctx.font = '20px sans-serif';
         ctx.textAlign = 'center';
@@ -1047,7 +1038,6 @@ function DoveFlightGame({ rankings, onSaveScore }) {
         ctx.fillText('⭐', star.x, star.y);
       });
 
-      // 성령의 비둘기 캐릭터 (오른쪽 방향 반전 + 기울기)
       const birdX = 72;
       ctx.save();
       ctx.translate(birdX, st.birdY);
@@ -1111,7 +1101,6 @@ function DoveFlightGame({ rankings, onSaveScore }) {
         </button>
       </div>
 
-      {/* 게임 캔버스 */}
       <div className="relative bg-sky-200 rounded-t-3xl border-2 border-b-0 border-slate-300 overflow-hidden flex justify-center select-none">
         <canvas ref={canvasRef} width={WIDTH} height={HEIGHT} className="w-full max-w-[340px]" />
 
@@ -1174,7 +1163,6 @@ function DoveFlightGame({ rankings, onSaveScore }) {
         )}
       </div>
 
-      {/* 손가락 가림 방지용 하단 전용 비행 패드 */}
       <button
         type="button"
         onMouseDown={handlePadDown}
@@ -1224,12 +1212,13 @@ function DoveFlightGame({ rankings, onSaveScore }) {
 }
 
 // ==========================================
-// 6-C. 게임 3: 🗼 바벨탑 쌓기 (퍼펙트 스냅 수정 + 완만 가속 + 하단 패드)
+// 6-C. 게임 3: 🗼 바벨탑 쌓기 (더블 터치 중복 입력 완벽 차단판)
 // ==========================================
 const TOWER_COLORS = ['#fbbf24', '#f59e0b', '#10b981', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899'];
 
 function BabelTowerGame({ rankings, onSaveScore }) {
   const canvasRef = useRef(null);
+  const lastDropTimeRef = useRef(0);
   const [floor, setFloor] = useState(0);
   const [combo, setCombo] = useState(0);
   const [speedLv, setSpeedLv] = useState(1);
@@ -1256,6 +1245,7 @@ function BabelTowerGame({ rankings, onSaveScore }) {
 
   const resetStandby = () => {
     const baseW = 160;
+    lastDropTimeRef.current = 0;
     stRef.current = {
       started: false,
       over: false,
@@ -1276,11 +1266,20 @@ function BabelTowerGame({ rankings, onSaveScore }) {
   };
 
   const startGame = () => {
+    lastDropTimeRef.current = Date.now();
     stRef.current.started = true;
     setIsStarted(true);
   };
 
-  const dropBlock = () => {
+  const handlePadPress = (e) => {
+    if (e.cancelable) e.preventDefault();
+    e.stopPropagation();
+
+    // 모바일 터치 직후 발생하는 합성 마우스 이벤트 및 0.22초 이내 연속 중복 클릭 완벽 차단
+    const now = Date.now();
+    if (now - lastDropTimeRef.current < 220) return;
+    lastDropTimeRef.current = now;
+
     const st = stRef.current;
     if (!st.started || st.over || !st.cur) return;
 
@@ -1304,7 +1303,7 @@ function BabelTowerGame({ rankings, onSaveScore }) {
       st.flashText = `PERFECT! ×${st.combo}`;
       st.flashTimer = 34;
     } else {
-      // 2. 실제 겹치는 구간(overlapLeft ~ overlapRight)을 정확하게 계산
+      // 2. 실제 겹치는 구간만 남기고 잘린 조각 떨어뜨리기
       st.combo = 0;
       setCombo(0);
 
@@ -1312,7 +1311,6 @@ function BabelTowerGame({ rankings, onSaveScore }) {
       const overlapRight = Math.min(prev.x + prev.w, cur.x + cur.w);
       const overlapW = overlapRight - overlapLeft;
 
-      // 조금이라도(4px 이상) 겹치면 잘린 부분만 떨어지고 나머지 위로 계속 쌓임
       if (overlapW < 4) {
         st.debris.push({ x: cur.x, y: cur.y, w: cur.w, vy: 0, color: cur.color });
         st.over = true;
@@ -1335,7 +1333,6 @@ function BabelTowerGame({ rankings, onSaveScore }) {
     const nextFloor = st.stack.length - 1;
     setFloor(nextFloor);
 
-    // 초반 1.4에서 출발해 층수마다 +0.11씩 부드럽게 가속 (최대 5.2)
     const nextY = cur.y - BLOCK_H;
     const nextSpeed = Math.min(5.2, 1.4 + nextFloor * 0.11);
     const lv = Math.min(5, Math.floor(nextFloor / 6) + 1);
@@ -1461,7 +1458,6 @@ function BabelTowerGame({ rankings, onSaveScore }) {
         </button>
       </div>
 
-      {/* 게임 캔버스 */}
       <div className="relative bg-gradient-to-b from-slate-900 via-indigo-950 to-slate-900 rounded-t-3xl border-2 border-b-0 border-slate-300 overflow-hidden flex justify-center select-none">
         <canvas ref={canvasRef} width={WIDTH} height={HEIGHT} className="w-full max-w-[340px]" />
 
@@ -1525,16 +1521,14 @@ function BabelTowerGame({ rankings, onSaveScore }) {
         )}
       </div>
 
-      {/* 손가락 가림 방지용 하단 전용 조작 패드 */}
       <button
         type="button"
-        onMouseDown={(e) => { e.preventDefault(); dropBlock(); }}
-        onTouchStart={(e) => { e.preventDefault(); dropBlock(); }}
+        onPointerDown={handlePadPress}
         disabled={!isStarted || gameOver}
         className="w-full h-20 -mt-2.5 rounded-b-3xl bg-gradient-to-r from-amber-500 to-orange-500 active:from-amber-600 active:to-orange-600 disabled:from-slate-300 disabled:to-slate-400 text-white font-extrabold text-base shadow-md flex flex-col items-center justify-center gap-0.5 select-none touch-none transition"
       >
         <span>⬇ 여기를 터치해서 블록 내려놓기</span>
-        <span className="text-[11px] font-medium text-white/85">엄지손가락이 위 화면을 가리지 않아요!</span>
+        <span className="text-[11px] font-medium text-white/85">한 번 터치에 1층씩 정확히 쌓입니다</span>
       </button>
 
       <div className="bg-white/90 backdrop-blur-md p-4 rounded-2xl border border-white space-y-2">
@@ -2465,7 +2459,6 @@ export default function App() {
                 </button>
               </div>
 
-              {/* 미니게임 3종 진입 배너 */}
               <div
                 onClick={() => setActiveTab('game')}
                 className="cursor-pointer rounded-2xl p-4 bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 text-white shadow-md hover:shadow-lg transition flex items-center justify-between"
