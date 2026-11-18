@@ -6,7 +6,7 @@ import {
   ChevronRight, ChevronLeft, X, CheckCircle2, XCircle, Sparkles, Lock,
   Sun, UserPlus, Trash2, Edit3, BarChart3, AlertTriangle,
   Download, Award, Send, Camera, Phone, Cake, Globe, Loader2, Settings,
-  Gamepad2, Trophy, RotateCcw, Clock, ShieldCheck, Users
+  Gamepad2, Trophy, RotateCcw, Clock, ShieldCheck, Users, Gift
 } from 'lucide-react';
 
 // ==========================================
@@ -110,7 +110,7 @@ const SEASONS = {
 };
 
 // ==========================================
-// 3. 오늘의 말씀 150선 (성경 구절 + 청소년부 맞춤 묵상 메시지)
+// 3. 오늘의 말씀 150선
 // ==========================================
 const DAILY_VERSES = [
   { verse: "너희도 성령 안에서 하나님이 거하실 처소가 되기 위하여 그리스도 예수 안에서 함께 지어져 가느니라", ref: "에베소서 2:22", note: "우리 청소년부 한 사람 한 사람이 모여 아름다운 하나님의 집을 이루어 갑니다." },
@@ -320,6 +320,14 @@ const INITIAL_PUBLIC_DATA = {
   },
   gameRanking: [],
   runnerRanking: [],
+  // 깜짝 간식 당첨 이벤트 설정
+  luckyEvent: {
+    active: false,
+    prizeName: '빙그레 바나나우유 🍌',
+    maxWinners: 3,
+    winChance: 20, // % (1~100)
+    winners: []    // [{ name: '중2 이주원', time: '2026-11-18 16:20' }]
+  },
   monthlyBirthdays: {
     month: 11,
     list: [
@@ -346,6 +354,11 @@ const INITIAL_PRIVATE_DATA = {
 const getTodayStr = () => {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+};
+
+const getNowTimeStr = () => {
+  const now = new Date();
+  return `${now.getMonth() + 1}/${now.getDate()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 };
 
 const getLatestSundayStr = () => {
@@ -846,7 +859,7 @@ function MergePuzzleGame({ rankings, onSaveScore }) {
 }
 
 // ==========================================
-// 6-B. 게임 2: 영상 스타일 '숫자 분할·합체 러너' (터치 분할 / 장애물 회피 / 2배 성장)
+// 6-B. 게임 2: 속도 가속·연속 장애물 강화형 '숫자 분할 러너'
 // ==========================================
 const getCubePalette = (val) => {
   if (val <= 2) return { bg: '#38bdf8', border: '#0284c7', text: '#ffffff' };
@@ -865,27 +878,30 @@ function NumberSplitRunnerGame({ rankings, onSaveScore }) {
   const canvasRef = useRef(null);
   const [displayNum, setDisplayNum] = useState(4);
   const [bestNum, setBestNum] = useState(4);
+  const [speedStage, setSpeedStage] = useState(1);
   const [gameOver, setGameOver] = useState(false);
   const [playerName, setPlayerName] = useState('');
   const [scoreSaved, setScoreSaved] = useState(false);
 
   const WIDTH = 320;
   const HEIGHT = 420;
-  const LANES = [64, 160, 256]; // 좌(0), 중(1), 우(2) 3레인 중심 X좌표
+  const LANES = [64, 160, 256];
   const PLAYER_Y = 345;
 
   const runnerRef = useRef({
     totalValue: 4,
     bestValue: 4,
     isSplit: false,
-    spread: 0, // 0(중앙 합체) ~ 1(좌우 분할)
-    speed: 3.1,
+    spread: 0,
+    speed: 3.3,
     roadOffset: 0,
     spawnTimer: 0,
     waveCount: 0,
-    items: [], // { id, lane, y, type: 'cube'|'spike'|'x2', value, hit }
+    comboCount: 0,
+    items: [],
     gameOver: false,
     flashText: '',
+    flashColor: '#059669',
     flashTimer: 0,
     idCounter: 1
   });
@@ -896,18 +912,21 @@ function NumberSplitRunnerGame({ rankings, onSaveScore }) {
       bestValue: 4,
       isSplit: false,
       spread: 0,
-      speed: 3.1,
+      speed: 3.3,
       roadOffset: 0,
-      spawnTimer: 20,
+      spawnTimer: 18,
       waveCount: 0,
+      comboCount: 0,
       items: [],
       gameOver: false,
       flashText: '',
+      flashColor: '#059669',
       flashTimer: 0,
       idCounter: 1
     };
     setDisplayNum(4);
     setBestNum(4);
+    setSpeedStage(1);
     setGameOver(false);
     setScoreSaved(false);
   };
@@ -919,13 +938,11 @@ function NumberSplitRunnerGame({ rankings, onSaveScore }) {
     const drawRoundedCube = (ctx, cx, cy, size, label, palette) => {
       const half = size / 2;
       ctx.save();
-      // 그림자
       ctx.fillStyle = 'rgba(15, 23, 42, 0.16)';
       ctx.beginPath();
       ctx.roundRect(cx - half + 2, cy - half + 5, size, size, 10);
       ctx.fill();
 
-      // 본체
       ctx.fillStyle = palette.bg;
       ctx.strokeStyle = palette.border;
       ctx.lineWidth = 2.5;
@@ -934,9 +951,8 @@ function NumberSplitRunnerGame({ rankings, onSaveScore }) {
       ctx.fill();
       ctx.stroke();
 
-      // 숫자 텍스트
       ctx.fillStyle = palette.text;
-      const fontSize = String(label).length >= 4 ? 12 : String(label).length === 3 ? 14 : 17;
+      const fontSize = String(label).length >= 5 ? 11 : String(label).length >= 4 ? 12 : String(label).length === 3 ? 14 : 17;
       ctx.font = `900 ${fontSize}px sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
@@ -951,7 +967,7 @@ function NumberSplitRunnerGame({ rankings, onSaveScore }) {
       ctx.lineWidth = 2.5;
       ctx.beginPath();
       const spikes = 8;
-      const outerR = 21;
+      const outerR = 22;
       const innerR = 11;
       for (let i = 0; i < spikes * 2; i++) {
         const r = i % 2 === 0 ? outerR : innerR;
@@ -973,33 +989,45 @@ function NumberSplitRunnerGame({ rankings, onSaveScore }) {
       ctx.restore();
     };
 
-    const spawnWave = (st) => {
+    // 다채로운 무작위 + 기습 연속 장애물 웨이브 생성기
+    const spawnDynamicWave = (st) => {
       st.waveCount += 1;
       const halfVal = Math.max(2, Math.floor(st.totalValue / 2));
-      const pattern = st.waveCount % 4;
+      const doubleVal = st.totalValue * 2;
+      const roll = Math.random();
 
-      if (pattern === 1) {
-        // 패턴 1: 양쪽 레인에 절반 숫자 배치 (터치해서 갈라지면 둘 다 먹어서 2배 성장!)
+      if (st.waveCount >= 5 && roll < 0.22) {
+        // [기습 2연타 연속 패턴] 중앙 장애물 직후 양쪽 장애물 (누르고 있다가 재빠르게 떼야 통과!)
+        st.items.push({ id: st.idCounter++, lane: 1, y: -30, type: 'spike', value: 0, hit: false });
         st.items.push({ id: st.idCounter++, lane: 0, y: -30, type: 'cube', value: halfVal, hit: false });
         st.items.push({ id: st.idCounter++, lane: 2, y: -30, type: 'cube', value: halfVal, hit: false });
-      } else if (pattern === 2) {
-        // 패턴 2: 중앙 장애물 + 양쪽 숫자 또는 안전 통로 (터치해서 피해야 함)
+
+        st.items.push({ id: st.idCounter++, lane: 0, y: -145, type: 'spike', value: 0, hit: false });
+        st.items.push({ id: st.idCounter++, lane: 2, y: -145, type: 'spike', value: 0, hit: false });
+        st.items.push({ id: st.idCounter++, lane: 1, y: -145, type: 'cube', value: doubleVal, hit: false });
+        return 75;
+      } else if (roll < 0.44) {
+        // [패턴 A] 중앙 장애물 + 양쪽 절반 숫자 (터치해서 갈라져야 생존 & 2배 합체)
         st.items.push({ id: st.idCounter++, lane: 1, y: -30, type: 'spike', value: 0, hit: false });
-        if (Math.random() > 0.35) {
-          st.items.push({ id: st.idCounter++, lane: 0, y: -30, type: 'cube', value: halfVal, hit: false });
-          st.items.push({ id: st.idCounter++, lane: 2, y: -30, type: 'cube', value: halfVal, hit: false });
-        }
-      } else if (pattern === 3) {
-        // 패턴 3: 중앙에 현재 전체 숫자와 같은 큐브 배치 (손을 떼고 합친 상태로 먹어야 2배!)
-        st.items.push({ id: st.idCounter++, lane: 1, y: -30, type: 'cube', value: st.totalValue, hit: false });
+        st.items.push({ id: st.idCounter++, lane: 0, y: -30, type: 'cube', value: halfVal, hit: false });
+        st.items.push({ id: st.idCounter++, lane: 2, y: -30, type: 'cube', value: halfVal, hit: false });
+      } else if (roll < 0.66) {
+        // [패턴 B] 양쪽 장애물 + 중앙 같은 숫자 (손을 떼고 합체 상태로 받아먹어야 함)
         st.items.push({ id: st.idCounter++, lane: 0, y: -30, type: 'spike', value: 0, hit: false });
         st.items.push({ id: st.idCounter++, lane: 2, y: -30, type: 'spike', value: 0, hit: false });
+        st.items.push({ id: st.idCounter++, lane: 1, y: -30, type: 'cube', value: st.totalValue, hit: false });
+      } else if (roll < 0.84) {
+        // [패턴 C] 함정 숫자 섞인 선택지 (중앙에 더 큰 함정 숫자, 양쪽에 정답 절반 숫자)
+        st.items.push({ id: st.idCounter++, lane: 1, y: -30, type: 'cube', value: doubleVal, hit: false });
+        st.items.push({ id: st.idCounter++, lane: 0, y: -30, type: 'cube', value: halfVal, hit: false });
+        st.items.push({ id: st.idCounter++, lane: 2, y: -30, type: 'cube', value: halfVal, hit: false });
       } else {
-        // 패턴 4: 양쪽 장애물 + 중앙 보너스(×2) 또는 같은 숫자
+        // [패턴 D] 양쪽 톱니 장애물 + 중앙 ×2 잭팟 아이템
         st.items.push({ id: st.idCounter++, lane: 0, y: -30, type: 'spike', value: 0, hit: false });
         st.items.push({ id: st.idCounter++, lane: 2, y: -30, type: 'spike', value: 0, hit: false });
         st.items.push({ id: st.idCounter++, lane: 1, y: -30, type: 'x2', value: 2, hit: false });
       }
+      return 0;
     };
 
     const loop = () => {
@@ -1009,22 +1037,24 @@ function NumberSplitRunnerGame({ rankings, onSaveScore }) {
       const ctx = canvas.getContext('2d');
 
       if (!st.gameOver) {
-        // 점진적 속도 상승
-        st.speed = Math.min(5.6, 3.1 + Math.log2(Math.max(4, st.bestValue)) * 0.18);
+        // 웨이브가 진행될수록 체감 속도가 확실하게 빨라짐 (3.3 -> 최대 8.2)
+        const targetSpeed = Math.min(8.2, 3.3 + st.waveCount * 0.14);
+        st.speed = targetSpeed;
+        const nextStage = Math.min(5, Math.floor((st.speed - 3.3) / 1.0) + 1);
+        setSpeedStage((prev) => (prev !== nextStage ? nextStage : prev));
+
         st.roadOffset = (st.roadOffset + st.speed) % 40;
 
-        // 분할/합체 애니메이션 보간
         const targetSpread = st.isSplit && st.totalValue >= 4 ? 1 : 0;
-        st.spread += (targetSpread - st.spread) * 0.25;
+        st.spread += (targetSpread - st.spread) * 0.28;
 
-        // 웨이브 생성
         st.spawnTimer -= 1;
         if (st.spawnTimer <= 0) {
-          spawnWave(st);
-          st.spawnTimer = Math.max(48, Math.round(210 / st.speed));
+          const extraDelay = spawnDynamicWave(st);
+          const baseInterval = Math.max(34, Math.round(185 / st.speed));
+          st.spawnTimer = baseInterval + Math.round(extraDelay / st.speed);
         }
 
-        // 내 큐브 위치 계산
         const activeCubes =
           st.spread > 0.35
             ? [
@@ -1033,7 +1063,6 @@ function NumberSplitRunnerGame({ rankings, onSaveScore }) {
               ]
             : [{ x: LANES[1], val: st.totalValue, size: 46 }];
 
-        // 아이템 이동 및 충돌 판정
         for (let item of st.items) {
           item.y += st.speed;
           if (item.hit) continue;
@@ -1047,23 +1076,30 @@ function NumberSplitRunnerGame({ rankings, onSaveScore }) {
                 if (item.type === 'cube') {
                   if (item.value === pc.val) {
                     st.totalValue += item.value;
-                    st.flashText = `합체! ${st.totalValue}`;
+                    st.comboCount += 1;
+                    st.flashText = st.comboCount >= 2 ? `${st.comboCount} COMBO! ${st.totalValue}` : `합체! ${st.totalValue}`;
+                    st.flashColor = '#059669';
                     st.flashTimer = 30;
                   } else if (item.value < pc.val) {
                     st.totalValue += item.value;
                   } else {
-                    // 나보다 큰 숫자에 부딪히면 절반 감소
                     st.totalValue = Math.floor(st.totalValue / 2);
-                    st.flashText = '숫자 감소!';
-                    st.flashTimer = 30;
+                    st.comboCount = 0;
+                    st.flashText = '큰 숫자 충돌! 절반 감소';
+                    st.flashColor = '#e11d48';
+                    st.flashTimer = 32;
                   }
                 } else if (item.type === 'x2') {
                   st.totalValue *= 2;
-                  st.flashText = `×2 대박! ${st.totalValue}`;
+                  st.comboCount += 1;
+                  st.flashText = `×2 부스터! ${st.totalValue}`;
+                  st.flashColor = '#0284c7';
                   st.flashTimer = 35;
                 } else if (item.type === 'spike') {
                   st.totalValue = Math.floor(st.totalValue / 2);
-                  st.flashText = '장애물 충돌! 절반 감소';
+                  st.comboCount = 0;
+                  st.flashText = '톱니 충돌! 절반 감소';
+                  st.flashColor = '#e11d48';
                   st.flashTimer = 35;
                 }
 
@@ -1084,16 +1120,14 @@ function NumberSplitRunnerGame({ rankings, onSaveScore }) {
           }
         }
 
-        st.items = st.items.filter((it) => it.y < HEIGHT + 50 && !it.hit);
+        st.items = st.items.filter((it) => it.y < HEIGHT + 60 && !it.hit);
         if (st.flashTimer > 0) st.flashTimer -= 1;
       }
 
-      // 배경 트랙 그리기
       ctx.clearRect(0, 0, WIDTH, HEIGHT);
       ctx.fillStyle = '#f8fafc';
       ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-      // 3레인 가이드 선
       ctx.save();
       ctx.strokeStyle = '#cbd5e1';
       ctx.lineWidth = 2;
@@ -1107,7 +1141,6 @@ function NumberSplitRunnerGame({ rankings, onSaveScore }) {
       });
       ctx.restore();
 
-      // 장애물 및 아이템 그리기
       for (let item of st.items) {
         const ix = LANES[item.lane];
         if (item.type === 'cube') {
@@ -1119,7 +1152,6 @@ function NumberSplitRunnerGame({ rankings, onSaveScore }) {
         }
       }
 
-      // 플레이어 큐브 그리기 (합체 상태 vs 좌우 분할 상태)
       if (!st.gameOver) {
         if (st.spread > 0.25 && st.totalValue >= 4) {
           const halfVal = Math.floor(st.totalValue / 2);
@@ -1133,10 +1165,9 @@ function NumberSplitRunnerGame({ rankings, onSaveScore }) {
         }
       }
 
-      // 효과 텍스트 표시
       if (st.flashTimer > 0 && st.flashText) {
         ctx.save();
-        ctx.fillStyle = st.flashText.includes('충돌') || st.flashText.includes('감소') ? '#e11d48' : '#059669';
+        ctx.fillStyle = st.flashColor;
         ctx.font = '900 14px sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText(st.flashText, WIDTH / 2, PLAYER_Y - 46);
@@ -1172,7 +1203,12 @@ function NumberSplitRunnerGame({ rankings, onSaveScore }) {
     <div className="space-y-3">
       <div className="bg-indigo-950 text-white p-3.5 rounded-2xl flex items-center justify-between shadow-md">
         <div>
-          <div className="text-[10px] text-sky-300 font-bold">현재 숫자 · 최고 달성</div>
+          <div className="text-[10px] text-sky-300 font-bold flex items-center gap-1.5">
+            <span>현재 숫자 · 최고 달성</span>
+            <span className="px-1.5 py-0.5 rounded bg-rose-500/30 text-rose-200 text-[9px]">
+              속도 Lv.{speedStage}
+            </span>
+          </div>
           <div className="text-xl font-extrabold">
             {displayNum.toLocaleString()} <span className="text-xs font-semibold text-amber-300">(최고 {bestNum.toLocaleString()})</span>
           </div>
@@ -1186,7 +1222,7 @@ function NumberSplitRunnerGame({ rankings, onSaveScore }) {
       </div>
 
       <div className="bg-sky-50 border border-sky-200/80 px-3 py-2 rounded-xl text-[11px] text-sky-900 font-semibold text-center">
-        👆 화면을 <b>누르고 있으면 절반 분할</b> · <b>손을 떼면 중앙 합체!</b>
+        👆 화면을 <b>누르면 절반 분할</b> · <b>떼면 중앙 합체!</b> (갈수록 빨라집니다)
       </div>
 
       <div className="relative bg-white rounded-3xl border-2 border-slate-200 shadow-inner overflow-hidden flex justify-center select-none">
@@ -1289,7 +1325,6 @@ function MiniGameCenter({ puzzleRankings, runnerRankings, onSavePuzzle, onSaveRu
         </span>
       </div>
 
-      {/* 게임 2종 전환 탭 */}
       <div className="grid grid-cols-2 gap-2 bg-white/85 backdrop-blur-md p-1.5 rounded-2xl border border-white shadow-2xs">
         <button
           onClick={() => setSelectedGame('puzzle')}
@@ -1333,6 +1368,17 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('home');
   const [showVersePopup, setShowVersePopup] = useState(false);
 
+  // 깜짝 간식 당첨 팝업 상태
+  const [showLuckyWinPopup, setShowLuckyWinPopup] = useState(false);
+  const [luckyWinnerInput, setLuckyWinnerInput] = useState('');
+  const [luckyClaimed, setLuckyClaimed] = useState(false);
+  const luckyCheckedRef = useRef(false);
+
+  // 관리자 깜짝 이벤트 설정 입력 상태
+  const [eventPrizeInput, setEventPrizeInput] = useState('빙그레 바나나우유 🍌');
+  const [eventMaxInput, setEventMaxInput] = useState(3);
+  const [eventChanceInput, setEventChanceInput] = useState(20);
+
   const [pinModalRole, setPinModalRole] = useState(null);
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState(false);
@@ -1372,6 +1418,7 @@ export default function App() {
     const unsubscribe = onSnapshot(PUBLIC_DOC_REF, async (snapshot) => {
       if (snapshot.exists()) {
         const raw = snapshot.data();
+        const mergedLucky = raw.luckyEvent ?? INITIAL_PUBLIC_DATA.luckyEvent;
         setPublicData((prev) => ({
           ...prev,
           season: raw.season ?? prev.season,
@@ -1382,8 +1429,12 @@ export default function App() {
           quiz: raw.quiz ?? prev.quiz,
           gameRanking: raw.gameRanking ?? prev.gameRanking,
           runnerRanking: raw.runnerRanking ?? prev.runnerRanking,
+          luckyEvent: mergedLucky,
           monthlyBirthdays: raw.monthlyBirthdays ?? prev.monthlyBirthdays
         }));
+        setEventPrizeInput(mergedLucky.prizeName || '빙그레 바나나우유 🍌');
+        setEventMaxInput(mergedLucky.maxWinners || 3);
+        setEventChanceInput(mergedLucky.winChance || 20);
       } else {
         await setDoc(PUBLIC_DOC_REF, INITIAL_PUBLIC_DATA);
       }
@@ -1394,6 +1445,29 @@ export default function App() {
     });
     return () => unsubscribe();
   }, []);
+
+  // 깜짝 간식 랜덤 추첨 (앱 로드 후 1회 실행, 하루 1기기 1회 기회 제한)
+  useEffect(() => {
+    if (!isLoaded || luckyCheckedRef.current) return;
+    luckyCheckedRef.current = true;
+
+    const ev = publicData.luckyEvent;
+    if (!ev || !ev.active) return;
+
+    const currentWinners = Array.isArray(ev.winners) ? ev.winners : [];
+    const remaining = (ev.maxWinners || 0) - currentWinners.length;
+    if (remaining <= 0) return;
+
+    const today = getTodayStr();
+    const checkedKey = `onyang_lucky_checked_${today}`;
+    if (localStorage.getItem(checkedKey) === 'done') return;
+
+    localStorage.setItem(checkedKey, 'done');
+    const chance = Math.min(100, Math.max(1, Number(ev.winChance) || 20));
+    if (Math.random() * 100 < chance) {
+      setShowLuckyWinPopup(true);
+    }
+  }, [isLoaded, publicData.luckyEvent]);
 
   useEffect(() => {
     if (!authRoles.admin) return;
@@ -1455,7 +1529,6 @@ export default function App() {
     }
   }, []);
 
-  // 연중 날짜(1~365일째) 계산하여 150개 말씀이 약 5개월 동안 매일 새롭게 순환
   const todayVerse = useMemo(() => {
     const now = new Date();
     const startOfYear = new Date(now.getFullYear(), 0, 0);
@@ -1479,6 +1552,58 @@ export default function App() {
     const keys = Object.keys(SEASONS);
     const nextIdx = (keys.indexOf(publicData.season) + 1) % keys.length;
     syncPublicData({ season: keys[nextIdx] });
+  };
+
+  // 깜짝 간식 당첨자 등록
+  const handleClaimLuckyPrize = async (e) => {
+    e.preventDefault();
+    if (!luckyWinnerInput.trim()) return;
+    const ev = publicData.luckyEvent || INITIAL_PUBLIC_DATA.luckyEvent;
+    const prevWinners = Array.isArray(ev.winners) ? ev.winners : [];
+    const nextWinners = [
+      ...prevWinners,
+      { name: luckyWinnerInput.trim(), time: getNowTimeStr() }
+    ];
+    const isSoldOut = nextWinners.length >= (ev.maxWinners || 1);
+    await syncPublicData({
+      luckyEvent: {
+        ...ev,
+        winners: nextWinners,
+        active: isSoldOut ? false : ev.active
+      }
+    });
+    setLuckyClaimed(true);
+  };
+
+  // 관리자: 깜짝 간식 이벤트 저장 & 시작/종료
+  const handleSaveLuckyEvent = async (toggleActive) => {
+    const ev = publicData.luckyEvent || INITIAL_PUBLIC_DATA.luckyEvent;
+    const nextActive = typeof toggleActive === 'boolean' ? toggleActive : ev.active;
+    await syncPublicData({
+      luckyEvent: {
+        ...ev,
+        active: nextActive,
+        prizeName: eventPrizeInput.trim() || '빙그레 바나나우유 🍌',
+        maxWinners: Math.max(1, Number(eventMaxInput) || 1),
+        winChance: Math.min(100, Math.max(1, Number(eventChanceInput) || 20))
+      }
+    });
+    alert(nextActive ? "깜짝 간식 이벤트가 시작되었습니다!" : "이벤트 설정이 저장/종료되었습니다.");
+  };
+
+  const handleResetLuckyWinners = async () => {
+    if (!window.confirm("당첨자 명단을 초기화하고 새로 이벤트를 시작할까요?")) return;
+    const ev = publicData.luckyEvent || INITIAL_PUBLIC_DATA.luckyEvent;
+    await syncPublicData({
+      luckyEvent: {
+        ...ev,
+        active: true,
+        prizeName: eventPrizeInput.trim() || '빙그레 바나나우유 🍌',
+        maxWinners: Math.max(1, Number(eventMaxInput) || 1),
+        winChance: Math.min(100, Math.max(1, Number(eventChanceInput) || 20)),
+        winners: []
+      }
+    });
   };
 
   const handleSavePuzzleScore = (name, newScore) => {
@@ -1832,6 +1957,10 @@ export default function App() {
       ? publicData.monthlyBirthdays
       : { month: currentMonthNum, list: [] };
 
+  const luckyEv = publicData.luckyEvent || INITIAL_PUBLIC_DATA.luckyEvent;
+  const luckyWinners = Array.isArray(luckyEv.winners) ? luckyEv.winners : [];
+  const luckyRemaining = Math.max(0, (luckyEv.maxWinners || 0) - luckyWinners.length);
+
   return (
     <div className={`min-h-screen ${currentSeason.outerBg} transition-colors duration-700 flex justify-center relative`}>
       <style>{`
@@ -2052,7 +2181,6 @@ export default function App() {
                 </button>
               </div>
 
-              {/* 미니게임 2종 진입 배너 */}
               <div
                 onClick={() => setActiveTab('game')}
                 className="cursor-pointer rounded-2xl p-4 bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 text-white shadow-md hover:shadow-lg transition flex items-center justify-between"
@@ -2844,8 +2972,106 @@ export default function App() {
                 </div>
               )}
 
+              {/* (D) 콘텐츠 & 깜짝 간식 이벤트 관리 */}
               {adminTab === 'content' && (
                 <div className="space-y-4">
+                  {/* 깜짝 간식 당첨 이벤트 제어 카드 */}
+                  <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 space-y-3 shadow-2xs">
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm font-extrabold text-amber-950 flex items-center gap-1.5">
+                        <Gift className="w-4 h-4 text-amber-600" /> 깜짝 간식 당첨 이벤트
+                      </div>
+                      <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full ${
+                        luckyEv.active && luckyRemaining > 0
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-slate-300 text-slate-700'
+                      }`}>
+                        {luckyEv.active && luckyRemaining > 0 ? `진행 중 (남은 수량 ${luckyRemaining}명)` : '종료/대기'}
+                      </span>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div>
+                        <label className="block text-[11px] font-bold text-amber-900 mb-1">당첨 간식 이름</label>
+                        <input
+                          type="text"
+                          value={eventPrizeInput}
+                          onChange={(e) => setEventPrizeInput(e.target.value)}
+                          placeholder="예: 빙그레 바나나우유 🍌"
+                          className="w-full px-3 py-2 rounded-xl border border-amber-200 bg-white text-xs font-bold"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[11px] font-bold text-amber-900 mb-1">총 당첨 인원 (명)</label>
+                          <input
+                            type="number"
+                            min={1}
+                            max={50}
+                            value={eventMaxInput}
+                            onChange={(e) => setEventMaxInput(e.target.value)}
+                            className="w-full px-3 py-2 rounded-xl border border-amber-200 bg-white text-xs font-bold"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-bold text-amber-900 mb-1">접속 당첨 확률 (%)</label>
+                          <input
+                            type="number"
+                            min={1}
+                            max={100}
+                            value={eventChanceInput}
+                            onChange={(e) => setEventChanceInput(e.target.value)}
+                            className="w-full px-3 py-2 rounded-xl border border-amber-200 bg-white text-xs font-bold"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleSaveLuckyEvent(true)}
+                        className="py-2.5 rounded-xl bg-amber-500 text-white text-xs font-extrabold hover:bg-amber-600"
+                      >
+                        🎉 이벤트 켜기 / 설정저장
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSaveLuckyEvent(false)}
+                        className="py-2.5 rounded-xl bg-white border border-amber-300 text-amber-900 text-xs font-bold hover:bg-amber-100/50"
+                      >
+                        이벤트 끄기
+                      </button>
+                    </div>
+
+                    {/* 당첨자 명단 확인 */}
+                    <div className="pt-2 border-t border-amber-200/80 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-extrabold text-amber-950">
+                          당첨자 명단 ({luckyWinners.length}/{luckyEv.maxWinners || 0}명)
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleResetLuckyWinners}
+                          className="text-[10px] font-bold text-rose-600 underline"
+                        >
+                          명단 초기화 & 재시작
+                        </button>
+                      </div>
+                      {luckyWinners.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {luckyWinners.map((w, i) => (
+                            <span key={i} className="px-2.5 py-1 rounded-lg bg-white border border-amber-200 text-xs font-bold text-slate-800">
+                              🎁 {w.name} <span className="text-[10px] text-slate-400">({w.time})</span>
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-amber-800/80">아직 당첨된 학생이 없습니다.</p>
+                      )}
+                    </div>
+                  </div>
+
                   <div className="p-4 rounded-2xl bg-white/95 border border-white space-y-2">
                     <div className="text-xs font-extrabold text-slate-700">빠른 콘텐츠 편집 바로가기</div>
                     <div className="grid grid-cols-3 gap-2">
@@ -3031,7 +3257,7 @@ export default function App() {
           </div>
         </footer>
 
-        {/* 팝업 1: 매일 아침 오늘의 말씀 (150개 순환) */}
+        {/* 팝업 1: 매일 아침 오늘의 말씀 */}
         {showVersePopup && (
           <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
             <div className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl space-y-4 relative">
@@ -3073,7 +3299,69 @@ export default function App() {
           </div>
         )}
 
-        {/* 팝업 2: 역할별 비밀번호 인증 */}
+        {/* 팝업 2: 깜짝 간식 당첨 축하 팝업 */}
+        {showLuckyWinPopup && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="w-full max-w-sm bg-gradient-to-b from-amber-50 to-white rounded-3xl p-6 shadow-2xl border-2 border-amber-300 space-y-4 text-center relative">
+              <button
+                onClick={() => setShowLuckyWinPopup(false)}
+                className="absolute top-4 right-4 p-1.5 rounded-full bg-amber-100 text-amber-700"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              <div className="w-14 h-14 rounded-2xl bg-amber-400 text-white flex items-center justify-center mx-auto shadow-md text-3xl">
+                🎁
+              </div>
+
+              <div>
+                <span className="inline-block px-3 py-0.5 rounded-full bg-rose-500 text-white text-[11px] font-extrabold mb-1.5">
+                  SURPRISE EVENT!
+                </span>
+                <h3 className="text-xl font-black text-slate-900">축하합니다! 깜짝 당첨 🎉</h3>
+                <p className="text-base font-extrabold text-amber-700 mt-1">{luckyEv.prizeName}</p>
+              </div>
+
+              {!luckyClaimed ? (
+                <form onSubmit={handleClaimLuckyPrize} className="space-y-2.5">
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    목사님이 기프티콘을 보내드릴 수 있도록<br />
+                    <b>학년과 이름</b>을 지금 바로 입력해 주세요!
+                  </p>
+                  <input
+                    type="text"
+                    required
+                    placeholder="예: 중2 이주원"
+                    value={luckyWinnerInput}
+                    onChange={(e) => setLuckyWinnerInput(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-amber-300 text-sm text-center font-bold bg-white focus:outline-none focus:border-amber-500"
+                  />
+                  <button
+                    type="submit"
+                    className="w-full py-3 rounded-xl bg-amber-500 text-white text-xs font-extrabold hover:bg-amber-600 shadow-sm"
+                  >
+                    당첨 명단에 이름 등록하기!
+                  </button>
+                </form>
+              ) : (
+                <div className="space-y-3">
+                  <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs font-bold text-emerald-800">
+                    ✨ {luckyWinnerInput} 친구 당첨 등록 완료!<br />
+                    목사님 확인 후 간식을 보내드릴게요!
+                  </div>
+                  <button
+                    onClick={() => setShowLuckyWinPopup(false)}
+                    className="w-full py-2.5 rounded-xl bg-slate-900 text-white text-xs font-bold"
+                  >
+                    확인
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* 팝업 3: 역할별 비밀번호 인증 */}
         {pinModalRole && (
           <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
             <form onSubmit={handlePinSubmit} className="w-full max-w-xs bg-white rounded-3xl p-6 shadow-2xl space-y-4 text-center">
@@ -3118,7 +3406,7 @@ export default function App() {
           </div>
         )}
 
-        {/* 팝업 3: 사진첩 크게 보기 */}
+        {/* 팝업 4: 사진첩 크게 보기 */}
         {selectedPhoto && (
           <div className="fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4" onClick={() => setSelectedPhoto(null)}>
             <div className="w-full max-w-sm bg-white rounded-3xl overflow-hidden shadow-2xl" onClick={(e) => e.stopPropagation()}>
