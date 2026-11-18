@@ -50,7 +50,7 @@ const SEASONS = {
     badgeBg: 'bg-emerald-950/30 text-emerald-50 border-emerald-200/40',
     accentText: 'text-emerald-700',
     accentBg: 'bg-emerald-600',
-    effect: 'leaf' // 초록 나뭇잎 낙하
+    effect: null
   },
   advent: {
     name: '대림절',
