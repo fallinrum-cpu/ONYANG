@@ -60,7 +60,7 @@ const SEASONS = {
     badgeBg: 'bg-purple-950/30 text-purple-100 border-purple-200/40',
     accentText: 'text-purple-700',
     accentBg: 'bg-purple-700',
-    effect: 'snow' // 눈송이 낙하
+    effect: 'snow'
   },
   christmas: {
     name: '성탄절',
@@ -70,7 +70,7 @@ const SEASONS = {
     badgeBg: 'bg-red-950/35 text-rose-50 border-amber-200/50',
     accentText: 'text-red-600',
     accentBg: 'bg-red-600',
-    effect: 'snow' // 눈송이 낙하
+    effect: 'snow'
   },
   epiphany: {
     name: '주현절',
@@ -100,7 +100,7 @@ const SEASONS = {
     badgeBg: 'bg-orange-950/30 text-orange-50 border-orange-200/40',
     accentText: 'text-orange-700',
     accentBg: 'bg-orange-600',
-    effect: 'dove' // 비둘기 낙하
+    effect: 'dove'
   }
 };
 
@@ -194,7 +194,7 @@ const getLatestSundayStr = () => {
 };
 
 // ==========================================
-// 4. 절기별 낙하 이펙트 오버레이 (눈송이 / 초록 나뭇잎 / 비둘기)
+// 4. 절기별 낙하 이펙트 오버레이 (눈송이 / 비둘기)
 // ==========================================
 function SeasonEffectOverlay({ type }) {
   const particles = useMemo(() => {
@@ -206,7 +206,7 @@ function SeasonEffectOverlay({ type }) {
       duration: `${6 + (i % 5) * 1.5}s`,
       delay: `${(i % 7) * 0.8}s`,
       opacity: 0.7 + (i % 3) * 0.1,
-      char: type === 'leaf' ? (i % 2 === 0 ? '🍃' : '🌿') : type === 'dove' ? '🕊️' : '❄️'
+      char: type === 'dove' ? '🕊️' : '❄️'
     }));
   }, [type]);
 
@@ -249,7 +249,7 @@ function SeasonEffectOverlay({ type }) {
 }
 
 // ==========================================
-// 5. 수박 게임 스타일 '함께 지어져 가는 합체 퍼즐' (바닥 사라짐 버그 수정 완료)
+// 5. 수박 게임 스타일 '함께 지어져 가는 합체 퍼즐'
 // ==========================================
 function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
   const canvasRef = useRef(null);
@@ -259,7 +259,6 @@ function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
   const [playerName, setPlayerName] = useState('');
   const [scoreSaved, setScoreSaved] = useState(false);
 
-  // 마우스/터치 X 좌표를 Ref로 관리하여 렌더링 리셋 방지
   const dropXRef = useRef(160);
 
   const gameState = useRef({
@@ -324,21 +323,14 @@ function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
         const damping = 0.35;
         const friction = 0.94;
 
-        // 1. 중력 이동 및 벽·바닥 정착
         for (let b of state.balls) {
           b.vy += gravity;
           b.vx *= friction;
           b.x += b.vx;
           b.y += b.vy;
 
-          if (b.x - b.r < 0) {
-            b.x = b.r;
-            b.vx = -b.vx * damping;
-          }
-          if (b.x + b.r > WIDTH) {
-            b.x = WIDTH - b.r;
-            b.vx = -b.vx * damping;
-          }
+          if (b.x - b.r < 0) { b.x = b.r; b.vx = -b.vx * damping; }
+          if (b.x + b.r > WIDTH) { b.x = WIDTH - b.r; b.vx = -b.vx * damping; }
           if (b.y + b.r >= HEIGHT) {
             b.y = HEIGHT - b.r;
             b.vy = -b.vy * damping;
@@ -346,7 +338,6 @@ function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
           }
         }
 
-        // 2. 공끼리 물리 충돌 및 같은 단계 합체 (여러 번 반복해 안정적 적층)
         let mergedIds = new Set();
         let newBalls = [];
 
@@ -389,7 +380,6 @@ function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
                   b2.x += nx * overlap;
                   b2.y += ny * overlap;
 
-                  // 바닥 밖으로 밀려나지 않도록 보정
                   if (b1.y + b1.r > HEIGHT) b1.y = HEIGHT - b1.r;
                   if (b2.y + b2.r > HEIGHT) b2.y = HEIGHT - b2.r;
                   if (b1.x - b1.r < 0) b1.x = b1.r;
@@ -417,7 +407,6 @@ function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
           state.balls = state.balls.filter((b) => !mergedIds.has(b.id)).concat(newBalls);
         }
 
-        // 3. 상단 위험선 초과 체크
         for (let b of state.balls) {
           if (Math.abs(b.vy) < 0.5 && Math.abs(b.vx) < 0.5) {
             b.settledFrames = (b.settledFrames || 0) + 1;
@@ -432,10 +421,8 @@ function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
         }
       }
 
-      // 4. 캔버스 그리기
       ctx.clearRect(0, 0, WIDTH, HEIGHT);
 
-      // 위험선 점선
       ctx.save();
       ctx.strokeStyle = '#f43f5e';
       ctx.lineWidth = 1.5;
@@ -446,7 +433,6 @@ function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
       ctx.stroke();
       ctx.restore();
 
-      // 대기 중인 아이템 가이드
       if (!state.gameOver && state.canDrop) {
         const curSpec = MERGE_LEVELS[state.nextLevel];
         const currentX = dropXRef.current;
@@ -463,7 +449,6 @@ function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
         drawBall(ctx, currentX, 32, curSpec);
       }
 
-      // 쌓인 아이템 렌더링
       for (let b of state.balls) {
         drawBall(ctx, b.x, b.y, MERGE_LEVELS[b.level]);
       }
@@ -731,8 +716,14 @@ export default function App() {
   };
 
   const currentSeason = SEASONS[data.season] || SEASONS.creation;
+  const canChangeSeason = authRoles.admin || authRoles.officer;
 
-  const cycleSeason = () => {
+  // 절기 변경: 교역자/교사(1234) 또는 임원(3333)만 변경 가능
+  const handleSeasonClick = () => {
+    if (!canChangeSeason) {
+      setPinModalRole('season');
+      return;
+    }
     const keys = Object.keys(SEASONS);
     const nextIdx = (keys.indexOf(data.season) + 1) % keys.length;
     syncDataToCloud({ season: keys[nextIdx] });
@@ -771,6 +762,14 @@ export default function App() {
       setPinError(false);
       setIsEditingOrder(true);
       setIsEditingCalendar(true);
+    } else if (pinModalRole === 'season' && (pinInput === CHURCH_LINKS.officerPin || isMaster)) {
+      setAuthRoles((prev) => ({ ...prev, officer: true }));
+      setPinModalRole(null);
+      setPinInput('');
+      setPinError(false);
+      const keys = Object.keys(SEASONS);
+      const nextIdx = (keys.indexOf(data.season) + 1) % keys.length;
+      syncDataToCloud({ season: keys[nextIdx] });
     } else {
       setPinError(true);
     }
@@ -995,7 +994,7 @@ export default function App() {
     return { totalCount, thisMonthRate, monthlyRates, consecutiveAbsentees };
   }, [data.classes, data.attendanceRecords]);
 
-  // 업그레이드된 엑셀(CSV) 다운로드
+  // 엑셀(CSV) 다운로드
   const downloadCSV = () => {
     const allStudents = Object.values(data.classes).flatMap(c => c.students.map(s => ({ ...s, grade: c.grade })));
     const dates = Object.keys(data.attendanceRecords).sort();
@@ -1070,7 +1069,7 @@ export default function App() {
         }
       `}</style>
 
-      {/* 절기별 낙하 이펙트 (창조절: 초록 나뭇잎 / 대림절·성탄절: 눈 / 성령강림절: 비둘기) */}
+      {/* 절기별 낙하 이펙트 (대림절·성탄절: 눈 / 성령강림절: 비둘기) */}
       <SeasonEffectOverlay type={currentSeason.effect} />
 
       <div className={`w-full max-w-md min-h-screen bg-gradient-to-b ${currentSeason.pageBg} transition-all duration-700 shadow-xl flex flex-col justify-between relative overflow-x-hidden`}>
@@ -1104,18 +1103,18 @@ export default function App() {
           {/* ========================================== */}
           {activeTab === 'home' && (
             <>
-              {/* 생동감 넘치는 진한 절기 그라데이션 표어 배너 */}
+              {/* 절기 그라데이션 표어 배너 */}
               <div className={`rounded-3xl p-5 text-white bg-gradient-to-br ${currentSeason.bannerGradient} shadow-lg relative overflow-hidden transition-all duration-500`}>
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-xs">
                     2026 청소년부 표어
                   </span>
                   <button
-                    onClick={cycleSeason}
-                    title="클릭하여 교회력 절기 색상 변경"
-                    className={`text-[11px] font-bold px-2.5 py-1 rounded-full border backdrop-blur-xs transition ${currentSeason.badgeBg}`}
+                    onClick={handleSeasonClick}
+                    title={canChangeSeason ? "클릭하여 교회력 절기 변경" : "교역자·교사·임원 전용 절기 설정"}
+                    className={`text-[11px] font-bold px-3 py-1 rounded-full border backdrop-blur-xs transition ${currentSeason.badgeBg}`}
                   >
-                    절기: {currentSeason.name} ↻
+                    {currentSeason.name}
                   </button>
                 </div>
 
@@ -1920,7 +1919,7 @@ export default function App() {
                 </div>
               )}
 
-              {/* (C) 출석 통계 & 업그레이드 엑셀 다운로드 */}
+              {/* (C) 출석 통계 & 엑셀 다운로드 */}
               {adminTab === 'stats' && (
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-3">
@@ -2001,7 +2000,6 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* 사진첩 업로드 */}
                   <form onSubmit={handlePhotoUpload} className="p-4 rounded-2xl bg-white/95 border border-white space-y-3">
                     <div className="text-sm font-extrabold text-slate-900 flex items-center gap-1.5">
                       <Camera className="w-4 h-4 text-rose-500" /> 활동 사진첩 새 사진 올리기
@@ -2037,7 +2035,6 @@ export default function App() {
                     </button>
                   </form>
 
-                  {/* 주간 설교 퀴즈 출제 */}
                   <form onSubmit={handlePublishNewQuiz} className="p-4 rounded-2xl bg-white/95 border border-white space-y-3">
                     <div className="text-sm font-extrabold text-slate-900 flex items-center gap-1.5">
                       <Award className="w-4 h-4 text-amber-500" /> 새 주간 설교 퀴즈 출제
@@ -2100,14 +2097,13 @@ export default function App() {
                     </button>
                   </form>
 
-                  {/* 미니게임 랭킹 초기화 버튼 */}
                   <div className="p-4 rounded-2xl bg-white/95 border border-white flex items-center justify-between">
                     <span className="text-xs font-bold text-slate-700">미니게임 최고 기록 초기화</span>
                     <button
                       type="button"
                       onClick={() => {
                         if (window.confirm("미니게임 랭킹을 초기화할까요?")) {
-                          syncDataToCloud({ gameRanking: INITIAL_DATA.gameRanking });
+                          syncDataToCloud({ gameRanking: [] });
                         }
                       }}
                       className="px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200"
@@ -2121,7 +2117,7 @@ export default function App() {
           )}
         </main>
 
-        {/* 하단 푸터: 큼직한 원형 로고 3개 */}
+        {/* 하단 푸터 */}
         <footer className="bg-white/80 backdrop-blur-md border-t border-slate-200/60 px-4 py-5 text-center space-y-3.5">
           <div className="flex items-center justify-center gap-5">
             <a
@@ -2218,7 +2214,7 @@ export default function App() {
                 <h3 className="font-extrabold text-slate-900 text-base">
                   {pinModalRole === 'admin' && '교사·교역자 전용 인증'}
                   {pinModalRole === 'praise' && '찬양팀 학생 전용 인증'}
-                  {pinModalRole === 'officer' && '청소년부 임원 전용 인증'}
+                  {(pinModalRole === 'officer' || pinModalRole === 'season') && '교역자·임원 전용 인증'}
                 </h3>
                 <p className="text-xs text-slate-500 mt-1">담당 비밀번호 4자리를 입력하세요.</p>
               </div>
