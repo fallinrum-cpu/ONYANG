@@ -5,7 +5,7 @@ import {
   Music, Calendar, BookOpen, Image as ImageIcon, Heart, Youtube, Instagram,
   ChevronRight, ChevronLeft, X, CheckCircle2, XCircle, Sparkles, Lock,
   Sun, UserPlus, Trash2, Edit3, BarChart3, AlertTriangle,
-  Download, Plus, Award, Send, Camera, Phone, Cake, Globe, Loader2, Settings
+  Download, Award, Send, Camera, Phone, Cake, Globe, Loader2, Settings
 } from 'lucide-react';
 
 // ==========================================
@@ -28,48 +28,72 @@ const CHURCH_LINKS = {
   homepage: "https://www.oych.org/",
   youtube: "https://www.youtube.com/@oychurch",
   instagram: "https://www.instagram.com/do_bbyyyyyyyyy?exln=N2hwc2FjZ2NsYjI4",
-  // 역할별 비밀번호 (원하시는 4자리 숫자로 변경 가능)
-  adminPin: "1234",    // 목사님 & 선생님 전용 (전체 관리)
-  praisePin: "2222",   // 찬양팀 학생 전용 (찬양 리스트 수정)
-  officerPin: "3333"   // 학생 임원 전용 (기도/성경봉독/월력 수정)
+  adminPin: "1234",    // 목사님 & 선생님 전용
+  praisePin: "2222",   // 찬양팀 학생 전용
+  officerPin: "3333"   // 학생 임원 전용
 };
 
-// Firebase 초기화
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const STATE_DOC_REF = doc(db, "onyang_youth", "main_data");
 
 // ==========================================
-// 2. 절기 컬러 & 기본 초기 데이터
+// 2. 교회력 6대 절기 (전체 배경 그라데이션 + 심플 카드 테마)
 // ==========================================
 const SEASONS = {
   creation: {
     name: '창조절',
-    gradient: 'from-emerald-600 via-teal-600 to-green-700',
-    badgeBg: 'bg-emerald-900/30 text-emerald-50 border-emerald-300/30',
+    pageBg: 'from-emerald-100/90 via-teal-50 to-lime-100/80',
+    outerBg: 'bg-emerald-50/60',
+    cardBorder: 'border-emerald-200/80',
+    badgeBg: 'bg-emerald-100 text-emerald-800 border-emerald-200',
     accentText: 'text-emerald-700',
     accentBg: 'bg-emerald-600'
   },
   advent: {
-    name: '대림절 / 사순절',
-    gradient: 'from-purple-700 via-indigo-700 to-violet-800',
-    badgeBg: 'bg-purple-950/30 text-purple-100 border-purple-300/30',
+    name: '대림절',
+    pageBg: 'from-purple-100/90 via-indigo-50 to-violet-100/80',
+    outerBg: 'bg-purple-50/60',
+    cardBorder: 'border-purple-200/80',
+    badgeBg: 'bg-purple-100 text-purple-800 border-purple-200',
     accentText: 'text-purple-700',
     accentBg: 'bg-purple-700'
   },
+  christmas: {
+    name: '성탄절',
+    pageBg: 'from-amber-100/90 via-yellow-50/90 to-orange-100/70',
+    outerBg: 'bg-amber-50/60',
+    cardBorder: 'border-amber-200/90',
+    badgeBg: 'bg-amber-100 text-amber-900 border-amber-200',
+    accentText: 'text-amber-700',
+    accentBg: 'bg-amber-500'
+  },
+  epiphany: {
+    name: '주현절',
+    pageBg: 'from-teal-100/90 via-cyan-50 to-emerald-100/80',
+    outerBg: 'bg-teal-50/60',
+    cardBorder: 'border-teal-200/80',
+    badgeBg: 'bg-teal-100 text-teal-800 border-teal-200',
+    accentText: 'text-teal-700',
+    accentBg: 'bg-teal-600'
+  },
+  lent: {
+    name: '사순절',
+    pageBg: 'from-fuchsia-100/80 via-purple-50 to-rose-100/70',
+    outerBg: 'bg-fuchsia-50/50',
+    cardBorder: 'border-fuchsia-200/80',
+    badgeBg: 'bg-fuchsia-100 text-fuchsia-900 border-fuchsia-200',
+    accentText: 'text-fuchsia-800',
+    accentBg: 'bg-fuchsia-700'
+  },
   pentecost: {
     name: '성령강림절',
-    gradient: 'from-rose-600 via-red-600 to-orange-700',
-    badgeBg: 'bg-red-950/30 text-red-50 border-red-300/30',
+    pageBg: 'from-rose-100/90 via-orange-50 to-amber-100/80',
+    outerBg: 'bg-rose-50/60',
+    cardBorder: 'border-rose-200/80',
+    badgeBg: 'bg-rose-100 text-rose-800 border-rose-200',
     accentText: 'text-rose-600',
     accentBg: 'bg-rose-600'
-  },
-  easter: {
-    name: '부활절 / 성탄절',
-    gradient: 'from-amber-500 via-yellow-600 to-orange-500',
-    badgeBg: 'bg-amber-950/25 text-amber-50 border-amber-200/40',
-    accentText: 'text-amber-700',
-    accentBg: 'bg-amber-600'
   }
 };
 
@@ -86,10 +110,9 @@ const DAILY_VERSES = [
 const INITIAL_DATA = {
   season: 'creation',
   praises: [
-    { id: 1, title: '그 크신 하나님의 사랑', artist: '제이어스 (J-US)', key: 'G Key', url: 'https://www.youtube.com/results?search_query=그+크신+하나님의+사랑+제이어스' },
-    { id: 2, title: '예수 늘 함께 하시네', artist: '마커스워십', key: 'E Key', url: 'https://www.youtube.com/results?search_query=예수+늘+함께+하시네+마커스' },
-    { id: 3, title: '주의 은혜라', artist: 'Welove (위러브)', key: 'A Key', url: 'https://www.youtube.com/results?search_query=주의+은혜라+위러브' },
-    { id: 4, title: '함께 지어져 가네', artist: '어노인팅', key: 'C Key', url: 'https://www.youtube.com/results?search_query=함께+지어져+가네+찬양' }
+    { id: 1, title: '함께 지어져 가네', artist: '청소년부 찬양팀', key: '이번 달 찬양', url: 'https://www.youtube.com/watch?v=TtH4qHWdTto&list=RDTtH4qHWdTto&start_radio=1' },
+    { id: 2, title: '우리가 의지하는 주의 사랑', artist: '청소년부 찬양팀', key: '이번 달 찬양', url: 'https://www.youtube.com/watch?v=IEBTRN-txPU&list=RDIEBTRN-txPU&start_radio=1' },
+    { id: 3, title: '영접송', artist: '청소년부 찬양팀', key: '이번 달 찬양', url: 'https://www.youtube.com/watch?v=W1uussHIX9o&list=RDW1uussHIX9o&start_radio=1' }
   ],
   calendar: [
     { week: '1주차', date: '11월 1일', title: '성찬 주일 & 말씀 묵상 나눔', desc: '예배 후 반별 소그룹 말씀 나눔 및 생일자 축하' },
@@ -151,13 +174,13 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('home');
   const [showVersePopup, setShowVersePopup] = useState(false);
 
-  // 역할별 인증 상태 ('admin' | 'praise' | 'officer' | null)
+  // 역할별 인증 상태
   const [pinModalRole, setPinModalRole] = useState(null);
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState(false);
   const [authRoles, setAuthRoles] = useState({ admin: false, praise: false, officer: false });
 
-  // 편집 모드 토글 (찬양팀용, 임원용)
+  // 편집 모드 토글
   const [isEditingPraise, setIsEditingPraise] = useState(false);
   const [isEditingOrder, setIsEditingOrder] = useState(false);
   const [isEditingCalendar, setIsEditingCalendar] = useState(false);
@@ -221,7 +244,6 @@ export default function App() {
     }
   };
 
-  // 매일 아침 오늘의 말씀 팝업
   useEffect(() => {
     const today = getTodayStr();
     if (localStorage.getItem('onyang_verse_hidden_date') !== today) {
@@ -246,7 +268,7 @@ export default function App() {
     syncDataToCloud({ season: keys[nextIdx] });
   };
 
-  // 역할별 PIN 확인 (목사님/선생님 PIN '1234'는 모든 권한 통과)
+  // 역할별 PIN 확인
   const handlePinSubmit = (e) => {
     e.preventDefault();
     const isMaster = pinInput === CHURCH_LINKS.adminPin;
@@ -275,7 +297,7 @@ export default function App() {
     }
   };
 
-  // 찬양 추가 / 삭제 (찬양팀 & 관리자)
+  // 찬양 추가 / 삭제 / 기본 3곡 초기화
   const handleAddSong = (e) => {
     e.preventDefault();
     if (!newSong.title.trim()) return;
@@ -294,20 +316,21 @@ export default function App() {
     syncDataToCloud({ praises: data.praises.filter((s) => s.id !== songId) });
   };
 
-  // 예배 순서(성경봉독/기도) 수정 (임원 & 관리자)
+  const handleResetPraises = () => {
+    if (!window.confirm("찬양 목록을 새로 등록하신 3곡으로 초기화할까요?")) return;
+    syncDataToCloud({ praises: INITIAL_DATA.praises });
+  };
+
+  // 예배 순서 & 일정 수정
   const handleOrderChange = (weekKey, field, val) => {
     syncDataToCloud({
       worshipOrder: {
         ...data.worshipOrder,
-        [weekKey]: {
-          ...data.worshipOrder[weekKey],
-          [field]: val
-        }
+        [weekKey]: { ...data.worshipOrder[weekKey], [field]: val }
       }
     });
   };
 
-  // 월력 수정 (임원 & 관리자)
   const handleCalendarChange = (idx, field, val) => {
     const updated = data.calendar.map((item, i) => (i === idx ? { ...item, [field]: val } : item));
     syncDataToCloud({ calendar: updated });
@@ -493,21 +516,43 @@ export default function App() {
     return { totalCount, thisMonthRate, monthlyRates, consecutiveAbsentees };
   }, [data.classes, data.attendanceRecords]);
 
+  // 업그레이드된 엑셀(CSV) 다운로드: 총 출석일, 총 결석일, 출석률(%) 자동 합산 포함
   const downloadCSV = () => {
     const allStudents = Object.values(data.classes).flatMap(c => c.students.map(s => ({ ...s, grade: c.grade })));
     const dates = Object.keys(data.attendanceRecords).sort();
-    let csv = '\uFEFF학년,이름,생일,연락처,' + dates.join(',') + '\n';
+    let csv = '\uFEFF학년,이름,생일,연락처,총 출석일,총 결석일,출석률(%),' + dates.join(',') + '\n';
+
     allStudents.forEach(stu => {
+      let presentCount = 0;
+      let absentCount = 0;
+      const dateCols = dates.map(d => {
+        const rec = data.attendanceRecords[d]?.[stu.id];
+        if (!rec) return '-';
+        if (rec.status === 'present') {
+          presentCount++;
+          return '출석';
+        } else {
+          absentCount++;
+          return `결석(${rec.reason || '사유없음'})`;
+        }
+      });
+
+      const totalRecorded = presentCount + absentCount;
+      const rate = totalRecorded > 0 ? Math.round((presentCount / totalRecorded) * 100) + '%' : '0%';
+
       const row = [
-        stu.grade, stu.name, stu.birth, stu.phone,
-        ...dates.map(d => {
-          const rec = data.attendanceRecords[d]?.[stu.id];
-          if (!rec) return '-';
-          return rec.status === 'present' ? '출석' : `결석(${rec.reason || '사유없음'})`;
-        })
+        stu.grade,
+        stu.name,
+        stu.birth,
+        stu.phone,
+        `${presentCount}회`,
+        `${absentCount}회`,
+        rate,
+        ...dateCols
       ];
       csv += row.join(',') + '\n';
     });
+
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
@@ -519,13 +564,13 @@ export default function App() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 text-slate-600 gap-3">
         <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
-        <p className="text-sm font-medium">온양장로교회 청소년부 앱을 불러오는 중...</p>
+        <p className="text-sm font-medium">온양 청소년부 앱을 불러오는 중...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 flex justify-center">
+    <div className={`min-h-screen ${currentSeason.outerBg} transition-colors duration-700 flex justify-center`}>
       <style>{`
         @keyframes marqueeScroll {
           0% { transform: translateX(0%); }
@@ -541,23 +586,24 @@ export default function App() {
         }
       `}</style>
 
-      <div className="w-full max-w-md bg-white min-h-screen shadow-xl flex flex-col justify-between relative overflow-x-hidden">
+      {/* 전체 앱 프레임: 절기에 따라 전체 배경 그라데이션이 은은하고 화사하게 변경됨 */}
+      <div className={`w-full max-w-md min-h-screen bg-gradient-to-b ${currentSeason.pageBg} transition-all duration-700 shadow-xl flex flex-col justify-between relative overflow-x-hidden`}>
         
         {/* 상단 고정 헤더 */}
-        <header className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-slate-100 px-4 py-3 flex items-center justify-between">
+        <header className="sticky top-0 z-30 bg-white/75 backdrop-blur-md border-b border-white/60 px-4 py-3 flex items-center justify-between">
           <button
             onClick={() => { setActiveTab('home'); setSelectedClassId(null); }}
             className="flex items-center gap-2 text-left"
           >
-            <div className={`w-2.5 h-2.5 rounded-full ${currentSeason.accentBg}`} />
-            <span className="text-sm font-bold tracking-tight text-slate-800">
-              한국기독교장로회 온양장로교회
+            <div className={`w-2.5 h-2.5 rounded-full ${currentSeason.accentBg} transition-colors duration-500`} />
+            <span className="text-xs sm:text-sm font-bold tracking-tight text-slate-800">
+              온양 청소년부에 오신 걸 환영합니다
             </span>
           </button>
 
           <button
             onClick={() => setShowVersePopup(true)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200/70 text-xs font-semibold hover:bg-amber-100 transition"
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-white/90 text-amber-800 border border-amber-200/80 text-xs font-semibold shadow-2xs hover:bg-amber-50 transition shrink-0"
           >
             <Sun className="w-3.5 h-3.5 text-amber-500" />
             <span>오늘의 말씀</span>
@@ -565,40 +611,40 @@ export default function App() {
         </header>
 
         {/* 메인 콘텐츠 영역 */}
-        <main className="flex-1 p-4 space-y-5 pb-10">
+        <main className="flex-1 p-4 space-y-4 pb-10">
           
           {/* ========================================== */}
           {/* HOME 화면 */}
           {/* ========================================== */}
           {activeTab === 'home' && (
             <>
-              {/* 절기 메인 배너 ('함께 지어져 가는 청소년부' 한 줄 배치) */}
-              <div className={`rounded-3xl p-5 text-white bg-gradient-to-br ${currentSeason.gradient} shadow-lg relative overflow-hidden`}>
+              {/* 심플한 표어 카드 (전체 배경색과 조화를 이루는 깔끔한 글래스 박스) */}
+              <div className={`rounded-3xl p-5 bg-white/85 backdrop-blur-md border ${currentSeason.cardBorder} shadow-sm transition-all duration-500`}>
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-white/15 backdrop-blur-sm">
+                  <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600">
                     2026 청소년부 표어
                   </span>
                   <button
                     onClick={cycleSeason}
-                    title="클릭하여 교회력 절기 색상 변경"
-                    className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border backdrop-blur-sm transition ${currentSeason.badgeBg}`}
+                    title="클릭하여 교회력 절기 배경 변경"
+                    className={`text-[11px] font-bold px-2.5 py-1 rounded-full border transition ${currentSeason.badgeBg}`}
                   >
                     절기: {currentSeason.name} ↻
                   </button>
                 </div>
 
-                <h1 className="text-[22px] sm:text-2xl font-extrabold tracking-tight whitespace-nowrap mb-1.5">
+                <h1 className="text-[22px] sm:text-2xl font-extrabold tracking-tight text-slate-900 whitespace-nowrap mb-1.5">
                   함께 지어져 가는 청소년부
                 </h1>
-                <p className="text-xs text-white/85 leading-relaxed">
+                <p className={`text-xs font-medium ${currentSeason.accentText}`}>
                   "그리스도 예수 안에서 함께 지어져 가느니라" (엡 2:22)
                 </p>
               </div>
 
               {/* 이번 주 주일 예배 순서 요약 카드 */}
-              <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200/70">
+              <div className="bg-white/85 backdrop-blur-md rounded-2xl p-4 border border-white/80 shadow-2xs">
                 <div className="flex items-center justify-between mb-2.5">
-                  <span className="text-xs font-bold text-slate-500 flex items-center gap-1.5">
+                  <span className="text-xs font-bold text-slate-600 flex items-center gap-1.5">
                     <BookOpen className={`w-3.5 h-3.5 ${currentSeason.accentText}`} />
                     이번 주일 예배 섬김이
                   </span>
@@ -610,21 +656,21 @@ export default function App() {
                   </button>
                 </div>
                 <div className="grid grid-cols-2 gap-2.5">
-                  <div className="bg-white p-3 rounded-xl border border-slate-100">
+                  <div className="bg-slate-50/90 p-3 rounded-xl border border-slate-100">
                     <div className="text-[11px] text-slate-400 mb-0.5">대표기도</div>
                     <div className="text-sm font-bold text-slate-800">{data.worshipOrder.thisWeek.prayer}</div>
                   </div>
-                  <div className="bg-white p-3 rounded-xl border border-slate-100">
+                  <div className="bg-slate-50/90 p-3 rounded-xl border border-slate-100">
                     <div className="text-[11px] text-slate-400 mb-0.5">성경봉독 ({data.worshipOrder.thisWeek.passage})</div>
                     <div className="text-sm font-bold text-slate-800">{data.worshipOrder.thisWeek.scripture}</div>
                   </div>
                 </div>
               </div>
 
-              {/* 주간 설교 말씀 퀴즈 ('도전하기 →' 문구 변경 반영) */}
+              {/* 주간 설교 말씀 퀴즈 ('도전하기 →') */}
               <div
                 onClick={() => { setActiveTab('quiz'); setQuizSubmitted(false); }}
-                className="cursor-pointer rounded-2xl bg-gradient-to-r from-slate-800 to-slate-900 text-white p-4 shadow-md hover:shadow-lg transition"
+                className="cursor-pointer rounded-2xl bg-slate-900/95 backdrop-blur-md text-white p-4 shadow-md hover:shadow-lg transition"
               >
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
@@ -664,11 +710,11 @@ export default function App() {
                 </div>
               </div>
 
-              {/* 4대 핵심 메뉴 그리드 */}
+              {/* 4대 핵심 메뉴 그리드 ('이번 달 청소년부' 반영) */}
               <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={() => setActiveTab('praise')}
-                  className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-100 text-left hover:bg-emerald-50 transition group"
+                  className="p-4 rounded-2xl bg-white/85 backdrop-blur-md border border-white/80 text-left hover:bg-white transition shadow-2xs group"
                 >
                   <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center mb-3 group-hover:scale-105 transition">
                     <Music className="w-5 h-5" />
@@ -679,18 +725,18 @@ export default function App() {
 
                 <button
                   onClick={() => setActiveTab('calendar')}
-                  className="p-4 rounded-2xl bg-sky-50/70 border border-sky-100 text-left hover:bg-sky-50 transition group"
+                  className="p-4 rounded-2xl bg-white/85 backdrop-blur-md border border-white/80 text-left hover:bg-white transition shadow-2xs group"
                 >
                   <div className="w-10 h-10 rounded-xl bg-sky-600 text-white flex items-center justify-center mb-3 group-hover:scale-105 transition">
                     <Calendar className="w-5 h-5" />
                   </div>
-                  <div className="font-bold text-slate-800 text-sm">청소년부 월력</div>
+                  <div className="font-bold text-slate-800 text-sm">이번 달 청소년부</div>
                   <div className="text-xs text-slate-500 mt-0.5">주차별 예배 및 행사 안내</div>
                 </button>
 
                 <button
                   onClick={() => setActiveTab('order')}
-                  className="p-4 rounded-2xl bg-amber-50/70 border border-amber-100 text-left hover:bg-amber-50 transition group"
+                  className="p-4 rounded-2xl bg-white/85 backdrop-blur-md border border-white/80 text-left hover:bg-white transition shadow-2xs group"
                 >
                   <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center mb-3 group-hover:scale-105 transition">
                     <BookOpen className="w-5 h-5" />
@@ -701,7 +747,7 @@ export default function App() {
 
                 <button
                   onClick={() => setActiveTab('photo')}
-                  className="p-4 rounded-2xl bg-rose-50/70 border border-rose-100 text-left hover:bg-rose-50 transition group"
+                  className="p-4 rounded-2xl bg-white/85 backdrop-blur-md border border-white/80 text-left hover:bg-white transition shadow-2xs group"
                 >
                   <div className="w-10 h-10 rounded-xl bg-rose-500 text-white flex items-center justify-center mb-3 group-hover:scale-105 transition">
                     <ImageIcon className="w-5 h-5" />
@@ -714,12 +760,12 @@ export default function App() {
           )}
 
           {/* ========================================== */}
-          {/* 1. 이번 달 찬양 화면 (찬양팀 학생 전용 편집 기능 포함) */}
+          {/* 1. 이번 달 찬양 화면 */}
           {/* ========================================== */}
           {activeTab === 'praise' && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <button onClick={() => { setActiveTab('home'); setIsEditingPraise(false); }} className="flex items-center gap-1 text-xs font-bold text-slate-500">
+                <button onClick={() => { setActiveTab('home'); setIsEditingPraise(false); }} className="flex items-center gap-1 text-xs font-bold text-slate-600 bg-white/80 px-3 py-1.5 rounded-full">
                   <ChevronLeft className="w-4 h-4" /> 홈으로
                 </button>
                 <button
@@ -730,26 +776,34 @@ export default function App() {
                       setPinModalRole('praise');
                     }
                   }}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold"
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-white text-emerald-700 border border-emerald-200 text-xs font-bold shadow-2xs"
                 >
                   <Settings className="w-3.5 h-3.5" />
                   {isEditingPraise ? '편집 완료' : '찬양팀 관리'}
                 </button>
               </div>
 
-              <div>
+              <div className="bg-white/85 backdrop-blur-md p-4 rounded-2xl border border-white/80">
                 <h2 className="text-xl font-extrabold text-slate-900">이번 달 찬양 리스트</h2>
                 <p className="text-xs text-slate-500 mt-1">찬양을 누르면 유튜브 영상으로 바로 연결됩니다.</p>
               </div>
 
-              {/* 찬양팀 인증 후 곡 추가 폼 */}
               {isEditingPraise && (
-                <form onSubmit={handleAddSong} className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-2.5">
-                  <div className="text-xs font-extrabold text-emerald-900">+ 새 찬양 추가하기 (찬양팀 전용)</div>
+                <form onSubmit={handleAddSong} className="p-4 rounded-2xl bg-white/95 border border-emerald-200 space-y-2.5 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-extrabold text-emerald-900">+ 새 찬양 추가하기</span>
+                    <button
+                      type="button"
+                      onClick={handleResetPraises}
+                      className="text-[11px] text-slate-500 underline"
+                    >
+                      기본 3곡으로 불러오기
+                    </button>
+                  </div>
                   <input
                     type="text"
                     required
-                    placeholder="찬양 제목 (예: 예수 늘 함께 하시네)"
+                    placeholder="찬양 제목"
                     value={newSong.title}
                     onChange={(e) => setNewSong({ ...newSong, title: e.target.value })}
                     className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white"
@@ -757,7 +811,7 @@ export default function App() {
                   <div className="grid grid-cols-2 gap-2">
                     <input
                       type="text"
-                      placeholder="찬양팀/가수 (예: 마커스)"
+                      placeholder="찬양팀/가수"
                       value={newSong.artist}
                       onChange={(e) => setNewSong({ ...newSong, artist: e.target.value })}
                       className="px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white"
@@ -772,7 +826,7 @@ export default function App() {
                   </div>
                   <input
                     type="url"
-                    placeholder="유튜브 링크 (비워두면 자동 검색 연결)"
+                    placeholder="유튜브 링크 (선택)"
                     value={newSong.url}
                     onChange={(e) => setNewSong({ ...newSong, url: e.target.value })}
                     className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white"
@@ -787,7 +841,7 @@ export default function App() {
                 {data.praises.map((song, idx) => (
                   <div
                     key={song.id}
-                    className="flex items-center justify-between p-4 rounded-2xl bg-white border border-slate-200 hover:border-emerald-400 transition"
+                    className="flex items-center justify-between p-4 rounded-2xl bg-white/90 backdrop-blur-md border border-white/80 shadow-2xs"
                   >
                     <a
                       href={song.url}
@@ -829,12 +883,12 @@ export default function App() {
           )}
 
           {/* ========================================== */}
-          {/* 2. 청소년부 월력 화면 (임원/관리자 수정 가능) */}
+          {/* 2. 이번 달 청소년부 (월력) 화면 */}
           {/* ========================================== */}
           {activeTab === 'calendar' && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <button onClick={() => { setActiveTab('home'); setIsEditingCalendar(false); }} className="flex items-center gap-1 text-xs font-bold text-slate-500">
+                <button onClick={() => { setActiveTab('home'); setIsEditingCalendar(false); }} className="flex items-center gap-1 text-xs font-bold text-slate-600 bg-white/80 px-3 py-1.5 rounded-full">
                   <ChevronLeft className="w-4 h-4" /> 홈으로
                 </button>
                 <button
@@ -845,21 +899,21 @@ export default function App() {
                       setPinModalRole('officer');
                     }
                   }}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-sky-50 text-sky-700 border border-sky-200 text-xs font-bold"
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-white text-sky-700 border border-sky-200 text-xs font-bold shadow-2xs"
                 >
                   <Edit3 className="w-3.5 h-3.5" />
                   {isEditingCalendar ? '수정 완료' : '임원 수정'}
                 </button>
               </div>
 
-              <div>
-                <h2 className="text-xl font-extrabold text-slate-900">청소년부 월력</h2>
+              <div className="bg-white/85 backdrop-blur-md p-4 rounded-2xl border border-white/80">
+                <h2 className="text-xl font-extrabold text-slate-900">이번 달 청소년부</h2>
                 <p className="text-xs text-slate-500 mt-1">주별 특별 프로그램과 예배 일정을 확인하세요.</p>
               </div>
 
               <div className="space-y-3">
                 {data.calendar.map((item, idx) => (
-                  <div key={idx} className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
+                  <div key={idx} className="p-4 rounded-2xl bg-white/90 backdrop-blur-md border border-white/80 space-y-2 shadow-2xs">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-sky-100 text-sky-800">
                         {item.week}
@@ -904,12 +958,12 @@ export default function App() {
           )}
 
           {/* ========================================== */}
-          {/* 3. 성경봉독 / 기도자 화면 (임원 학생 전용 수정 기능 포함) */}
+          {/* 3. 성경봉독 / 기도자 화면 */}
           {/* ========================================== */}
           {activeTab === 'order' && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <button onClick={() => { setActiveTab('home'); setIsEditingOrder(false); }} className="flex items-center gap-1 text-xs font-bold text-slate-500">
+                <button onClick={() => { setActiveTab('home'); setIsEditingOrder(false); }} className="flex items-center gap-1 text-xs font-bold text-slate-600 bg-white/80 px-3 py-1.5 rounded-full">
                   <ChevronLeft className="w-4 h-4" /> 홈으로
                 </button>
                 <button
@@ -920,14 +974,16 @@ export default function App() {
                       setPinModalRole('officer');
                     }
                   }}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 text-amber-800 border border-amber-200 text-xs font-bold"
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-white text-amber-800 border border-amber-200 text-xs font-bold shadow-2xs"
                 >
                   <Edit3 className="w-3.5 h-3.5" />
                   {isEditingOrder ? '수정 완료' : '임원 수정'}
                 </button>
               </div>
 
-              <h2 className="text-xl font-extrabold text-slate-900">성경봉독 및 대표기도</h2>
+              <div className="bg-white/85 backdrop-blur-md p-4 rounded-2xl border border-white/80">
+                <h2 className="text-xl font-extrabold text-slate-900">성경봉독 및 대표기도</h2>
+              </div>
 
               {['thisWeek', 'nextWeek'].map((wk) => {
                 const isThis = wk === 'thisWeek';
@@ -935,14 +991,12 @@ export default function App() {
                 return (
                   <div
                     key={wk}
-                    className={`p-4 rounded-2xl border space-y-3 ${
-                      isThis ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-200'
-                    }`}
+                    className="p-4 rounded-2xl bg-white/90 backdrop-blur-md border border-white/80 space-y-3 shadow-2xs"
                   >
-                    <div className={`text-xs font-extrabold ${isThis ? 'text-emerald-800' : 'text-slate-600'}`}>
+                    <div className={`text-xs font-extrabold ${isThis ? currentSeason.accentText : 'text-slate-500'}`}>
                       {isThis ? '이번 주일 예배 순서' : '다음 주일 예고'}
                     </div>
-                    <div className="bg-white p-3.5 rounded-xl space-y-2.5 text-sm">
+                    <div className="bg-slate-50/80 p-3.5 rounded-xl space-y-2.5 text-sm">
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-slate-500 shrink-0">대표기도</span>
                         {isEditingOrder ? (
@@ -950,7 +1004,7 @@ export default function App() {
                             type="text"
                             value={orderObj.prayer}
                             onChange={(e) => handleOrderChange(wk, 'prayer', e.target.value)}
-                            className="text-right font-bold text-xs px-2.5 py-1.5 rounded-lg border border-slate-300 w-40"
+                            className="text-right font-bold text-xs px-2.5 py-1.5 rounded-lg border border-slate-300 w-40 bg-white"
                           />
                         ) : (
                           <span className="font-bold text-slate-900">{orderObj.prayer}</span>
@@ -963,7 +1017,7 @@ export default function App() {
                             type="text"
                             value={orderObj.scripture}
                             onChange={(e) => handleOrderChange(wk, 'scripture', e.target.value)}
-                            className="text-right font-bold text-xs px-2.5 py-1.5 rounded-lg border border-slate-300 w-40"
+                            className="text-right font-bold text-xs px-2.5 py-1.5 rounded-lg border border-slate-300 w-40 bg-white"
                           />
                         ) : (
                           <span className="font-bold text-slate-900">{orderObj.scripture}</span>
@@ -976,10 +1030,10 @@ export default function App() {
                             type="text"
                             value={orderObj.passage}
                             onChange={(e) => handleOrderChange(wk, 'passage', e.target.value)}
-                            className="text-right font-bold text-xs px-2.5 py-1.5 rounded-lg border border-slate-300 w-40"
+                            className="text-right font-bold text-xs px-2.5 py-1.5 rounded-lg border border-slate-300 w-40 bg-white"
                           />
                         ) : (
-                          <span className={`font-bold ${isThis ? 'text-emerald-700' : 'text-slate-700'}`}>
+                          <span className={`font-bold ${isThis ? currentSeason.accentText : 'text-slate-700'}`}>
                             {orderObj.passage}
                           </span>
                         )}
@@ -996,10 +1050,10 @@ export default function App() {
           {/* ========================================== */}
           {activeTab === 'photo' && (
             <div className="space-y-4">
-              <button onClick={() => setActiveTab('home')} className="flex items-center gap-1 text-xs font-bold text-slate-500">
+              <button onClick={() => setActiveTab('home')} className="flex items-center gap-1 text-xs font-bold text-slate-600 bg-white/80 px-3 py-1.5 rounded-full">
                 <ChevronLeft className="w-4 h-4" /> 홈으로 돌아가기
               </button>
-              <div>
+              <div className="bg-white/85 backdrop-blur-md p-4 rounded-2xl border border-white/80">
                 <h2 className="text-xl font-extrabold text-slate-900">청소년부 사진첩</h2>
                 <p className="text-xs text-slate-500 mt-1">사진을 누르면 크게 볼 수 있습니다.</p>
               </div>
@@ -1008,7 +1062,7 @@ export default function App() {
                   <div
                     key={photo.id}
                     onClick={() => setSelectedPhoto(photo)}
-                    className="cursor-pointer rounded-2xl overflow-hidden border border-slate-200 bg-white shadow-sm hover:shadow-md transition"
+                    className="cursor-pointer rounded-2xl overflow-hidden border border-white/80 bg-white/95 shadow-sm hover:shadow-md transition"
                   >
                     <img src={photo.url} alt={photo.title} className="w-full h-32 object-cover" />
                     <div className="p-2.5">
@@ -1026,7 +1080,7 @@ export default function App() {
           {/* ========================================== */}
           {activeTab === 'quiz' && (
             <div className="space-y-4">
-              <button onClick={() => setActiveTab('home')} className="flex items-center gap-1 text-xs font-bold text-slate-500">
+              <button onClick={() => setActiveTab('home')} className="flex items-center gap-1 text-xs font-bold text-slate-600 bg-white/80 px-3 py-1.5 rounded-full">
                 <ChevronLeft className="w-4 h-4" /> 홈으로 돌아가기
               </button>
               <div className="p-4 rounded-2xl bg-slate-900 text-white">
@@ -1035,7 +1089,7 @@ export default function App() {
               </div>
 
               <form onSubmit={handleQuizSubmit} className="space-y-4">
-                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                <div className="p-4 rounded-2xl bg-white/90 border border-white/80">
                   <label className="block text-xs font-bold text-slate-700 mb-1.5">
                     내 학년과 이름 (명단에 올라가요!)
                   </label>
@@ -1050,7 +1104,7 @@ export default function App() {
                 </div>
 
                 {data.quiz.questions.map((item, qIdx) => (
-                  <div key={qIdx} className="p-4 rounded-2xl bg-white border border-slate-200 space-y-2.5">
+                  <div key={qIdx} className="p-4 rounded-2xl bg-white/95 border border-white/80 space-y-2.5">
                     <div className="text-sm font-bold text-slate-800">
                       Q{qIdx + 1}. {item.q}
                     </div>
@@ -1084,12 +1138,12 @@ export default function App() {
                 {!quizSubmitted ? (
                   <button
                     type="submit"
-                    className="w-full py-3.5 rounded-2xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 transition flex items-center justify-center gap-2"
+                    className="w-full py-3.5 rounded-2xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 transition flex items-center justify-center gap-2 shadow-sm"
                   >
                     <Send className="w-4 h-4" /> 정답 제출하고 명단 올리기
                   </button>
                 ) : (
-                  <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-center space-y-2">
+                  <div className="p-4 rounded-2xl bg-white/95 border border-emerald-200 text-center space-y-2">
                     <div className="text-sm font-extrabold text-emerald-800">
                       🎉 {quizStudentName} 친구, 말씀 복습 완료!
                     </div>
@@ -1108,23 +1162,23 @@ export default function App() {
           )}
 
           {/* ========================================== */}
-          {/* 6. 교사 / 목사님 전용 전체 관리자 페이지 (하단 ♥) */}
+          {/* 6. 교사 / 목사님 전용 전체 관리자 페이지 */}
           {/* ========================================== */}
           {activeTab === 'admin' && authRoles.admin && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <button
                   onClick={() => { setActiveTab('home'); setSelectedClassId(null); }}
-                  className="flex items-center gap-1 text-xs font-bold text-slate-500"
+                  className="flex items-center gap-1 text-xs font-bold text-slate-600 bg-white/80 px-3 py-1.5 rounded-full"
                 >
                   <ChevronLeft className="w-4 h-4" /> 학생 화면으로
                 </button>
-                <span className="text-xs font-bold text-rose-600 bg-rose-50 px-2.5 py-1 rounded-full">
+                <span className="text-xs font-bold text-rose-600 bg-white/90 px-2.5 py-1 rounded-full">
                   교사·교역자 전체 관리
                 </span>
               </div>
 
-              <div className="grid grid-cols-4 gap-1.5 bg-slate-100 p-1 rounded-xl">
+              <div className="grid grid-cols-4 gap-1.5 bg-white/80 backdrop-blur-md p-1 rounded-xl">
                 {[
                   { id: 'attendance', label: '출석체크' },
                   { id: 'roster', label: '명단관리' },
@@ -1135,7 +1189,7 @@ export default function App() {
                     key={t.id}
                     onClick={() => { setAdminTab(t.id); setSelectedClassId(null); }}
                     className={`py-2 rounded-lg text-xs font-bold transition ${
-                      adminTab === t.id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'
+                      adminTab === t.id ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600'
                     }`}
                   >
                     {t.label}
@@ -1147,13 +1201,13 @@ export default function App() {
               {(adminTab === 'attendance' || adminTab === 'roster') && !selectedClassId && (
                 <div className="space-y-3">
                   {adminTab === 'attendance' && (
-                    <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-between">
-                      <span className="text-xs font-bold text-emerald-900">출석 기준일 선택</span>
+                    <div className="p-3 rounded-xl bg-white/90 border border-white flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-800">출석 기준일 선택</span>
                       <input
                         type="date"
                         value={selectedDate}
                         onChange={(e) => setSelectedDate(e.target.value)}
-                        className="text-xs font-bold px-2.5 py-1.5 rounded-lg border border-emerald-300 bg-white text-slate-800"
+                        className="text-xs font-bold px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-800"
                       />
                     </div>
                   )}
@@ -1171,7 +1225,7 @@ export default function App() {
                             setTeacherNameInput(cls.teacher);
                             setEditingTeacher(false);
                           }}
-                          className="p-4 rounded-2xl bg-white border-2 border-slate-200 hover:border-emerald-500 text-center transition shadow-sm flex flex-col items-center justify-center gap-1"
+                          className="p-4 rounded-2xl bg-white/95 border border-white hover:border-emerald-500 text-center transition shadow-sm flex flex-col items-center justify-center gap-1"
                         >
                           <span className="text-lg font-extrabold text-slate-900">{cls.grade}</span>
                           <span className="text-xs font-semibold text-emerald-700">{cls.teacher}</span>
@@ -1192,7 +1246,7 @@ export default function App() {
                 <div className="space-y-3">
                   <button
                     onClick={() => setSelectedClassId(null)}
-                    className="flex items-center gap-1 text-xs font-bold text-slate-500"
+                    className="flex items-center gap-1 text-xs font-bold text-slate-600 bg-white/80 px-3 py-1.5 rounded-full"
                   >
                     <ChevronLeft className="w-4 h-4" /> 전체 학년(2×3) 목록으로
                   </button>
@@ -1206,7 +1260,7 @@ export default function App() {
                     {data.classes[selectedClassId].students.map((stu) => {
                       const rec = data.attendanceRecords[selectedDate]?.[stu.id] || { status: '', reason: '' };
                       return (
-                        <div key={stu.id} className="p-3.5 rounded-2xl bg-white border border-slate-200 space-y-2.5">
+                        <div key={stu.id} className="p-3.5 rounded-2xl bg-white/95 border border-white space-y-2.5">
                           <div className="flex items-center justify-between">
                             <div>
                               <div className="font-bold text-sm text-slate-900">{stu.name}</div>
@@ -1263,12 +1317,12 @@ export default function App() {
                 <div className="space-y-4">
                   <button
                     onClick={() => setSelectedClassId(null)}
-                    className="flex items-center gap-1 text-xs font-bold text-slate-500"
+                    className="flex items-center gap-1 text-xs font-bold text-slate-600 bg-white/80 px-3 py-1.5 rounded-full"
                   >
                     <ChevronLeft className="w-4 h-4" /> 전체 학년(2×3) 목록으로
                   </button>
 
-                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                  <div className="p-4 rounded-2xl bg-white/95 border border-white">
                     <div className="text-xs font-bold text-slate-500 mb-1.5">
                       {data.classes[selectedClassId].grade} 담당 선생님 성함
                     </div>
@@ -1277,7 +1331,7 @@ export default function App() {
                         <span className="font-bold text-sm text-slate-900">{data.classes[selectedClassId].teacher}</span>
                         <button
                           onClick={() => setEditingTeacher(true)}
-                          className="text-xs px-2.5 py-1 rounded-lg bg-white border border-slate-300 font-semibold flex items-center gap-1"
+                          className="text-xs px-2.5 py-1 rounded-lg bg-slate-100 font-semibold flex items-center gap-1"
                         >
                           <Edit3 className="w-3 h-3" /> 수정
                         </button>
@@ -1297,7 +1351,7 @@ export default function App() {
                     )}
                   </div>
 
-                  <form onSubmit={handleAddStudent} className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 space-y-2.5">
+                  <form onSubmit={handleAddStudent} className="p-4 rounded-2xl bg-white/95 border border-emerald-200 space-y-2.5">
                     <div className="text-xs font-extrabold text-emerald-900 flex items-center gap-1">
                       <UserPlus className="w-3.5 h-3.5" /> {data.classes[selectedClassId].grade} 새 학생 등록
                     </div>
@@ -1331,9 +1385,9 @@ export default function App() {
                   </form>
 
                   <div className="space-y-2">
-                    <div className="text-xs font-bold text-slate-600">등록된 학생 ({data.classes[selectedClassId].students.length}명)</div>
+                    <div className="text-xs font-bold text-slate-700">등록된 학생 ({data.classes[selectedClassId].students.length}명)</div>
                     {data.classes[selectedClassId].students.map((stu) => (
-                      <div key={stu.id} className="p-3 rounded-xl bg-white border border-slate-200 flex items-center justify-between">
+                      <div key={stu.id} className="p-3 rounded-xl bg-white/95 border border-white flex items-center justify-between">
                         <div>
                           <div className="text-sm font-bold text-slate-800">{stu.name}</div>
                           <div className="text-[11px] text-slate-500">생일: {stu.birth} · {stu.phone}</div>
@@ -1347,7 +1401,7 @@ export default function App() {
                 </div>
               )}
 
-              {/* (C) 출석 통계 */}
+              {/* (C) 출석 통계 & 업그레이드 엑셀 다운로드 */}
               {adminTab === 'stats' && (
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-3">
@@ -1361,7 +1415,7 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-3">
+                  <div className="p-4 rounded-2xl bg-white/95 border border-white space-y-3">
                     <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                       <BarChart3 className="w-4 h-4 text-emerald-600" /> 올해 월별 평균 출석률 (%)
                     </span>
@@ -1378,59 +1432,57 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 space-y-2">
+                  <div className="p-4 rounded-2xl bg-white/95 border border-rose-200 space-y-2">
                     <div className="text-xs font-extrabold text-rose-800 flex items-center gap-1.5">
                       <AlertTriangle className="w-4 h-4" /> 연속 결석 관심·심방 대상자
                     </div>
                     {statsSummary.consecutiveAbsentees.length > 0 ? (
                       <div className="flex flex-wrap gap-1.5">
                         {statsSummary.consecutiveAbsentees.map(stu => (
-                          <span key={stu.id} className="px-2.5 py-1 rounded-lg bg-white border border-rose-200 text-xs font-bold text-rose-700">
+                          <span key={stu.id} className="px-2.5 py-1 rounded-lg bg-rose-50 border border-rose-200 text-xs font-bold text-rose-700">
                             {stu.grade} {stu.name}
                           </span>
                         ))}
                       </div>
                     ) : (
-                      <p className="text-xs text-rose-700/80">현재 2주 이상 연속 결석 중인 학생이 없습니다.</p>
+                      <p className="text-xs text-slate-600">현재 2주 이상 연속 결석 중인 학생이 없습니다.</p>
                     )}
                   </div>
 
-                  <button onClick={downloadCSV} className="w-full py-3 rounded-2xl bg-slate-900 text-white text-xs font-bold flex items-center justify-center gap-2 hover:bg-slate-800">
-                    <Download className="w-4 h-4" /> 전체 출석 기록 엑셀(CSV) 다운로드
+                  <button onClick={downloadCSV} className="w-full py-3.5 rounded-2xl bg-slate-900 text-white text-xs font-bold flex items-center justify-center gap-2 hover:bg-slate-800 shadow-sm">
+                    <Download className="w-4 h-4" /> 출석 통계 엑셀(CSV) 다운로드 (출석률 자동합산)
                   </button>
                 </div>
               )}
 
-              {/* (D) 콘텐츠 관리 (목사님은 여기서 모든 탭으로 바로 이동해 수정 가능) */}
+              {/* (D) 콘텐츠 관리 */}
               {adminTab === 'content' && (
                 <div className="space-y-4">
-                  {/* 목사님 전체 바로가기 편집 버튼 */}
-                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+                  <div className="p-4 rounded-2xl bg-white/95 border border-white space-y-2">
                     <div className="text-xs font-extrabold text-slate-700">빠른 콘텐츠 편집 바로가기</div>
                     <div className="grid grid-cols-3 gap-2">
                       <button
                         onClick={() => { setIsEditingPraise(true); setActiveTab('praise'); }}
-                        className="py-2.5 px-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-emerald-700"
+                        className="py-2.5 px-2 rounded-xl bg-emerald-50 border border-emerald-200 text-xs font-bold text-emerald-700"
                       >
                         찬양 수정 →
                       </button>
                       <button
                         onClick={() => { setIsEditingOrder(true); setActiveTab('order'); }}
-                        className="py-2.5 px-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-amber-700"
+                        className="py-2.5 px-2 rounded-xl bg-amber-50 border border-amber-200 text-xs font-bold text-amber-700"
                       >
                         기도/봉독 →
                       </button>
                       <button
                         onClick={() => { setIsEditingCalendar(true); setActiveTab('calendar'); }}
-                        className="py-2.5 px-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-sky-700"
+                        className="py-2.5 px-2 rounded-xl bg-sky-50 border border-sky-200 text-xs font-bold text-sky-700"
                       >
-                        월력 수정 →
+                        이번 달 일정 →
                       </button>
                     </div>
                   </div>
 
-                  {/* 사진첩 업로드 */}
-                  <form onSubmit={handlePhotoUpload} className="p-4 rounded-2xl bg-white border border-slate-200 space-y-3">
+                  <form onSubmit={handlePhotoUpload} className="p-4 rounded-2xl bg-white/95 border border-white space-y-3">
                     <div className="text-sm font-extrabold text-slate-900 flex items-center gap-1.5">
                       <Camera className="w-4 h-4 text-rose-500" /> 활동 사진첩 새 사진 올리기
                     </div>
@@ -1465,8 +1517,7 @@ export default function App() {
                     </button>
                   </form>
 
-                  {/* 주간 설교 퀴즈 출제 */}
-                  <form onSubmit={handlePublishNewQuiz} className="p-4 rounded-2xl bg-white border border-slate-200 space-y-3">
+                  <form onSubmit={handlePublishNewQuiz} className="p-4 rounded-2xl bg-white/95 border border-white space-y-3">
                     <div className="text-sm font-extrabold text-slate-900 flex items-center gap-1.5">
                       <Award className="w-4 h-4 text-amber-500" /> 새 주간 설교 퀴즈 출제
                     </div>
@@ -1533,17 +1584,15 @@ export default function App() {
           )}
         </main>
 
-        {/* ========================================== */}
-        {/* 하단 푸터: 한글 텍스트 제거 & 큼직한 원형 로고 3개 */}
-        {/* ========================================== */}
-        <footer className="bg-slate-50 border-t border-slate-200/80 px-4 py-5 text-center space-y-3.5">
+        {/* 하단 푸터: 큼직한 원형 로고 3개 */}
+        <footer className="bg-white/70 backdrop-blur-md border-t border-white/60 px-4 py-5 text-center space-y-3.5">
           <div className="flex items-center justify-center gap-5">
             <a
               href={CHURCH_LINKS.homepage}
               target="_blank"
               rel="noopener noreferrer"
               aria-label="온양장로교회 홈페이지"
-              className="w-12 h-12 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center text-emerald-600 hover:scale-105 hover:border-emerald-300 transition"
+              className="w-12 h-12 rounded-full bg-white border border-slate-200/80 shadow-sm flex items-center justify-center text-emerald-600 hover:scale-105 transition"
             >
               <Globe className="w-6 h-6" />
             </a>
@@ -1552,7 +1601,7 @@ export default function App() {
               target="_blank"
               rel="noopener noreferrer"
               aria-label="온양장로교회 유튜브"
-              className="w-12 h-12 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center text-rose-600 hover:scale-105 hover:border-rose-300 transition"
+              className="w-12 h-12 rounded-full bg-white border border-slate-200/80 shadow-sm flex items-center justify-center text-rose-600 hover:scale-105 transition"
             >
               <Youtube className="w-6 h-6" />
             </a>
@@ -1561,13 +1610,13 @@ export default function App() {
               target="_blank"
               rel="noopener noreferrer"
               aria-label="온양장로교회 청소년부 인스타그램"
-              className="w-12 h-12 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center text-pink-600 hover:scale-105 hover:border-pink-300 transition"
+              className="w-12 h-12 rounded-full bg-white border border-slate-200/80 shadow-sm flex items-center justify-center text-pink-600 hover:scale-105 transition"
             >
               <Instagram className="w-6 h-6" />
             </a>
           </div>
 
-          <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400">
+          <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-500">
             <span>한국기독교장로회 온양장로교회 청소년부</span>
             <button
               onClick={() => (authRoles.admin ? setActiveTab('admin') : setPinModalRole('admin'))}
@@ -1621,7 +1670,7 @@ export default function App() {
           </div>
         )}
 
-        {/* 팝업 2: 역할별 비밀번호 인증 (교사/찬양팀/임원) */}
+        {/* 팝업 2: 역할별 비밀번호 인증 */}
         {pinModalRole && (
           <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
             <form onSubmit={handlePinSubmit} className="w-full max-w-xs bg-white rounded-3xl p-6 shadow-2xl space-y-4 text-center">
