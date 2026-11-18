@@ -6,7 +6,7 @@ import {
   ChevronRight, ChevronLeft, X, CheckCircle2, XCircle, Sparkles, Lock,
   Sun, UserPlus, Trash2, Edit3, BarChart3, AlertTriangle,
   Download, Award, Send, Camera, Phone, Cake, Globe, Loader2, Settings,
-  Gamepad2, Trophy, RotateCcw, Clock, ShieldCheck, Users, Gift
+  Gamepad2, Trophy, RotateCcw, Clock, ShieldCheck, Users, Gift, Play
 } from 'lucide-react';
 
 // ==========================================
@@ -320,13 +320,12 @@ const INITIAL_PUBLIC_DATA = {
   },
   gameRanking: [],
   runnerRanking: [],
-  // 깜짝 간식 당첨 이벤트 설정
   luckyEvent: {
     active: false,
     prizeName: '빙그레 바나나우유 🍌',
     maxWinners: 3,
-    winChance: 20, // % (1~100)
-    winners: []    // [{ name: '중2 이주원', time: '2026-11-18 16:20' }]
+    winChance: 20,
+    winners: []
   },
   monthlyBirthdays: {
     month: 11,
@@ -859,7 +858,7 @@ function MergePuzzleGame({ rankings, onSaveScore }) {
 }
 
 // ==========================================
-// 6-B. 게임 2: 속도 가속·연속 장애물 강화형 '숫자 분할 러너'
+// 6-B. 게임 2: 속도 가속·연속 장애물 강화형 '숫자 분할 러너' (시작하기 대기 버튼 포함)
 // ==========================================
 const getCubePalette = (val) => {
   if (val <= 2) return { bg: '#38bdf8', border: '#0284c7', text: '#ffffff' };
@@ -879,6 +878,7 @@ function NumberSplitRunnerGame({ rankings, onSaveScore }) {
   const [displayNum, setDisplayNum] = useState(4);
   const [bestNum, setBestNum] = useState(4);
   const [speedStage, setSpeedStage] = useState(1);
+  const [isStarted, setIsStarted] = useState(false);
   const [gameOver, setGameOver] = useState(false);
   const [playerName, setPlayerName] = useState('');
   const [scoreSaved, setScoreSaved] = useState(false);
@@ -889,6 +889,7 @@ function NumberSplitRunnerGame({ rankings, onSaveScore }) {
   const PLAYER_Y = 345;
 
   const runnerRef = useRef({
+    started: false,
     totalValue: 4,
     bestValue: 4,
     isSplit: false,
@@ -906,8 +907,10 @@ function NumberSplitRunnerGame({ rankings, onSaveScore }) {
     idCounter: 1
   });
 
-  const resetRunner = () => {
+  // 초기 대기 상태로 리셋 (바로 달리지 않고 시작 버튼 대기)
+  const resetRunnerToStandby = () => {
     runnerRef.current = {
+      started: false,
       totalValue: 4,
       bestValue: 4,
       isSplit: false,
@@ -927,12 +930,19 @@ function NumberSplitRunnerGame({ rankings, onSaveScore }) {
     setDisplayNum(4);
     setBestNum(4);
     setSpeedStage(1);
+    setIsStarted(false);
     setGameOver(false);
     setScoreSaved(false);
   };
 
+  // 가운데 '시작하기' 버튼을 눌렀을 때 실제 주행 출발
+  const handleStartGame = () => {
+    runnerRef.current.started = true;
+    setIsStarted(true);
+  };
+
   useEffect(() => {
-    resetRunner();
+    resetRunnerToStandby();
     let animId;
 
     const drawRoundedCube = (ctx, cx, cy, size, label, palette) => {
@@ -989,7 +999,6 @@ function NumberSplitRunnerGame({ rankings, onSaveScore }) {
       ctx.restore();
     };
 
-    // 다채로운 무작위 + 기습 연속 장애물 웨이브 생성기
     const spawnDynamicWave = (st) => {
       st.waveCount += 1;
       const halfVal = Math.max(2, Math.floor(st.totalValue / 2));
@@ -997,7 +1006,6 @@ function NumberSplitRunnerGame({ rankings, onSaveScore }) {
       const roll = Math.random();
 
       if (st.waveCount >= 5 && roll < 0.22) {
-        // [기습 2연타 연속 패턴] 중앙 장애물 직후 양쪽 장애물 (누르고 있다가 재빠르게 떼야 통과!)
         st.items.push({ id: st.idCounter++, lane: 1, y: -30, type: 'spike', value: 0, hit: false });
         st.items.push({ id: st.idCounter++, lane: 0, y: -30, type: 'cube', value: halfVal, hit: false });
         st.items.push({ id: st.idCounter++, lane: 2, y: -30, type: 'cube', value: halfVal, hit: false });
@@ -1007,22 +1015,18 @@ function NumberSplitRunnerGame({ rankings, onSaveScore }) {
         st.items.push({ id: st.idCounter++, lane: 1, y: -145, type: 'cube', value: doubleVal, hit: false });
         return 75;
       } else if (roll < 0.44) {
-        // [패턴 A] 중앙 장애물 + 양쪽 절반 숫자 (터치해서 갈라져야 생존 & 2배 합체)
         st.items.push({ id: st.idCounter++, lane: 1, y: -30, type: 'spike', value: 0, hit: false });
         st.items.push({ id: st.idCounter++, lane: 0, y: -30, type: 'cube', value: halfVal, hit: false });
         st.items.push({ id: st.idCounter++, lane: 2, y: -30, type: 'cube', value: halfVal, hit: false });
       } else if (roll < 0.66) {
-        // [패턴 B] 양쪽 장애물 + 중앙 같은 숫자 (손을 떼고 합체 상태로 받아먹어야 함)
         st.items.push({ id: st.idCounter++, lane: 0, y: -30, type: 'spike', value: 0, hit: false });
         st.items.push({ id: st.idCounter++, lane: 2, y: -30, type: 'spike', value: 0, hit: false });
         st.items.push({ id: st.idCounter++, lane: 1, y: -30, type: 'cube', value: st.totalValue, hit: false });
       } else if (roll < 0.84) {
-        // [패턴 C] 함정 숫자 섞인 선택지 (중앙에 더 큰 함정 숫자, 양쪽에 정답 절반 숫자)
         st.items.push({ id: st.idCounter++, lane: 1, y: -30, type: 'cube', value: doubleVal, hit: false });
         st.items.push({ id: st.idCounter++, lane: 0, y: -30, type: 'cube', value: halfVal, hit: false });
         st.items.push({ id: st.idCounter++, lane: 2, y: -30, type: 'cube', value: halfVal, hit: false });
       } else {
-        // [패턴 D] 양쪽 톱니 장애물 + 중앙 ×2 잭팟 아이템
         st.items.push({ id: st.idCounter++, lane: 0, y: -30, type: 'spike', value: 0, hit: false });
         st.items.push({ id: st.idCounter++, lane: 2, y: -30, type: 'spike', value: 0, hit: false });
         st.items.push({ id: st.idCounter++, lane: 1, y: -30, type: 'x2', value: 2, hit: false });
@@ -1036,8 +1040,8 @@ function NumberSplitRunnerGame({ rankings, onSaveScore }) {
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
 
-      if (!st.gameOver) {
-        // 웨이브가 진행될수록 체감 속도가 확실하게 빨라짐 (3.3 -> 최대 8.2)
+      // 시작 버튼을 누른 뒤부터만 주행·장애물 생성·충돌 처리 실행
+      if (st.started && !st.gameOver) {
         const targetSpeed = Math.min(8.2, 3.3 + st.waveCount * 0.14);
         st.speed = targetSpeed;
         const nextStage = Math.min(5, Math.floor((st.speed - 3.3) / 1.0) + 1);
@@ -1124,6 +1128,7 @@ function NumberSplitRunnerGame({ rankings, onSaveScore }) {
         if (st.flashTimer > 0) st.flashTimer -= 1;
       }
 
+      // 배경 트랙 그리기
       ctx.clearRect(0, 0, WIDTH, HEIGHT);
       ctx.fillStyle = '#f8fafc';
       ctx.fillRect(0, 0, WIDTH, HEIGHT);
@@ -1183,7 +1188,7 @@ function NumberSplitRunnerGame({ rankings, onSaveScore }) {
 
   const handlePressStart = (e) => {
     if (e.cancelable) e.preventDefault();
-    if (runnerRef.current.gameOver) return;
+    if (!runnerRef.current.started || runnerRef.current.gameOver) return;
     runnerRef.current.isSplit = true;
   };
 
@@ -1214,7 +1219,7 @@ function NumberSplitRunnerGame({ rankings, onSaveScore }) {
           </div>
         </div>
         <button
-          onClick={resetRunner}
+          onClick={resetRunnerToStandby}
           className="flex items-center gap-1 text-xs font-bold bg-white/15 px-3 py-1.5 rounded-xl hover:bg-white/25"
         >
           <RotateCcw className="w-3.5 h-3.5" /> 다시 시작
@@ -1237,6 +1242,27 @@ function NumberSplitRunnerGame({ rankings, onSaveScore }) {
           onTouchEnd={handlePressEnd}
           className="w-full max-w-[340px] touch-none cursor-pointer"
         />
+
+        {/* 시작 대기 오버레이 (화면을 중앙에 맞춘 뒤 시작하기 버튼 클릭) */}
+        {!isStarted && !gameOver && (
+          <div className="absolute inset-0 bg-slate-900/45 backdrop-blur-[2px] flex flex-col items-center justify-center p-4 z-10">
+            <div className="bg-white/95 rounded-3xl p-5 max-w-[240px] text-center space-y-3 shadow-xl border border-white">
+              <div className="text-2xl">⚡</div>
+              <div className="text-sm font-extrabold text-slate-900">숫자 분할 러너 준비!</div>
+              <p className="text-[11px] text-slate-500 leading-relaxed">
+                화면을 누르면 숫자가 반으로 갈라지고,<br />
+                손을 떼면 다시 합쳐집니다.
+              </p>
+              <button
+                type="button"
+                onClick={handleStartGame}
+                className="w-full py-3 rounded-2xl bg-indigo-600 text-white text-sm font-extrabold hover:bg-indigo-700 shadow-md flex items-center justify-center gap-1.5 transition transform active:scale-95"
+              >
+                <Play className="w-4 h-4 fill-current" /> 시작하기
+              </button>
+            </div>
+          </div>
+        )}
 
         {gameOver && (
           <div className="absolute inset-0 bg-slate-900/85 backdrop-blur-xs flex items-center justify-center p-4 z-10">
@@ -1270,7 +1296,7 @@ function NumberSplitRunnerGame({ rankings, onSaveScore }) {
               )}
 
               <button
-                onClick={resetRunner}
+                onClick={resetRunnerToStandby}
                 className="w-full py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200"
               >
                 다시 도전하기
@@ -1368,13 +1394,11 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('home');
   const [showVersePopup, setShowVersePopup] = useState(false);
 
-  // 깜짝 간식 당첨 팝업 상태
   const [showLuckyWinPopup, setShowLuckyWinPopup] = useState(false);
   const [luckyWinnerInput, setLuckyWinnerInput] = useState('');
   const [luckyClaimed, setLuckyClaimed] = useState(false);
   const luckyCheckedRef = useRef(false);
 
-  // 관리자 깜짝 이벤트 설정 입력 상태
   const [eventPrizeInput, setEventPrizeInput] = useState('빙그레 바나나우유 🍌');
   const [eventMaxInput, setEventMaxInput] = useState(3);
   const [eventChanceInput, setEventChanceInput] = useState(20);
@@ -1446,7 +1470,6 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // 깜짝 간식 랜덤 추첨 (앱 로드 후 1회 실행, 하루 1기기 1회 기회 제한)
   useEffect(() => {
     if (!isLoaded || luckyCheckedRef.current) return;
     luckyCheckedRef.current = true;
@@ -1554,7 +1577,6 @@ export default function App() {
     syncPublicData({ season: keys[nextIdx] });
   };
 
-  // 깜짝 간식 당첨자 등록
   const handleClaimLuckyPrize = async (e) => {
     e.preventDefault();
     if (!luckyWinnerInput.trim()) return;
@@ -1575,7 +1597,6 @@ export default function App() {
     setLuckyClaimed(true);
   };
 
-  // 관리자: 깜짝 간식 이벤트 저장 & 시작/종료
   const handleSaveLuckyEvent = async (toggleActive) => {
     const ev = publicData.luckyEvent || INITIAL_PUBLIC_DATA.luckyEvent;
     const nextActive = typeof toggleActive === 'boolean' ? toggleActive : ev.active;
@@ -2972,10 +2993,8 @@ export default function App() {
                 </div>
               )}
 
-              {/* (D) 콘텐츠 & 깜짝 간식 이벤트 관리 */}
               {adminTab === 'content' && (
                 <div className="space-y-4">
-                  {/* 깜짝 간식 당첨 이벤트 제어 카드 */}
                   <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 space-y-3 shadow-2xs">
                     <div className="flex items-center justify-between">
                       <div className="text-sm font-extrabold text-amber-950 flex items-center gap-1.5">
@@ -3044,7 +3063,6 @@ export default function App() {
                       </button>
                     </div>
 
-                    {/* 당첨자 명단 확인 */}
                     <div className="pt-2 border-t border-amber-200/80 space-y-1.5">
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] font-extrabold text-amber-950">
