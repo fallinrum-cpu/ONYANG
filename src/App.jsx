@@ -37,16 +37,14 @@ const CHURCH_LINKS = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// 보안 분리: 공개 데이터와 교사 전용 비공개 개인정보 금고 분리
 const PUBLIC_DOC_REF = doc(db, "onyang_youth", "main_data");
 const PRIVATE_DOC_REF = doc(db, "onyang_youth", "private_admin_data");
 
-// 고정 반 배치 순서: 왼쪽 열(중1, 중2, 중3), 오른쪽 열(고1, 고2, 고3)
 const CLASS_DISPLAY_ORDER = ['m1', 'h1', 'm2', 'h2', 'm3', 'h3'];
 const CLASS_SEQUENTIAL_ORDER = ['m1', 'm2', 'm3', 'h1', 'h2', 'h3'];
 
 // ==========================================
-// 2. 교회력 6대 절기 (배너 + 전체 배경 + 절기별 낙하 이펙트)
+// 2. 교회력 6대 절기
 // ==========================================
 const SEASONS = {
   creation: {
@@ -111,6 +109,9 @@ const SEASONS = {
   }
 };
 
+// ==========================================
+// 3. 오늘의 말씀 150선 (성경 구절 + 청소년부 맞춤 묵상 메시지)
+// ==========================================
 const DAILY_VERSES = [
   { verse: "너희도 성령 안에서 하나님이 거하실 처소가 되기 위하여 그리스도 예수 안에서 함께 지어져 가느니라", ref: "에베소서 2:22", note: "우리 청소년부 한 사람 한 사람이 모여 아름다운 하나님의 집을 이루어 갑니다." },
   { verse: "네 시작은 미약하였으나 네 나중은 심히 창대하리라", ref: "욥기 8:7", note: "오늘의 작은 발걸음이 내일의 큰 은혜로 이어집니다." },
@@ -118,11 +119,153 @@ const DAILY_VERSES = [
   { verse: "여호와는 나의 목자시니 내게 부족함이 없으리로다", ref: "시편 23:1", note: "주님이 우리의 길을 가장 선하게 인도하십니다." },
   { verse: "두려워하지 말라 내가 너와 함께 함이라 놀라지 말라 나는 네 하나님이 됨이라", ref: "이사야 41:10", note: "시험과 진로 앞에서도 주님이 너의 손을 꼭 붙잡고 계십니다." },
   { verse: "너희는 세상의 빛이라 산 위에 있는 동네가 숨겨지지 못할 것이요", ref: "마태복음 5:14", note: "여러분이 머무는 자리가 주님의 사랑으로 환해지길 기도합니다." },
-  { verse: "항상 기뻐하라 쉬지 말고 기도하라 범사에 감사하라", ref: "데살로니가전서 5:16-18", note: "오늘 하루 감사의 제목 하나를 찾아 하나님께 고백해 보세요." }
+  { verse: "항상 기뻐하라 쉬지 말고 기도하라 범사에 감사하라", ref: "데살로니가전서 5:16-18", note: "오늘 하루 감사의 제목 하나를 찾아 하나님께 고백해 보세요." },
+  { verse: "내게 능력 주시는 자 안에서 내가 모든 것을 할 수 있느니라", ref: "빌립보서 4:13", note: "내 힘이 아닌 주님이 주시는 힘으로 오늘을 살아갑니다." },
+  { verse: "너는 마음을 다하여 여호와를 신뢰하고 네 명철을 의지하지 말라", ref: "잠언 3:5", note: "내 생각보다 크신 하나님의 계획을 신뢰하며 나아가요." },
+  { verse: "너는 범사에 그를 인정하라 그리하면 네 길을 지도하시리라", ref: "잠언 3:6", note: "작은 선택의 순간마다 하나님께 먼저 여쭤보는 하루가 되길 바랍니다." },
+  { verse: "주의 말씀은 내 발에 등이요 내 길에 빛이니이다", ref: "시편 119:105", note: "어디로 가야 할지 막막할 때 말씀이 가장 정확한 내비게이션이 됩니다." },
+  { verse: "강하고 담대하라 두려워하지 말며 놀라지 말라 네가 어디로 가든지 네 하나님 여호와가 너와 함께 하느니라", ref: "여호수아 1:9", note: "혼자라고 느껴질 때도 하나님은 단 한 순간도 너를 떠나지 않으십니다." },
+  { verse: "수고하고 무거운 짐 진 자들아 다 내게로 오라 내가 너희를 쉬게 하리라", ref: "마태복음 11:28", note: "학업과 관계의 무거운 마음을 주님 앞에 내려놓고 참된 쉼을 얻으세요." },
+  { verse: "너희 염려를 다 주께 맡기라 이는 그가 너희를 돌보심이라", ref: "베드로전서 5:7", note: "혼자 끙끙 앓던 걱정들을 기도로 주님께 올려드리는 하루가 되자!" },
+  { verse: "아무 것도 염려하지 말고 다만 모든 일에 기도와 간구로, 너희 구할 것을 감사함으로 하나님께 아뢰라", ref: "빌립보서 4:6", note: "불안한 마음이 들 때마다 기도의 자리로 나아가 보세요." },
+  { verse: "그리하면 모든 지각에 뛰어난 하나님의 평강이 그리스도 예수 안에서 너희 마음과 생각을 지키시리라", ref: "빌립보서 4:7", note: "세상이 줄 수 없는 평안이 오늘 너의 마음을 가득 채우길 축복합니다." },
+  { verse: "오직 여호와를 앙망하는 자는 새 힘을 얻으리니 독수리가 날개치며 올라감 같을 것이요", ref: "이사야 40:31", note: "지치고 피곤한 일상 속에서 하늘로부터 오는 새 힘을 공급받으세요." },
+  { verse: "사람이 마음으로 자기의 길을 계획할지라도 그의 걸음을 인도하시는 이는 여호와시니라", ref: "잠언 16:9", note: "열심히 준비하되 결과는 선하신 하나님께 맡기는 지혜를 배워요." },
+  { verse: "너의 행사를 여호와께 맡기라 그리하면 네가 경영하는 것이 이루어지리라", ref: "잠언 16:3", note: "오늘 해야 할 공부와 일들을 주님께 맡기며 시작해 보세요." },
+  { verse: "하나님이 세상을 이처럼 사랑하사 독생자를 주셨으니 이는 그를 믿는 자마다 멸망하지 않고 영생을 얻게 하려 하심이라", ref: "요한복음 3:16", note: "너는 하나님께서 독생자를 주시기까지 사랑하신 가장 소중한 존재입니다." },
+  { verse: "내가 산을 향하여 눈을 들리라 나의 도움이 어디서 올까 나의 도움은 천지를 지으신 여호와에게서로다", ref: "시편 121:1-2", note: "고개를 들어 천지를 지으신 하나님을 바라보는 하루가 되길 바랍니다." },
+  { verse: "여호와께서 너를 실족하지 아니하게 하시며 너를 지키시는 이가 졸지 아니하시리로다", ref: "시편 121:3", note: "우리가 잠든 밤에도 하나님은 깨어 우리를 지켜보고 계십니다." },
+  { verse: "청년이 무엇으로 그의 행실을 깨끗하게 하리이까 주의 말씀만 지킬 따름이니이다", ref: "시편 119:9", note: "세상의 유행이 아닌 하나님의 말씀을 기준으로 살아가는 멋진 청소년이 되자!" },
+  { verse: "너는 청년의 때에 너의 창조주를 기억하라", ref: "전도서 12:1", note: "가장 빛나는 청소년의 시기에 하나님을 기억하는 것이 최고의 복입니다." },
+  { verse: "태초에 하나님이 천지를 창조하시니라", ref: "창세기 1:1", note: "온 우주를 만드신 하나님이 바로 우리 아버지이십니다." },
+  { verse: "하나님이 자기 형상 곧 하나님의 형상대로 사람을 창조하시되", ref: "창세기 1:27", note: "남들과 비교하지 마세요. 너는 하나님의 형상을 닮은 유일한 걸작품입니다." },
+  { verse: "보라 내가 새 일을 행하리니 이제 나타낼 것이라 너희가 그것을 알지 못하겠느냐", ref: "이사야 43:19", note: "어제의 실패에 머물지 마세요. 하나님은 오늘도 새 일을 행하십니다." },
+  { verse: "너는 두려워하지 말라 내가 너를 구속하였고 내가 너를 지명하여 불렀나니 너는 내 것이라", ref: "이사야 43:1", note: "하나님이 너의 이름을 직접 부르시며 '너는 내 것'이라 말씀하십니다." },
+  { verse: "우리가 알거니와 하나님을 사랑하는 자 곧 그의 뜻대로 부르심을 입은 자들에게는 모든 것이 합력하여 선을 이루느니라", ref: "로마서 8:28", note: "지금은 이해되지 않는 일들도 결국 선한 열매로 빚어주실 것입니다." },
+  { verse: "너희는 이 세대를 본받지 말고 오직 마음을 새롭게 함으로 변화를 받아 하나님의 선하시고 기뻐하시고 온전하신 뜻이 무엇인지 분별하도록 하라", ref: "로마서 12:2", note: "남들이 다 가는 길이 아니라 하나님이 기뻐하시는 길을 선택해 보세요." },
+  { verse: "소망 중에 즐거워하며 환난 중에 참으며 기도에 항상 힘쓰며", ref: "로마서 12:12", note: "어려운 순간에도 소망을 잃지 않고 기도하는 청소년부가 됩시다." },
+  { verse: "사랑은 오래 참고 사랑은 온유하며 시기하지 아니하며 사랑은 자랑하지 아니하며 교만하지 아니하며", ref: "고린도전서 13:4", note: "오늘 만나는 친구와 가족에게 따뜻한 말 한마디로 사랑을 실천해 보세요." },
+  { verse: "그런즉 믿음, 소망, 사랑, 이 세 가지는 항상 있을 것인데 그 중의 제일은 사랑이라", ref: "고린도전서 13:13", note: "우리의 모든 말과 행동 중심에 예수님의 사랑이 담기길 소망합니다." },
+  { verse: "그런즉 누구든지 그리스도 안에 있으면 새로운 피조물이라 이전 것은 지나갔으니 보라 새 것이 되었도다", ref: "고린도후서 5:17", note: "예수님 안에서 우리는 날마다 새롭게 시작할 수 있습니다." },
+  { verse: "우리가 선을 행하되 낙심하지 말지니 포기하지 아니하면 때가 이르매 거두리라", ref: "갈라디아서 6:9", note: "당장 결과가 보이지 않아도 포기하지 마세요. 하나님의 때에 반드시 거둡니다." },
+  { verse: "오직 성령의 열매는 사랑과 희락과 화평과 오래 참음과 자비와 양선과 충성과 온유와 절제니", ref: "갈라디아서 5:22-23", note: "우리의 삶 속에 성령의 아름다운 열매가 주렁주렁 맺히길 기도합니다." },
+  { verse: "너희는 그 은혜에 의하여 믿음으로 말미암아 구원을 받았으니 이것은 너희에게서 난 것이 아니요 하나님의 선물이라", ref: "에베소서 2:8", note: "우리가 받은 구원은 조건 없이 주신 하나님의 가장 큰 선물입니다." },
+  { verse: "우리는 그가 만드신 바라 그리스도 예수 안에서 선한 일을 위하여 지으심을 받은 자니", ref: "에베소서 2:10", note: "하나님이 너를 이 땅에 보내신 특별한 목적과 사명이 있습니다." },
+  { verse: "모든 겸손과 온유로 하고 오래 참음으로 사랑 가운데서 서로 용납하고", ref: "에베소서 4:2", note: "서로 다른 친구들의 모습을 이해하고 품어주는 넓은 마음을 구해요." },
+  { verse: "평안의 매는 줄로 성령이 하나 되게 하신 것을 힘써 지키라", ref: "에베소서 4:3", note: "온양 청소년부가 성령 안에서 하나 되어 서로를 세워주길 축복합니다." },
+  { verse: "너희 안에 이 마음을 품으라 곧 그리스도 예수의 마음이니", ref: "빌립보서 2:5", note: "오늘 하루 예수님이라면 어떻게 말씀하시고 행동하실지 생각해 보세요." },
+  { verse: "너희 안에서 착한 일을 시작하신 이가 그리스도 예수의 날까지 이루실 줄을 우리는 확신하노라", ref: "빌립보서 1:6", note: "하나님은 우리를 시작만 하시는 분이 아니라 끝까지 완성하시는 분입니다." },
+  { verse: "무슨 일을 하든지 마음을 다하여 주께 하듯 하고 사람에게 하듯 하지 말라", ref: "골로새서 3:23", note: "학교 공부도, 집안일도 주님께 드리듯 정성을 다해 해봅시다." },
+  { verse: "하나님이 우리에게 주신 것은 두려워하는 마음이 아니요 오직 능력과 사랑과 절제하는 마음이니", ref: "디모데후서 1:7", note: "두려움이 찾아올 때마다 하나님이 주신 담대한 마음을 선포하세요." },
+  { verse: "모든 성경은 하나님의 감동으로 된 것으로 교훈과 책망과 바르게 함과 의로 교육하기에 유익하니", ref: "디모데후서 3:16", note: "하루 한 구절이라도 하나님의 말씀을 가까이하는 습관을 만들어 보세요." },
+  { verse: "믿음은 바라는 것들의 실상이요 보이지 않는 것들의 증거니", ref: "히브리서 11:1", note: "눈에 보이지 않아도 약속을 이루실 하나님을 믿음으로 바라봅시다." },
+  { verse: "예수 그리스도는 어제나 오늘이나 영원토록 동일하시니라", ref: "히브리서 13:8", note: "변화무쌍한 세상 속에서도 변함없이 우리를 사랑하시는 주님을 의지하세요." },
+  { verse: "너희 중에 누구든지 지혜가 부족하거든 모든 사람에게 후히 주시고 꾸짖지 아니하시는 하나님께 구하라 그리하면 주시리라", ref: "야고보서 1:5", note: "공부할 때도, 진로를 고민할 때도 하나님께 지혜를 구하면 후히 주십니다." },
+  { verse: "하나님을 가까이 하라 그리하면 너희를 가까이 하시리라", ref: "야고보서 4:8", note: "오늘 주님께 한 걸음 더 가까이 다가가 보세요." },
+  { verse: "사랑하는 자들아 우리가 서로 사랑하자 사랑은 하나님께 속한 것이니", ref: "요한일서 4:7", note: "먼저 다가가 인사하고 웃어주는 작은 사랑이 공동체를 살립니다." },
+  { verse: "복 있는 사람은 악인들의 꾀를 따르지 아니하며 죄인들의 길에 서지 아니하며 오만한 자들의 자리에 앉지 아니하고", ref: "시편 1:1", note: "진정한 복은 하나님과 함께 걷는 삶에 있습니다." },
+  { verse: "그는 시냇가에 심은 나무가 철을 따라 열매를 맺으며 그 잎사귀가 마르지 아니함 같으니 그가 하는 모든 일이 다 형통하리로다", ref: "시편 1:3", note: "말씀의 시냇가에 뿌리내려 시들지 않는 푸른 청소년이 됩시다." },
+  { verse: "여호와는 나의 빛이요 나의 구원이시니 내가 누구를 두려워하리요", ref: "시편 27:1", note: "주님이 나의 빛이 되시니 어떤 어둠도 두려워할 필요가 없습니다." },
+  { verse: "너는 여호와를 기다릴지어다 강하고 담대하며 여호와를 기다릴지어다", ref: "시편 27:14", note: "조급해하지 말고 가장 좋은 때를 준비하시는 하나님을 기다려 보세요." },
+  { verse: "여호와의 선하심을 맛보아 알지어다 그에게 피하는 자는 복이 있도다", ref: "시편 34:8", note: "오늘 하루 삶 속에서 하나님의 선하심을 깊이 경험하길 바랍니다." },
+  { verse: "또 여호와를 기뻐하라 그가 네 마음의 소원을 네게 이루어 주시리로다", ref: "시편 37:4", note: "하나님을 기뻐할 때 하나님께서 우리의 마음의 소원도 선하게 빚어가십니다." },
+  { verse: "하나님은 우리의 피난처시요 힘이시니 환난 중에 만날 큰 도움이시라", ref: "시편 46:1", note: "힘들고 지칠 때 언제든 달려갈 수 있는 안전한 피난처가 주님께 있습니다." },
+  { verse: "너희는 가만히 있어 내가 하나님 됨을 알지어다", ref: "시편 46:10", note: "분주한 마음을 잠시 멈추고 주님의 음성에 귀 기울여 보세요." },
+  { verse: "하나님이여 내 속에 정한 마음을 창조하시고 내 안에 정직한 영을 새롭게 하소서", ref: "시편 51:10", note: "매일 아침 깨끗하고 정직한 마음으로 하루를 시작하게 해달라고 기도해요." },
+  { verse: "내가 두려워하는 날에는 내가 주를 의지하리이다", ref: "시편 56:3", note: "두려움이 찾아오는 바로 그 순간이 주님을 의지할 타이밍입니다." },
+  { verse: "나의 영혼이 잠잠히 하나님만 바람이여 나의 구원이 그에게서 나오는도다", ref: "시편 62:1", note: "오직 하나님 한 분만으로 충분함을 고백하는 하루가 되길 바랍니다." },
+  { verse: "주의 인자하심이 생명보다 나으므로 내 입술이 주를 찬양할 것이라", ref: "시편 63:3", note: "오늘도 주님의 한결같은 사랑을 찬양하며 기쁘게 나아갑시다." },
+  { verse: "여호와를 경외하는 것이 지식의 근본이거늘", ref: "잠언 1:7", note: "모든 배움과 지혜의 출발점은 하나님을 경외하는 마음입니다." },
+  { verse: "모든 지킬 만한 것 중에 더욱 네 마음을 지키라 생명의 근원이 이에서 남이니라", ref: "잠언 4:23", note: "부정적인 생각과 비교하는 마음으로부터 너의 소중한 마음을 꼭 지키세요." },
+  { verse: "유순한 대답은 분노를 쉬게 하여도 과격한 말은 노를 격동하느니라", ref: "잠언 15:1", note: "오늘 내가 건네는 부드러운 말 한마디가 누군가의 하루를 바꿉니다." },
+  { verse: "마음의 즐거움은 양약이라도 심령의 근심은 뼈를 마르게 하느니라", ref: "잠언 17:22", note: "주님이 주시는 기쁨으로 오늘도 환하게 웃는 하루가 되세요!" },
+  { verse: "친구는 사랑이 끊어지지 아니하고 형제는 위급한 때를 위하여 났느니라", ref: "잠언 17:17", note: "함께 웃고 기도해 주는 믿음의 친구들이 곁에 있음에 감사해요." },
+  { verse: "너는 내일 일을 자랑하지 말라 하루 동안에 무슨 일이 일어날는지 네가 알 수 없음이니라", ref: "잠언 27:1", note: "내일 걱정은 내일에게 맡기고 오늘 주어진 하루에 충실합시다." },
+  { verse: "너희는 먼저 그의 나라와 그의 의를 구하라 그리하면 이 모든 것을 너희에게 더하시리라", ref: "마태복음 6:33", note: "삶의 우선순위를 하나님께 둘 때 필요한 모든 것을 채워주십니다." },
+  { verse: "구하라 그리하면 너희에게 주실 것이요 찾으라 그리하면 찾아낼 것이요 문을 두드리라 그리하면 너희에게 열릴 것이니", ref: "마태복음 7:7", note: "포기하지 않고 구하고 찾고 두드리는 기도의 사람이 됩시다." },
+  { verse: "그러므로 무엇이든지 남에게 대접을 받고자 하는 대로 너희도 남을 대접하라", ref: "마태복음 7:12", note: "내가 받고 싶은 배려와 친절을 먼저 친구에게 베풀어 보세요." },
+  { verse: "사람으로는 할 수 없으되 하나님으로서는 다 하실 수 있느니라", ref: "마태복음 19:26", note: "내 한계를 넘어 일하시는 전능하신 하나님을 기대해 보세요." },
+  { verse: "네 마음을 다하고 목숨을 다하고 뜻을 다하여 주 너의 하나님을 사랑하라", ref: "마태복음 22:37", note: "온 마음을 다해 하나님을 사랑하는 것이 가장 큰 계명입니다." },
+  { verse: "둘째도 그와 같으니 네 이웃을 네 자신 같이 사랑하라 하셨으니", ref: "마태복음 22:39", note: "나 자신을 소중히 여기듯 내 곁의 친구도 아끼고 사랑합시다." },
+  { verse: "볼지어다 내가 세상 끝날까지 너희와 항상 함께 있으리라", ref: "마태복음 28:20", note: "세상 끝날까지 너와 함께하시겠다는 예수님의 약속을 기억하세요." },
+  { verse: "할 수 있거든이 무슨 말이냐 믿는 자에게는 능히 하지 못할 일이 없느니라", ref: "마가복음 9:23", note: "안 된다는 생각 대신 믿음의 눈으로 가능성을 바라봅시다." },
+  { verse: "지극히 작은 것에 충성된 자는 큰 것에도 충성되고", ref: "누가복음 16:10", note: "오늘 맡겨진 작은 일에 최선을 다하는 사람이 큰 일도 감당합니다." },
+  { verse: "말씀이 육신이 되어 우리 가운데 거하시매 우리가 그의 영광을 보니 아버지의 독생자의 영광이요 은혜와 진리가 충만하더라", ref: "요한복음 1:14", note: "우리 곁에 찾아오신 예수님의 은혜와 진리가 오늘도 충만하길 기도합니다." },
+  { verse: "진리를 알지니 진리가 너희를 자유롭게 하리라", ref: "요한복음 8:32", note: "하나님의 말씀 안에서 참된 자유와 기쁨을 누리세요." },
+  { verse: "나는 선한 목자라 선한 목자는 양들을 위하여 목숨을 버리거니와", ref: "요한복음 10:11", note: "우리를 위해 생명까지 내어주신 선한 목자 예수님이 늘 곁에 계십니다." },
+  { verse: "나는 포도나무요 너희는 가지라 그가 내 안에, 내가 그 안에 거하면 사람이 열매를 많이 맺나니", ref: "요한복음 15:5", note: "예수님께 꼭 붙어 있기만 하면 아름다운 삶의 열매가 저절로 맺힙니다." },
+  { verse: "내 계명은 곧 내가 너희를 사랑한 것 같이 너희도 서로 사랑하라 하는 이것이니라", ref: "요한복음 15:12", note: "예수님께 받은 그 사랑으로 오늘도 서로를 따뜻하게 대합시다." },
+  { verse: "세상에서는 너희가 환난을 당하나 담대하라 내가 세상을 이기었노라", ref: "요한복음 16:33", note: "이미 세상을 이기신 예수님 편에 서 있으니 담대하게 나아가세요!" },
+  { verse: "오직 성령이 너희에게 임하시면 너희가 권능을 받고 예루살렘과 온 유대와 사마리아와 땅 끝까지 이르러 내 증인이 되리라", ref: "사도행전 1:8", note: "성령님이 주시는 능력으로 학교와 가정에서 예수님의 증인으로 살아가요." },
+  { verse: "주 예수를 믿으라 그리하면 너와 네 집이 구원을 받으리라", ref: "사도행전 16:31", note: "우리 가정이 모두 예수님 안에서 구원의 기쁨을 누리길 기도합니다." },
+  { verse: "내가 복음을 부끄러워하지 아니하노니 이 복음은 모든 믿는 자에게 구원을 주시는 하나님의 능력이 됨이라", ref: "로마서 1:16", note: "그리스도인이라는 정체성을 당당하고 자랑스럽게 여기세요." },
+  { verse: "우리가 아직 죄인 되었을 때에 그리스도께서 우리를 위하여 죽으심으로 하나님께서 우리에 대한 자기의 사랑을 확증하셨느니라", ref: "로마서 5:8", note: "우리가 완벽해서가 아니라 있는 모습 그대로 사랑하신 하나님의 은혜입니다." },
+  { verse: "그러므로 이제 그리스도 예수 안에 있는 자에게는 결코 정죄함이 없나니", ref: "로마서 8:1", note: "실수하고 넘어졌더라도 자책하지 마세요. 주님 안에는 늘 새로운 기회가 있습니다." },
+  { verse: "하나님이 우리를 위하시면 누가 우리를 대적하리요", ref: "로마서 8:31", note: "하나님이 네 편이 되어주시니 어떤 어려움도 넉넉히 이길 수 있습니다." },
+  { verse: "그러나 이 모든 일에 우리를 사랑하시는 이로 말미암아 우리가 넉넉히 이기느니라", ref: "로마서 8:37", note: "간신히 버티는 것이 아니라 주님의 사랑으로 넉넉히 이기는 하루가 되자!" },
+  { verse: "악에게 지지 말고 선으로 악을 이기라", ref: "로마서 12:21", note: "미움과 다툼 대신 선함과 친절함으로 승리하는 멋진 사람이 됩시다." },
+  { verse: "소망의 하나님이 모든 기쁨과 평강을 믿음 안에서 너희에게 충만하게 하사", ref: "로마서 15:13", note: "소망의 하나님이 오늘 너의 하루에 기쁨과 평강을 가득 부어주시길 축복합니다." },
+  { verse: "너희는 너희가 하나님의 성전인 것과 하나님의 성령이 너희 안에 계시는 것을 알지 못하느냐", ref: "고린도전서 3:16", note: "네 안에는 성령님이 거하십니다. 너 자신을 귀하고 거룩하게 가꾸어 가세요." },
+  { verse: "사람이 감당할 시험 밖에는 너희가 당한 것이 없나니 오직 하나님은 미쁘사 너희가 감당하지 못할 시험 당함을 허락하지 아니하시고", ref: "고린도전서 10:13", note: "지금 겪는 어려움도 피할 길과 감당할 힘을 하나님이 반드시 주십니다." },
+  { verse: "그런즉 너희가 먹든지 마시든지 무엇을 하든지 다 하나님의 영광을 위하여 하라", ref: "고린도전서 10:31", note: "평범한 일상 속 작은 일들도 하나님의 영광이 될 수 있습니다." },
+  { verse: "깨어 믿음에 굳게 서서 남자답게 강건하라 너희 모든 일을 사랑으로 행하라", ref: "고린도전서 16:13-14", note: "흔들리지 않는 믿음 위에 사랑으로 모든 일을 행하는 청소년이 됩시다." },
+  { verse: "우리 주 예수 그리스도의 은혜와 하나님의 사랑과 성령의 교통하심이 너희 무리와 함께 있을지어다", ref: "고린도후서 13:13", note: "삼위일체 하나님의 은혜와 사랑이 오늘 너의 걸음마다 함께하십니다." },
+  { verse: "내가 그리스도와 함께 십자가에 못 박혔나니 그런즉 이제는 내가 사는 것이 아니요 오직 내 안에 그리스도께서 사시는 것이라", ref: "갈라디아서 2:20", note: "내 안에 살아계신 예수님과 동행하는 복된 하루를 보내세요." },
+  { verse: "오직 성령의 충만함을 받으라", ref: "에베소서 5:18", note: "세상의 다른 것이 아닌 성령님의 은혜로 채워지는 하루가 되길 기도합니다." },
+  { verse: "빛의 자녀들처럼 행하라 빛의 열매는 모든 착함과 의로움과 진실함에 있느니라", ref: "에베소서 5:8-9", note: "어디에 있든지 착하고 의롭고 진실한 빛의 자녀로 살아갑시다." },
+  { verse: "종말로 너희가 주 안에서와 그 힘의 능력으로 강건하여지고", ref: "에베소서 6:10", note: "주님이 주시는 전신갑주를 입고 영적으로 강건하게 서자!" },
+  { verse: "나의 간절한 기대와 소망을 따라 아무 일에든지 부끄러워하지 아니하고 지금도 전과 같이 온전히 담대하여", ref: "빌립보서 1:20", note: "오늘 하루도 주님 안에서 당당하고 담대하게 걸어가세요." },
+  { verse: "나의 하나님이 그리스도 예수 안에서 영광 가운데 그 풍성한 대로 너희 모든 쓸 것을 채우시리라", ref: "빌립보서 4:19", note: "우리의 필요를 가장 잘 아시는 하나님이 풍성하게 채워주십니다." },
+  { verse: "그리스도의 평강이 너희 마음을 주장하게 하라 너희는 평강을 위하여 한 몸으로 부르심을 받았나니 너희는 또한 감사하는 자가 되라", ref: "골로새서 3:15", note: "불평 대신 감사를 선택할 때 마음이 평안해집니다." },
+  { verse: "그리스도의 말씀이 너희 속에 풍성히 거하여 모든 지혜로 피차 가르치며 권면하고", ref: "골로새서 3:16", note: "서로에게 지혜와 격려를 나누어 주는 믿음의 공동체가 됩시다." },
+  { verse: "기도를 계속하고 기도에 감사함으로 깨어 있으라", ref: "골로새서 4:2", note: "짧은 한 줄 기도라도 매일 꾸준히 이어가는 기도의 습관을 세워요." },
+  { verse: "피차 권면하고 서로 덕을 세우기를 너희가 하는 것 같이 하라", ref: "데살로니가전서 5:11", note: "비난보다는 칭찬과 격려로 서로를 세워주는 청소년부가 됩시다." },
+  { verse: "평강의 하나님이 친히 너희를 온전히 거룩하게 하시고", ref: "데살로니가전서 5:23", note: "너의 영과 혼과 몸이 주님 안에서 건강하고 거룩하게 지켜지길 축복합니다." },
+  { verse: "주는 미쁘사 너희를 굳건하게 하시고 악한 자에게서 지키시리라", ref: "데살로니가후서 3:3", note: "신실하신 주님이 오늘도 너를 굳건히 붙들고 보호하십니다." },
+  { verse: "경건에 이르도록 네 자신을 연단하라", ref: "디모데전서 4:7", note: "운동선수가 훈련하듯 매일의 큐티와 기도로 영적인 체력을 길러요." },
+  { verse: "선한 싸움을 싸우고 나의 달려갈 길을 마치고 믿음을 지켰으니", ref: "디모데후서 4:7", note: "오늘 주어진 경주도 끝까지 믿음으로 완주하는 멋진 하루가 되자!" },
+  { verse: "그러므로 우리는 긍휼하심을 받고 때를 따라 돕는 은혜를 얻기 위하여 은혜의 보좌 앞에 담대히 나아갈 것이니라", ref: "히브리서 4:16", note: "도움이 필요할 때 망설이지 말고 은혜의 보좌 앞으로 나아가세요." },
+  { verse: "믿음의 주요 또 온전하게 하시는 이인 예수를 바라보자", ref: "히브리서 12:2", note: "주변 환경에 흔들릴 때 시선을 들어 예수님만 바라봅시다." },
+  { verse: "서로 돌아보아 사랑과 선행을 격려하며", ref: "히브리서 10:24", note: "오늘 보이지 않는 친구에게 안부 메시지 한 통 보내보는 건 어떨까요?" },
+  { verse: "시험을 참는 자는 복이 있나니 이는 시련을 견디어 낸 자가 주께서 자기를 사랑하는 자들에게 약속하신 생명의 면류관을 얻을 것이기 때문이라", ref: "야고보서 1:12", note: "지금의 인내와 수고 끝에는 하나님이 예비하신 생명의 면류관이 있습니다." },
+  { verse: "온갖 좋은 은사와 온전한 선물이 다 위로부터 빛들의 아버지께로부터 내려오나니", ref: "야고보서 1:17", note: "너에게 주신 재능과 달란트는 하나님이 주신 귀한 선물입니다." },
+  { verse: "그러나 너희는 택하신 족속이요 왕 같은 제사장들이요 거룩한 나라요 그의 소유가 된 백성이니", ref: "베드로전서 2:9", note: "너는 하나님이 특별히 택하신 왕 같은 제사장입니다. 자부심을 가지세요!" },
+  { verse: "무엇보다도 뜨겁게 서로 사랑할지니 사랑은 허다한 죄를 덮느니라", ref: "베드로전서 4:8", note: "서로의 부족함을 덮어주고 안아주는 따뜻한 사랑이 넘치길 기도합니다." },
+  { verse: "오직 우리 주 곧 구주 예수 그리스도의 은혜와 그를 아는 지식에서 자라 가라", ref: "베드로후서 3:18", note: "키와 지식이 자라듯 하나님을 아는 믿음도 날마다 쑥쑥 자라가길 축복합니다." },
+  { verse: "자녀들아 우리가 말과 혀로만 사랑하지 말고 행함과 진실함으로 하자", ref: "요한일서 3:18", note: "말뿐인 사랑이 아니라 작은 행동과 진심으로 사랑을 표현해 보세요." },
+  { verse: "두려워하지 말라 나는 처음이요 마지막이니", ref: "요한계시록 1:17", note: "인생의 시작과 끝을 쥐고 계신 주님이 너와 함께하십니다." },
+  { verse: "볼지어다 내가 문 밖에 서서 두드리노니 누구든지 내 음성을 듣고 문을 열면 내가 그에게로 들어가 그와 더불어 먹고 그는 나와 더불어 먹으리라", ref: "요한계시록 3:20", note: "오늘도 네 마음의 문을 두드리시는 예수님을 기쁘게 맞이하세요." },
+  { verse: "내가 너희에게 분부한 모든 것을 가르쳐 지키게 하라", ref: "마태복음 28:20", note: "배운 말씀을 삶으로 살아낼 때 진짜 능력이 나타납니다." },
+  { verse: "여호와는 네게 복을 주시고 너를 지키시기를 원하며", ref: "민수기 6:24", note: "오늘 하루 하나님의 크신 복과 보호하심이 너의 삶에 가득하길 축복합니다." },
+  { verse: "여호와는 그의 얼굴을 네게 비추사 은혜 베푸시기를 원하며", ref: "민수기 6:25", note: "하나님의 따뜻한 미소와 은혜가 오늘 너의 얼굴에도 환히 비치길 기도합니다." },
+  { verse: "여호와는 그 얼굴을 네게로 향하여 드사 평강 주시기를 원하노라", ref: "민수기 6:26", note: "세상이 흔들려도 주님이 주시는 깊은 평강이 너를 지켜주실 것입니다." },
+  { verse: "너는 마음을 다하고 뜻을 다하고 힘을 다하여 네 하나님 여호와를 사랑하라", ref: "신명기 6:5", note: "오늘 내가 하는 모든 일의 동기가 하나님을 사랑하는 마음이 되길 소망합니다." },
+  { verse: "여호와께서 너를 위하여 하늘의 아름다운 보고를 여시사 네 땅에 때를 따라 비를 내리시고 네 손으로 하는 모든 일에 복을 주시리니", ref: "신명기 28:12", note: "성실하게 땀 흘리는 너의 손길 위에 하나님이 때를 따라 복을 내려주십니다." },
+  { verse: "여호와는 나의 반석이시요 나의 요새시요 나를 건지시는 이시요", ref: "시편 18:2", note: "어떤 폭풍우가 불어와도 흔들리지 않는 반석 되신 주님 위에 서세요." },
+  { verse: "내가 주께 범죄하지 아니하려 하여 주의 말씀을 내 마음에 두었나이다", ref: "시편 119:11", note: "마음속에 새긴 말씀 한 구절이 유혹의 순간에 우리를 지켜줍니다." },
+  { verse: "주의 법을 사랑하는 자에게는 큰 평안이 있으니 그들에게 장애물이 없으리이다", ref: "시편 119:165", note: "말씀을 사랑하는 마음 안에 주님이 주시는 큰 평안이 깃듭니다." },
+  { verse: "여호와께서 집을 세우지 아니하시면 세우는 자의 수고가 헛되며", ref: "시편 127:1", note: "우리의 학업과 미래의 집을 하나님이 직접 세워주시도록 기도해요." },
+  { verse: "보라 형제가 연합하여 동거함이 어찌 그리 선하고 아름다운고", ref: "시편 133:1", note: "온양 청소년부가 함께 모여 예배하고 웃는 모습이 하나님 보시기에 가장 아름답습니다." },
+  { verse: "내가 주께 감사하옴은 나를 지으심이 심히 기묘하심이라 주께서 하시는 일이 기이함을 내 영혼이 잘 아나이다", ref: "시편 139:14", note: "너는 우연히 태어난 존재가 아니라 하나님이 기묘하게 빚으신 특별한 작품입니다." },
+  { verse: "여호와께 감사하라 그는 선하시며 그 인자하심이 영원함이로다", ref: "시편 136:1", note: "영원히 변치 않는 하나님의 사랑에 감사하며 하루를 열어봅시다." },
+  { verse: "할렐루야 그의 성소에서 하나님을 찬양하며 그의 권능의 궁창에서 그를 찬양할지어다", ref: "시편 150:1", note: "호흡이 있는 동안 기쁨으로 하나님을 찬양하는 청소년이 됩시다!" },
+  { verse: "은혜와 진리는 예수 그리스도로 말미암아 온 것이라", ref: "요한복음 1:17", note: "예수님 안에서 넘치는 은혜와 진리를 누리는 하루가 되길 바랍니다." },
+  { verse: "내 양은 내 음성을 들으며 나는 그들을 알며 그들은 나를 따르느니라", ref: "요한복음 10:27", note: "세상의 시끄러운 소리보다 선한 목자 되신 예수님의 음성에 귀를 기울여 보세요." },
+  { verse: "평안을 너희에게 끼치노니 곧 나의 평안을 너희에게 주노라 내가 너희에게 주는 것은 세상이 주는 것과 같지 아니하니라", ref: "요한복음 14:27", note: "마음에 근심하지도 말고 두려워하지도 마세요. 주님의 평안이 함께합니다." },
+  { verse: "너희가 내 안에 거하고 내 말이 너희 안에 거하면 무엇이든지 원하는 대로 구하라 그리하면 이루리라", ref: "요한복음 15:7", note: "말씀 안에 거하며 드리는 기도는 반드시 열매를 맺습니다." },
+  { verse: "너희가 서로 사랑하면 이로써 모든 사람이 너희가 내 제자인 줄 알리라", ref: "요한복음 13:35", note: "우리가 서로 아끼고 사랑하는 모습을 통해 세상이 예수님을 보게 됩니다." },
+  { verse: "항상 선을 따르라", ref: "데살로니가전서 5:15", note: "어떤 상황에서도 선한 편을 선택하는 용기 있는 청소년이 됩시다." },
+  { verse: "여호와 너의 하나님이 너의 가운데에 계시니 그는 구원을 베푸실 전능자이시라 그가 너로 말미암아 기쁨을 이기지 못하시며", ref: "스바냐 3:17", note: "하나님은 너를 바라보실 때마다 기쁨을 이기지 못하실 만큼 너를 사랑하십니다!" },
+  { verse: "오직 정의를 행하며 인자를 사랑하며 겸손하게 네 하나님과 함께 행하는 것이 아니냐", ref: "미가 6:8", note: "정의롭고 따뜻하며 겸손하게 하나님과 동행하는 멋진 하루가 되길 기도합니다." },
+  { verse: "비록 무화과나무가 무성하지 못하며 포도나무에 열매가 없으며... 나는 여호와로 말미암아 즐거워하며 나의 구원의 하나님으로 말미암아 기뻐하리로다", ref: "하박국 3:17-18", note: "상황과 조건 때문이 아니라 구원의 하나님 한 분 때문에 기뻐하는 믿음을 구해요." },
+  { verse: "이는 힘으로 되지 아니하며 능력으로 되지 아니하고 오직 나의 영으로 되느니라", ref: "스가랴 4:6", note: "내 힘이 부족하다고 느껴질 때 성령님의 도우심을 구하면 능히 감당합니다." },
+  { verse: "너희는 세상의 소금이니 소금이 만일 그 맛을 잃으면 무엇으로 짜게 하리요", ref: "마태복음 5:13", note: "내가 속한 학교와 반에서 꼭 필요한 선한 영향력을 발휘하는 소금이 되자!" },
+  { verse: "이같이 너희 빛이 사람 앞에 비치게 하여 그들로 너희 착한 행실을 보고 하늘에 계신 너희 아버지께 영광을 돌리게 하라", ref: "마태복음 5:16", note: "우리의 착한 행실과 밝은 미소가 하나님께 큰 영광이 됩니다." },
+  { verse: "너희도 성령 안에서 하나님이 거하실 처소가 되기 위하여 그리스도 예수 안에서 함께 지어져 가느니라", ref: "에베소서 2:22", note: "오늘도 그리스도 안에서 서로를 세워주며 함께 지어져 가는 온양 청소년부가 됩시다!" }
 ];
 
 // ==========================================
-// 3. 수박 게임 스타일 '함께 지어져 가는 합체 퍼즐' 9단계 설정 (난이도 상향)
+// 4. 게임 1: 수박 게임 스타일 '합체 퍼즐' 9단계
 // ==========================================
 const MERGE_LEVELS = [
   { level: 0, name: '겨자씨', emoji: '🌱', radius: 17, color: '#dcfce7', border: '#16a34a', score: 10 },
@@ -176,6 +319,7 @@ const INITIAL_PUBLIC_DATA = {
     completers: []
   },
   gameRanking: [],
+  runnerRanking: [],
   monthlyBirthdays: {
     month: 11,
     list: [
@@ -241,7 +385,7 @@ const extractCurrentMonthBirthdays = (classesObj) => {
 };
 
 // ==========================================
-// 4. 절기별 낙하 이펙트 오버레이 (눈송이 / 비둘기)
+// 5. 절기별 낙하 이펙트 오버레이
 // ==========================================
 function SeasonEffectOverlay({ type }) {
   const particles = useMemo(() => {
@@ -296,9 +440,9 @@ function SeasonEffectOverlay({ type }) {
 }
 
 // ==========================================
-// 5. 수박 게임 스타일 '함께 지어져 가는 합체 퍼즐' (9단계 + 정확한 종료 판정)
+// 6-A. 게임 1: 수박 게임 스타일 '합체 퍼즐'
 // ==========================================
-function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
+function MergePuzzleGame({ rankings, onSaveScore }) {
   const canvasRef = useRef(null);
   const [score, setScore] = useState(0);
   const [nextLevel, setNextLevel] = useState(0);
@@ -432,7 +576,6 @@ function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
                     state.score += spec.score;
                     setScore(state.score);
                   } else {
-                    // 면류관 2개가 합쳐지면 2000점 대박 보너스!
                     state.score += 2000;
                     setScore(state.score);
                   }
@@ -472,8 +615,6 @@ function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
           state.balls = state.balls.filter((b) => !mergedIds.has(b.id)).concat(newBalls);
         }
 
-        // 빨간 점선(DANGER_Y) 게임 오버 판정 강화:
-        // 드롭 유예 시간(약 0.9초 = 55프레임) 이후, 공의 윗부분이 점선에 닿거나 넘은 상태로 0.6초(35프레임) 유지되면 즉시 종료
         for (let b of state.balls) {
           if (b.age > 55 && b.y - b.r <= DANGER_Y) {
             b.dangerFrames = (b.dangerFrames || 0) + 1;
@@ -490,7 +631,6 @@ function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
 
       ctx.clearRect(0, 0, WIDTH, HEIGHT);
 
-      // 위험선(빨간 점선) 그리기
       ctx.save();
       ctx.strokeStyle = '#f43f5e';
       ctx.lineWidth = 2;
@@ -565,7 +705,6 @@ function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
     });
 
     state.canDrop = false;
-    // 초반 드롭 아이템은 겨자씨(0), 새싹(1), 물고기(2), 비둘기(3) 중에서 등장
     const upcoming = Math.floor(Math.random() * 4);
     state.nextLevel = upcoming;
     setNextLevel(upcoming);
@@ -583,42 +722,35 @@ function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
   };
 
   return (
-    <div className="space-y-3.5">
-      <div className="flex items-center justify-between gap-2">
-        <button onClick={onBack} className="flex items-center gap-1 text-xs font-bold text-slate-600 bg-white/85 px-3 py-1.5 rounded-full">
-          <ChevronLeft className="w-4 h-4" /> 홈으로
-        </button>
-        <div className="flex items-center gap-1.5">
+    <div className="space-y-3">
+      <div className="bg-slate-900 text-white p-3.5 rounded-2xl flex items-center justify-between shadow-md">
+        <div>
+          <div className="text-[10px] text-amber-300 font-bold">합체 퍼즐 점수</div>
+          <div className="text-xl font-extrabold">{score.toLocaleString()}점</div>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 bg-white/10 px-2.5 py-1.5 rounded-xl">
+            <span className="text-[10px] text-slate-300">다음:</span>
+            <span className="text-base">{MERGE_LEVELS[nextLevel].emoji}</span>
+          </div>
           {!gameOver && score > 0 && (
             <button
               onClick={triggerManualFinish}
-              className="flex items-center gap-1 text-xs font-bold text-amber-800 bg-amber-100 px-3 py-1.5 rounded-full border border-amber-200"
+              className="text-[11px] font-bold text-amber-900 bg-amber-300 px-2.5 py-1.5 rounded-xl"
             >
-              <Trophy className="w-3.5 h-3.5" /> 기록 남기기
+              기록 등록
             </button>
           )}
           <button
             onClick={resetGame}
-            className="flex items-center gap-1 text-xs font-bold text-slate-700 bg-white/85 px-3 py-1.5 rounded-full border border-slate-200"
+            className="p-2 rounded-xl bg-white/15 text-white hover:bg-white/25"
+            title="다시 시작"
           >
-            <RotateCcw className="w-3.5 h-3.5" /> 다시 시작
+            <RotateCcw className="w-4 h-4" />
           </button>
         </div>
       </div>
 
-      <div className="bg-slate-900 text-white p-3.5 rounded-2xl flex items-center justify-between shadow-md">
-        <div>
-          <div className="text-[10px] text-amber-300 font-bold">현재 점수</div>
-          <div className="text-xl font-extrabold">{score.toLocaleString()}점</div>
-        </div>
-        <div className="flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-xl">
-          <span className="text-[11px] text-slate-300">다음:</span>
-          <span className="text-lg">{MERGE_LEVELS[nextLevel].emoji}</span>
-          <span className="text-xs font-bold">{MERGE_LEVELS[nextLevel].name}</span>
-        </div>
-      </div>
-
-      {/* 9단계 합체 순서표 */}
       <div className="bg-white/85 backdrop-blur-md px-2.5 py-2 rounded-xl border border-white flex items-center justify-between text-[10px] overflow-x-auto gap-1">
         {MERGE_LEVELS.map((lv, i) => (
           <React.Fragment key={lv.level}>
@@ -647,8 +779,8 @@ function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
         {gameOver && (
           <div className="absolute inset-0 bg-slate-900/85 backdrop-blur-xs flex items-center justify-center p-4 z-10">
             <div className="bg-white rounded-3xl p-5 w-full max-w-xs text-center space-y-3 shadow-2xl">
-              <div className="text-2xl">🎉</div>
-              <h3 className="text-lg font-extrabold text-slate-900">게임 종료!</h3>
+              <div className="text-2xl">👑</div>
+              <h3 className="text-lg font-extrabold text-slate-900">합체 퍼즐 종료!</h3>
               <div className="text-2xl font-black text-emerald-600">{score.toLocaleString()}점</div>
 
               {!scoreSaved ? (
@@ -687,7 +819,7 @@ function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
 
       <div className="bg-white/90 backdrop-blur-md p-4 rounded-2xl border border-white space-y-2">
         <div className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
-          <Trophy className="w-4 h-4 text-amber-500" /> 청소년부 실시간 최고 기록 TOP 5
+          <Trophy className="w-4 h-4 text-amber-500" /> 합체 퍼즐 실시간 최고 기록 TOP 5
         </div>
         {rankings.length > 0 ? (
           <div className="space-y-1.5">
@@ -714,7 +846,484 @@ function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
 }
 
 // ==========================================
-// 6. 메인 애플리케이션
+// 6-B. 게임 2: 영상 스타일 '숫자 분할·합체 러너' (터치 분할 / 장애물 회피 / 2배 성장)
+// ==========================================
+const getCubePalette = (val) => {
+  if (val <= 2) return { bg: '#38bdf8', border: '#0284c7', text: '#ffffff' };
+  if (val <= 4) return { bg: '#34d399', border: '#059669', text: '#ffffff' };
+  if (val <= 8) return { bg: '#fbbf24', border: '#d97706', text: '#ffffff' };
+  if (val <= 16) return { bg: '#fb923c', border: '#ea580c', text: '#ffffff' };
+  if (val <= 32) return { bg: '#f43f5e', border: '#e11d48', text: '#ffffff' };
+  if (val <= 64) return { bg: '#a855f7', border: '#7e22ce', text: '#ffffff' };
+  if (val <= 128) return { bg: '#6366f1', border: '#4338ca', text: '#ffffff' };
+  if (val <= 256) return { bg: '#ec4899', border: '#be185d', text: '#ffffff' };
+  if (val <= 512) return { bg: '#14b8a6', border: '#0f766e', text: '#ffffff' };
+  return { bg: '#eab308', border: '#a16207', text: '#ffffff' };
+};
+
+function NumberSplitRunnerGame({ rankings, onSaveScore }) {
+  const canvasRef = useRef(null);
+  const [displayNum, setDisplayNum] = useState(4);
+  const [bestNum, setBestNum] = useState(4);
+  const [gameOver, setGameOver] = useState(false);
+  const [playerName, setPlayerName] = useState('');
+  const [scoreSaved, setScoreSaved] = useState(false);
+
+  const WIDTH = 320;
+  const HEIGHT = 420;
+  const LANES = [64, 160, 256]; // 좌(0), 중(1), 우(2) 3레인 중심 X좌표
+  const PLAYER_Y = 345;
+
+  const runnerRef = useRef({
+    totalValue: 4,
+    bestValue: 4,
+    isSplit: false,
+    spread: 0, // 0(중앙 합체) ~ 1(좌우 분할)
+    speed: 3.1,
+    roadOffset: 0,
+    spawnTimer: 0,
+    waveCount: 0,
+    items: [], // { id, lane, y, type: 'cube'|'spike'|'x2', value, hit }
+    gameOver: false,
+    flashText: '',
+    flashTimer: 0,
+    idCounter: 1
+  });
+
+  const resetRunner = () => {
+    runnerRef.current = {
+      totalValue: 4,
+      bestValue: 4,
+      isSplit: false,
+      spread: 0,
+      speed: 3.1,
+      roadOffset: 0,
+      spawnTimer: 20,
+      waveCount: 0,
+      items: [],
+      gameOver: false,
+      flashText: '',
+      flashTimer: 0,
+      idCounter: 1
+    };
+    setDisplayNum(4);
+    setBestNum(4);
+    setGameOver(false);
+    setScoreSaved(false);
+  };
+
+  useEffect(() => {
+    resetRunner();
+    let animId;
+
+    const drawRoundedCube = (ctx, cx, cy, size, label, palette) => {
+      const half = size / 2;
+      ctx.save();
+      // 그림자
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.16)';
+      ctx.beginPath();
+      ctx.roundRect(cx - half + 2, cy - half + 5, size, size, 10);
+      ctx.fill();
+
+      // 본체
+      ctx.fillStyle = palette.bg;
+      ctx.strokeStyle = palette.border;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.roundRect(cx - half, cy - half, size, size, 10);
+      ctx.fill();
+      ctx.stroke();
+
+      // 숫자 텍스트
+      ctx.fillStyle = palette.text;
+      const fontSize = String(label).length >= 4 ? 12 : String(label).length === 3 ? 14 : 17;
+      ctx.font = `900 ${fontSize}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(label), cx, cy + 1);
+      ctx.restore();
+    };
+
+    const drawSpike = (ctx, cx, cy) => {
+      ctx.save();
+      ctx.fillStyle = '#1e293b';
+      ctx.strokeStyle = '#f43f5e';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      const spikes = 8;
+      const outerR = 21;
+      const innerR = 11;
+      for (let i = 0; i < spikes * 2; i++) {
+        const r = i % 2 === 0 ? outerR : innerR;
+        const angle = (i * Math.PI) / spikes;
+        const x = cx + Math.cos(angle) * r;
+        const y = cy + Math.sin(angle) * r;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#fda4af';
+      ctx.font = 'bold 11px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('✕', cx, cy + 1);
+      ctx.restore();
+    };
+
+    const spawnWave = (st) => {
+      st.waveCount += 1;
+      const halfVal = Math.max(2, Math.floor(st.totalValue / 2));
+      const pattern = st.waveCount % 4;
+
+      if (pattern === 1) {
+        // 패턴 1: 양쪽 레인에 절반 숫자 배치 (터치해서 갈라지면 둘 다 먹어서 2배 성장!)
+        st.items.push({ id: st.idCounter++, lane: 0, y: -30, type: 'cube', value: halfVal, hit: false });
+        st.items.push({ id: st.idCounter++, lane: 2, y: -30, type: 'cube', value: halfVal, hit: false });
+      } else if (pattern === 2) {
+        // 패턴 2: 중앙 장애물 + 양쪽 숫자 또는 안전 통로 (터치해서 피해야 함)
+        st.items.push({ id: st.idCounter++, lane: 1, y: -30, type: 'spike', value: 0, hit: false });
+        if (Math.random() > 0.35) {
+          st.items.push({ id: st.idCounter++, lane: 0, y: -30, type: 'cube', value: halfVal, hit: false });
+          st.items.push({ id: st.idCounter++, lane: 2, y: -30, type: 'cube', value: halfVal, hit: false });
+        }
+      } else if (pattern === 3) {
+        // 패턴 3: 중앙에 현재 전체 숫자와 같은 큐브 배치 (손을 떼고 합친 상태로 먹어야 2배!)
+        st.items.push({ id: st.idCounter++, lane: 1, y: -30, type: 'cube', value: st.totalValue, hit: false });
+        st.items.push({ id: st.idCounter++, lane: 0, y: -30, type: 'spike', value: 0, hit: false });
+        st.items.push({ id: st.idCounter++, lane: 2, y: -30, type: 'spike', value: 0, hit: false });
+      } else {
+        // 패턴 4: 양쪽 장애물 + 중앙 보너스(×2) 또는 같은 숫자
+        st.items.push({ id: st.idCounter++, lane: 0, y: -30, type: 'spike', value: 0, hit: false });
+        st.items.push({ id: st.idCounter++, lane: 2, y: -30, type: 'spike', value: 0, hit: false });
+        st.items.push({ id: st.idCounter++, lane: 1, y: -30, type: 'x2', value: 2, hit: false });
+      }
+    };
+
+    const loop = () => {
+      const st = runnerRef.current;
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+
+      if (!st.gameOver) {
+        // 점진적 속도 상승
+        st.speed = Math.min(5.6, 3.1 + Math.log2(Math.max(4, st.bestValue)) * 0.18);
+        st.roadOffset = (st.roadOffset + st.speed) % 40;
+
+        // 분할/합체 애니메이션 보간
+        const targetSpread = st.isSplit && st.totalValue >= 4 ? 1 : 0;
+        st.spread += (targetSpread - st.spread) * 0.25;
+
+        // 웨이브 생성
+        st.spawnTimer -= 1;
+        if (st.spawnTimer <= 0) {
+          spawnWave(st);
+          st.spawnTimer = Math.max(48, Math.round(210 / st.speed));
+        }
+
+        // 내 큐브 위치 계산
+        const activeCubes =
+          st.spread > 0.35
+            ? [
+                { x: LANES[1] - (LANES[1] - LANES[0]) * st.spread, val: Math.floor(st.totalValue / 2), size: 38 },
+                { x: LANES[1] + (LANES[2] - LANES[1]) * st.spread, val: Math.floor(st.totalValue / 2), size: 38 }
+              ]
+            : [{ x: LANES[1], val: st.totalValue, size: 46 }];
+
+        // 아이템 이동 및 충돌 판정
+        for (let item of st.items) {
+          item.y += st.speed;
+          if (item.hit) continue;
+
+          const itemX = LANES[item.lane];
+          if (Math.abs(item.y - PLAYER_Y) < 28) {
+            for (let pc of activeCubes) {
+              if (Math.abs(itemX - pc.x) < 32) {
+                item.hit = true;
+
+                if (item.type === 'cube') {
+                  if (item.value === pc.val) {
+                    st.totalValue += item.value;
+                    st.flashText = `합체! ${st.totalValue}`;
+                    st.flashTimer = 30;
+                  } else if (item.value < pc.val) {
+                    st.totalValue += item.value;
+                  } else {
+                    // 나보다 큰 숫자에 부딪히면 절반 감소
+                    st.totalValue = Math.floor(st.totalValue / 2);
+                    st.flashText = '숫자 감소!';
+                    st.flashTimer = 30;
+                  }
+                } else if (item.type === 'x2') {
+                  st.totalValue *= 2;
+                  st.flashText = `×2 대박! ${st.totalValue}`;
+                  st.flashTimer = 35;
+                } else if (item.type === 'spike') {
+                  st.totalValue = Math.floor(st.totalValue / 2);
+                  st.flashText = '장애물 충돌! 절반 감소';
+                  st.flashTimer = 35;
+                }
+
+                if (st.totalValue > st.bestValue) {
+                  st.bestValue = st.totalValue;
+                  setBestNum(st.bestValue);
+                }
+                setDisplayNum(Math.max(0, st.totalValue));
+
+                if (st.totalValue < 2) {
+                  st.totalValue = 0;
+                  st.gameOver = true;
+                  setGameOver(true);
+                }
+                break;
+              }
+            }
+          }
+        }
+
+        st.items = st.items.filter((it) => it.y < HEIGHT + 50 && !it.hit);
+        if (st.flashTimer > 0) st.flashTimer -= 1;
+      }
+
+      // 배경 트랙 그리기
+      ctx.clearRect(0, 0, WIDTH, HEIGHT);
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+      // 3레인 가이드 선
+      ctx.save();
+      ctx.strokeStyle = '#cbd5e1';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([18, 22]);
+      ctx.lineDashOffset = -st.roadOffset;
+      [112, 208].forEach((lx) => {
+        ctx.beginPath();
+        ctx.moveTo(lx, 0);
+        ctx.lineTo(lx, HEIGHT);
+        ctx.stroke();
+      });
+      ctx.restore();
+
+      // 장애물 및 아이템 그리기
+      for (let item of st.items) {
+        const ix = LANES[item.lane];
+        if (item.type === 'cube') {
+          drawRoundedCube(ctx, ix, item.y, 40, item.value, getCubePalette(item.value));
+        } else if (item.type === 'x2') {
+          drawRoundedCube(ctx, ix, item.y, 40, '×2', { bg: '#10b981', border: '#047857', text: '#ffffff' });
+        } else if (item.type === 'spike') {
+          drawSpike(ctx, ix, item.y);
+        }
+      }
+
+      // 플레이어 큐브 그리기 (합체 상태 vs 좌우 분할 상태)
+      if (!st.gameOver) {
+        if (st.spread > 0.25 && st.totalValue >= 4) {
+          const halfVal = Math.floor(st.totalValue / 2);
+          const leftX = LANES[1] - (LANES[1] - LANES[0]) * st.spread;
+          const rightX = LANES[1] + (LANES[2] - LANES[1]) * st.spread;
+          const pal = getCubePalette(halfVal);
+          drawRoundedCube(ctx, leftX, PLAYER_Y, 38, halfVal, pal);
+          drawRoundedCube(ctx, rightX, PLAYER_Y, 38, halfVal, pal);
+        } else {
+          drawRoundedCube(ctx, LANES[1], PLAYER_Y, 46, st.totalValue, getCubePalette(st.totalValue));
+        }
+      }
+
+      // 효과 텍스트 표시
+      if (st.flashTimer > 0 && st.flashText) {
+        ctx.save();
+        ctx.fillStyle = st.flashText.includes('충돌') || st.flashText.includes('감소') ? '#e11d48' : '#059669';
+        ctx.font = '900 14px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(st.flashText, WIDTH / 2, PLAYER_Y - 46);
+        ctx.restore();
+      }
+
+      animId = requestAnimationFrame(loop);
+    };
+
+    animId = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(animId);
+  }, []);
+
+  const handlePressStart = (e) => {
+    if (e.cancelable) e.preventDefault();
+    if (runnerRef.current.gameOver) return;
+    runnerRef.current.isSplit = true;
+  };
+
+  const handlePressEnd = (e) => {
+    if (e.cancelable) e.preventDefault();
+    runnerRef.current.isSplit = false;
+  };
+
+  const handleRecordSubmit = (e) => {
+    e.preventDefault();
+    if (!playerName.trim() || bestNum <= 0) return;
+    onSaveScore(playerName.trim(), bestNum);
+    setScoreSaved(true);
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="bg-indigo-950 text-white p-3.5 rounded-2xl flex items-center justify-between shadow-md">
+        <div>
+          <div className="text-[10px] text-sky-300 font-bold">현재 숫자 · 최고 달성</div>
+          <div className="text-xl font-extrabold">
+            {displayNum.toLocaleString()} <span className="text-xs font-semibold text-amber-300">(최고 {bestNum.toLocaleString()})</span>
+          </div>
+        </div>
+        <button
+          onClick={resetRunner}
+          className="flex items-center gap-1 text-xs font-bold bg-white/15 px-3 py-1.5 rounded-xl hover:bg-white/25"
+        >
+          <RotateCcw className="w-3.5 h-3.5" /> 다시 시작
+        </button>
+      </div>
+
+      <div className="bg-sky-50 border border-sky-200/80 px-3 py-2 rounded-xl text-[11px] text-sky-900 font-semibold text-center">
+        👆 화면을 <b>누르고 있으면 절반 분할</b> · <b>손을 떼면 중앙 합체!</b>
+      </div>
+
+      <div className="relative bg-white rounded-3xl border-2 border-slate-200 shadow-inner overflow-hidden flex justify-center select-none">
+        <canvas
+          ref={canvasRef}
+          width={WIDTH}
+          height={HEIGHT}
+          onMouseDown={handlePressStart}
+          onMouseUp={handlePressEnd}
+          onMouseLeave={handlePressEnd}
+          onTouchStart={handlePressStart}
+          onTouchEnd={handlePressEnd}
+          className="w-full max-w-[340px] touch-none cursor-pointer"
+        />
+
+        {gameOver && (
+          <div className="absolute inset-0 bg-slate-900/85 backdrop-blur-xs flex items-center justify-center p-4 z-10">
+            <div className="bg-white rounded-3xl p-5 w-full max-w-xs text-center space-y-3 shadow-2xl">
+              <div className="text-2xl">⚡</div>
+              <h3 className="text-lg font-extrabold text-slate-900">러너 게임 종료!</h3>
+              <div className="text-xs text-slate-500 font-bold">이번 판 최고 달성 숫자</div>
+              <div className="text-3xl font-black text-indigo-600">{bestNum.toLocaleString()}</div>
+
+              {!scoreSaved ? (
+                <form onSubmit={handleRecordSubmit} className="space-y-2 pt-1">
+                  <label className="block text-[11px] font-bold text-slate-500">
+                    학년과 이름을 적고 명예의 전당에 등록하세요!
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="학년 이름 (예: 중2 이주원)"
+                    value={playerName}
+                    onChange={(e) => setPlayerName(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs text-center font-bold focus:outline-none focus:border-indigo-500"
+                  />
+                  <button type="submit" className="w-full py-2.5 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700">
+                    🏆 러너 명예의 전당에 등록하기
+                  </button>
+                </form>
+              ) : (
+                <p className="text-xs font-bold text-indigo-700 bg-indigo-50 py-2.5 rounded-xl">
+                  ✨ {playerName} 친구의 최고 숫자가 등록되었습니다!
+                </p>
+              )}
+
+              <button
+                onClick={resetRunner}
+                className="w-full py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200"
+              >
+                다시 도전하기
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="bg-white/90 backdrop-blur-md p-4 rounded-2xl border border-white space-y-2">
+        <div className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+          <Trophy className="w-4 h-4 text-indigo-500" /> 숫자 분할 러너 최고 기록 TOP 5
+        </div>
+        {rankings.length > 0 ? (
+          <div className="space-y-1.5">
+            {rankings.slice(0, 5).map((r, idx) => (
+              <div key={idx} className="flex items-center justify-between text-xs py-1.5 px-2.5 rounded-xl bg-slate-50">
+                <div className="flex items-center gap-2">
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-extrabold ${
+                    idx === 0 ? 'bg-amber-400 text-white' : idx === 1 ? 'bg-slate-400 text-white' : idx === 2 ? 'bg-amber-700 text-white' : 'bg-slate-200 text-slate-600'
+                  }`}>
+                    {idx + 1}
+                  </span>
+                  <span className="font-bold text-slate-800">{r.name}</span>
+                </div>
+                <span className="font-extrabold text-indigo-700">{r.score.toLocaleString()}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-slate-500">아직 등록된 기록이 없습니다. 첫 번째 챔피언에 도전해 보세요!</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ==========================================
+// 6-C. 게임 2종 통합 컨테이너 화면
+// ==========================================
+function MiniGameCenter({ puzzleRankings, runnerRankings, onSavePuzzle, onSaveRunner, onBack }) {
+  const [selectedGame, setSelectedGame] = useState('puzzle');
+
+  return (
+    <div className="space-y-3.5">
+      <div className="flex items-center justify-between">
+        <button onClick={onBack} className="flex items-center gap-1 text-xs font-bold text-slate-600 bg-white/85 px-3 py-1.5 rounded-full">
+          <ChevronLeft className="w-4 h-4" /> 홈으로
+        </button>
+        <span className="text-xs font-extrabold text-indigo-700 bg-white/90 px-3 py-1 rounded-full">
+          청소년부 미니게임존 🎮
+        </span>
+      </div>
+
+      {/* 게임 2종 전환 탭 */}
+      <div className="grid grid-cols-2 gap-2 bg-white/85 backdrop-blur-md p-1.5 rounded-2xl border border-white shadow-2xs">
+        <button
+          onClick={() => setSelectedGame('puzzle')}
+          className={`py-2.5 px-3 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1.5 ${
+            selectedGame === 'puzzle'
+              ? 'bg-emerald-600 text-white shadow-sm'
+              : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <span>👑</span> 합체 퍼즐
+        </button>
+        <button
+          onClick={() => setSelectedGame('runner')}
+          className={`py-2.5 px-3 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1.5 ${
+            selectedGame === 'runner'
+              ? 'bg-indigo-600 text-white shadow-sm'
+              : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <span>⚡</span> 숫자 분할 러너
+        </button>
+      </div>
+
+      {selectedGame === 'puzzle' ? (
+        <MergePuzzleGame rankings={puzzleRankings} onSaveScore={onSavePuzzle} />
+      ) : (
+        <NumberSplitRunnerGame rankings={runnerRankings} onSaveScore={onSaveRunner} />
+      )}
+    </div>
+  );
+}
+
+// ==========================================
+// 7. 메인 애플리케이션
 // ==========================================
 export default function App() {
   const [publicData, setPublicData] = useState(INITIAL_PUBLIC_DATA);
@@ -724,50 +1333,41 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('home');
   const [showVersePopup, setShowVersePopup] = useState(false);
 
-  // 역할별 인증 상태
   const [pinModalRole, setPinModalRole] = useState(null);
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState(false);
   const [authRoles, setAuthRoles] = useState({ admin: false, praise: false, officer: false });
 
-  // 편집 모드 토글
   const [isEditingPraise, setIsEditingPraise] = useState(false);
   const [isEditingOrder, setIsEditingOrder] = useState(false);
   const [isEditingCalendar, setIsEditingCalendar] = useState(false);
 
-  // 새 찬양 입력 폼
   const [newSong, setNewSong] = useState({ title: '', artist: '', key: '', url: '' });
 
-  // 관리자 하위 탭
   const [adminTab, setAdminTab] = useState('attendance');
   const [selectedClassId, setSelectedClassId] = useState(null);
   const [selectedDate, setSelectedDate] = useState(getLatestSundayStr());
 
-  // 명단 추가/수정 폼 상태
   const [newStudent, setNewStudent] = useState({ name: '', birth: '', phone: '' });
   const [editingTeacher, setEditingTeacher] = useState(false);
   const [teacherNameInput, setTeacherNameInput] = useState('');
 
-  // 사진 업로드 상태
   const [photoTitle, setPhotoTitle] = useState('');
   const [photoDesc, setPhotoDesc] = useState('');
   const [photoFile, setPhotoFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState(null);
 
-  // 퀴즈 참여 상태
   const [quizStudentName, setQuizStudentName] = useState('');
   const [quizAnswers, setQuizAnswers] = useState({});
   const [quizSubmitted, setQuizSubmitted] = useState(false);
 
-  // 퀴즈 출제 폼 상태
   const [newQuizTitle, setNewQuizTitle] = useState('');
   const [newQuizPassage, setNewQuizPassage] = useState('');
   const [newQuizQ, setNewQuizQ] = useState('');
   const [newQuizOpts, setNewQuizOpts] = useState(['', '', '', '']);
   const [newQuizAns, setNewQuizAns] = useState(0);
 
-  // 1) 공개 데이터 실시간 동기화
   useEffect(() => {
     const unsubscribe = onSnapshot(PUBLIC_DOC_REF, async (snapshot) => {
       if (snapshot.exists()) {
@@ -781,6 +1381,7 @@ export default function App() {
           photos: raw.photos ?? prev.photos,
           quiz: raw.quiz ?? prev.quiz,
           gameRanking: raw.gameRanking ?? prev.gameRanking,
+          runnerRanking: raw.runnerRanking ?? prev.runnerRanking,
           monthlyBirthdays: raw.monthlyBirthdays ?? prev.monthlyBirthdays
         }));
       } else {
@@ -794,7 +1395,6 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // 2) 비공개 명단·출석 데이터 동기화
   useEffect(() => {
     if (!authRoles.admin) return;
 
@@ -855,8 +1455,12 @@ export default function App() {
     }
   }, []);
 
+  // 연중 날짜(1~365일째) 계산하여 150개 말씀이 약 5개월 동안 매일 새롭게 순환
   const todayVerse = useMemo(() => {
-    return DAILY_VERSES[new Date().getDate() % DAILY_VERSES.length];
+    const now = new Date();
+    const startOfYear = new Date(now.getFullYear(), 0, 0);
+    const dayOfYear = Math.floor((now - startOfYear) / (1000 * 60 * 60 * 24));
+    return DAILY_VERSES[dayOfYear % DAILY_VERSES.length];
   }, []);
 
   const hideVerseForToday = () => {
@@ -877,12 +1481,20 @@ export default function App() {
     syncPublicData({ season: keys[nextIdx] });
   };
 
-  const handleSaveGameScore = (name, newScore) => {
+  const handleSavePuzzleScore = (name, newScore) => {
     const currentList = publicData.gameRanking || [];
     const updated = [...currentList, { name, score: newScore }]
       .sort((a, b) => b.score - a.score)
       .slice(0, 10);
     syncPublicData({ gameRanking: updated });
+  };
+
+  const handleSaveRunnerScore = (name, newScore) => {
+    const currentList = publicData.runnerRanking || [];
+    const updated = [...currentList, { name, score: newScore }]
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 10);
+    syncPublicData({ runnerRanking: updated });
   };
 
   const handlePinSubmit = (e) => {
@@ -1214,7 +1826,6 @@ export default function App() {
     );
   }
 
-  const topGameScore = publicData.gameRanking && publicData.gameRanking.length > 0 ? publicData.gameRanking[0].score : 0;
   const currentMonthNum = new Date().getMonth() + 1;
   const birthdayBannerData =
     publicData.monthlyBirthdays && publicData.monthlyBirthdays.month === currentMonthNum
@@ -1441,20 +2052,21 @@ export default function App() {
                 </button>
               </div>
 
+              {/* 미니게임 2종 진입 배너 */}
               <div
                 onClick={() => setActiveTab('game')}
                 className="cursor-pointer rounded-2xl p-4 bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 text-white shadow-md hover:shadow-lg transition flex items-center justify-between"
               >
                 <div className="flex items-center gap-3">
                   <div className="w-11 h-11 rounded-2xl bg-white/15 flex items-center justify-center text-2xl shrink-0">
-                    👑
+                    🎮
                   </div>
                   <div>
                     <div className="text-[11px] font-bold text-amber-200 flex items-center gap-1">
-                      <Gamepad2 className="w-3.5 h-3.5" /> 기록 깨기 미니게임 {topGameScore > 0 ? `(1위: ${topGameScore.toLocaleString()}점)` : ''}
+                      <Gamepad2 className="w-3.5 h-3.5" /> 기록 깨기 미니게임 (2종 탑재!)
                     </div>
-                    <div className="text-sm font-extrabold">함께 지어져 가는 합체 퍼즐</div>
-                    <div className="text-[11px] text-white/80">겨자씨부터 면류관까지 합쳐보세요!</div>
+                    <div className="text-sm font-extrabold">합체 퍼즐 & 숫자 분할 러너</div>
+                    <div className="text-[11px] text-white/80">명예의 전당 최고 기록에 도전하세요!</div>
                   </div>
                 </div>
                 <span className="text-xs bg-white text-indigo-700 px-3 py-1.5 rounded-full font-extrabold shrink-0">
@@ -1465,12 +2077,14 @@ export default function App() {
           )}
 
           {/* ========================================== */}
-          {/* 0. 함께 지어져 가는 합체 퍼즐 게임 화면 */}
+          {/* 0. 미니게임 2종 화면 */}
           {/* ========================================== */}
           {activeTab === 'game' && (
-            <MergePuzzleGame
-              rankings={publicData.gameRanking || []}
-              onSaveScore={handleSaveGameScore}
+            <MiniGameCenter
+              puzzleRankings={publicData.gameRanking || []}
+              runnerRankings={publicData.runnerRanking || []}
+              onSavePuzzle={handleSavePuzzleScore}
+              onSaveRunner={handleSaveRunnerScore}
               onBack={() => setActiveTab('home')}
             />
           )}
@@ -1913,7 +2527,6 @@ export default function App() {
                 ))}
               </div>
 
-              {/* (A) 출석 체크 & (B) 반별 명단 관리 */}
               {(adminTab === 'attendance' || adminTab === 'roster') && !selectedClassId && (
                 <div className="space-y-3">
                   {adminTab === 'attendance' && (
@@ -1961,7 +2574,6 @@ export default function App() {
                 </div>
               )}
 
-              {/* 반 선택 후: 출석 체크 */}
               {adminTab === 'attendance' && selectedClassId && (
                 <div className="space-y-3">
                   <button
@@ -2048,7 +2660,6 @@ export default function App() {
                 </div>
               )}
 
-              {/* 반 선택 후: 명단 관리 */}
               {adminTab === 'roster' && selectedClassId && (
                 <div className="space-y-4">
                   <button
@@ -2137,7 +2748,6 @@ export default function App() {
                 </div>
               )}
 
-              {/* (C) 출석 통계 & 학년별 비교 표 & 엑셀 다운로드 */}
               {adminTab === 'stats' && (
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-3">
@@ -2151,7 +2761,6 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* 학년별 출석 현황 비교 표 */}
                   <div className="p-4 rounded-2xl bg-white/95 border border-white space-y-3 shadow-2xs">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
@@ -2195,7 +2804,6 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* 올해 월별 평균 출석률 그래프 */}
                   <div className="p-4 rounded-2xl bg-white/95 border border-white space-y-3">
                     <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                       <BarChart3 className="w-4 h-4 text-emerald-600" /> 올해 월별 평균 출석률 (%)
@@ -2213,7 +2821,6 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* 연속 결석 관심·심방 대상자 */}
                   <div className="p-4 rounded-2xl bg-white/95 border border-rose-200 space-y-2">
                     <div className="text-xs font-extrabold text-rose-800 flex items-center gap-1.5">
                       <AlertTriangle className="w-4 h-4" /> 연속 결석 관심·심방 대상자
@@ -2237,7 +2844,6 @@ export default function App() {
                 </div>
               )}
 
-              {/* (D) 콘텐츠 관리 */}
               {adminTab === 'content' && (
                 <div className="space-y-4">
                   <div className="p-4 rounded-2xl bg-white/95 border border-white space-y-2">
@@ -2362,17 +2968,17 @@ export default function App() {
                   </form>
 
                   <div className="p-4 rounded-2xl bg-white/95 border border-white flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-700">미니게임 최고 기록 초기화</span>
+                    <span className="text-xs font-bold text-slate-700">미니게임 랭킹 초기화</span>
                     <button
                       type="button"
                       onClick={() => {
-                        if (window.confirm("미니게임 랭킹을 초기화할까요?")) {
-                          syncPublicData({ gameRanking: [] });
+                        if (window.confirm("합체 퍼즐과 숫자 분할 러너 랭킹을 모두 초기화할까요?")) {
+                          syncPublicData({ gameRanking: [], runnerRanking: [] });
                         }
                       }}
                       className="px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200"
                     >
-                      랭킹 초기화
+                      전체 랭킹 초기화
                     </button>
                   </div>
                 </div>
@@ -2425,7 +3031,7 @@ export default function App() {
           </div>
         </footer>
 
-        {/* 팝업 1: 매일 아침 오늘의 말씀 */}
+        {/* 팝업 1: 매일 아침 오늘의 말씀 (150개 순환) */}
         {showVersePopup && (
           <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
             <div className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl space-y-4 relative">
