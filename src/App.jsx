@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getFirestore, doc, onSnapshot, setDoc } from 'firebase/firestore';
 import {
   Music, Calendar, BookOpen, Image as ImageIcon, Heart, Youtube, Instagram,
   ChevronRight, ChevronLeft, X, CheckCircle2, XCircle, Sparkles, Lock,
   Sun, UserPlus, Trash2, Edit3, BarChart3, AlertTriangle,
-  Download, Award, Send, Camera, Phone, Cake, Globe, Loader2, Settings
+  Download, Award, Send, Camera, Phone, Cake, Globe, Loader2, Settings,
+  Gamepad2, Trophy, RotateCcw
 } from 'lucide-react';
 
 // ==========================================
@@ -38,62 +39,63 @@ const db = getFirestore(app);
 const STATE_DOC_REF = doc(db, "onyang_youth", "main_data");
 
 // ==========================================
-// 2. 교회력 6대 절기 (전체 배경 그라데이션 + 심플 카드 테마)
+// 2. 교회력 6대 절기 (선명한 배너 + 은은한 전체 배경 + 성탄절 눈 효과)
 // ==========================================
 const SEASONS = {
   creation: {
     name: '창조절',
-    pageBg: 'from-emerald-100/90 via-teal-50 to-lime-100/80',
-    outerBg: 'bg-emerald-50/60',
-    cardBorder: 'border-emerald-200/80',
-    badgeBg: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+    bannerGradient: 'from-emerald-600 via-teal-600 to-green-700',
+    pageBg: 'from-emerald-50/90 via-teal-50/40 to-slate-50',
+    outerBg: 'bg-emerald-50/50',
+    badgeBg: 'bg-emerald-950/30 text-emerald-50 border-emerald-200/40',
     accentText: 'text-emerald-700',
     accentBg: 'bg-emerald-600'
   },
   advent: {
     name: '대림절',
-    pageBg: 'from-purple-100/90 via-indigo-50 to-violet-100/80',
-    outerBg: 'bg-purple-50/60',
-    cardBorder: 'border-purple-200/80',
-    badgeBg: 'bg-purple-100 text-purple-800 border-purple-200',
+    bannerGradient: 'from-purple-700 via-indigo-700 to-violet-800',
+    pageBg: 'from-purple-50/90 via-indigo-50/40 to-slate-50',
+    outerBg: 'bg-purple-50/50',
+    badgeBg: 'bg-purple-950/30 text-purple-100 border-purple-200/40',
     accentText: 'text-purple-700',
     accentBg: 'bg-purple-700'
   },
   christmas: {
     name: '성탄절',
-    pageBg: 'from-amber-100/90 via-yellow-50/90 to-orange-100/70',
-    outerBg: 'bg-amber-50/60',
-    cardBorder: 'border-amber-200/90',
-    badgeBg: 'bg-amber-100 text-amber-900 border-amber-200',
-    accentText: 'text-amber-700',
-    accentBg: 'bg-amber-500'
+    bannerGradient: 'from-rose-600 via-red-600 to-red-700',
+    pageBg: 'from-rose-100/80 via-red-50/50 to-amber-50/40',
+    outerBg: 'bg-rose-50/60',
+    badgeBg: 'bg-red-950/35 text-rose-50 border-amber-200/50',
+    accentText: 'text-red-600',
+    accentBg: 'bg-red-600',
+    snow: true
   },
   epiphany: {
     name: '주현절',
-    pageBg: 'from-teal-100/90 via-cyan-50 to-emerald-100/80',
-    outerBg: 'bg-teal-50/60',
-    cardBorder: 'border-teal-200/80',
-    badgeBg: 'bg-teal-100 text-teal-800 border-teal-200',
+    bannerGradient: 'from-teal-600 via-cyan-600 to-sky-700',
+    pageBg: 'from-teal-50/90 via-cyan-50/40 to-slate-50',
+    outerBg: 'bg-teal-50/50',
+    badgeBg: 'bg-teal-950/30 text-teal-50 border-teal-200/40',
     accentText: 'text-teal-700',
     accentBg: 'bg-teal-600'
   },
   lent: {
     name: '사순절',
-    pageBg: 'from-fuchsia-100/80 via-purple-50 to-rose-100/70',
-    outerBg: 'bg-fuchsia-50/50',
-    cardBorder: 'border-fuchsia-200/80',
-    badgeBg: 'bg-fuchsia-100 text-fuchsia-900 border-fuchsia-200',
+    bannerGradient: 'from-fuchsia-800 via-purple-800 to-slate-800',
+    pageBg: 'from-fuchsia-50/80 via-purple-50/40 to-slate-50',
+    outerBg: 'bg-fuchsia-50/40',
+    badgeBg: 'bg-fuchsia-950/35 text-fuchsia-100 border-fuchsia-200/40',
     accentText: 'text-fuchsia-800',
-    accentBg: 'bg-fuchsia-700'
+    accentBg: 'bg-fuchsia-800'
   },
   pentecost: {
     name: '성령강림절',
-    pageBg: 'from-rose-100/90 via-orange-50 to-amber-100/80',
-    outerBg: 'bg-rose-50/60',
-    cardBorder: 'border-rose-200/80',
-    badgeBg: 'bg-rose-100 text-rose-800 border-rose-200',
-    accentText: 'text-rose-600',
-    accentBg: 'bg-rose-600'
+    bannerGradient: 'from-orange-600 via-red-600 to-rose-700',
+    pageBg: 'from-orange-50/90 via-rose-50/40 to-slate-50',
+    outerBg: 'bg-orange-50/50',
+    badgeBg: 'bg-orange-950/30 text-orange-50 border-orange-200/40',
+    accentText: 'text-orange-700',
+    accentBg: 'bg-orange-600'
   }
 };
 
@@ -105,6 +107,19 @@ const DAILY_VERSES = [
   { verse: "두려워하지 말라 내가 너와 함께 함이라 놀라지 말라 나는 네 하나님이 됨이라", ref: "이사야 41:10", note: "시험과 진로 앞에서도 주님이 너의 손을 꼭 붙잡고 계십니다." },
   { verse: "너희는 세상의 빛이라 산 위에 있는 동네가 숨겨지지 못할 것이요", ref: "마태복음 5:14", note: "여러분이 머무는 자리가 주님의 사랑으로 환해지길 기도합니다." },
   { verse: "항상 기뻐하라 쉬지 말고 기도하라 범사에 감사하라", ref: "데살로니가전서 5:16-18", note: "오늘 하루 감사의 제목 하나를 찾아 하나님께 고백해 보세요." }
+];
+
+// ==========================================
+// 3. 수박 게임 스타일 '함께 지어져 가는 합체 퍼즐' 단계 설정
+// ==========================================
+const MERGE_LEVELS = [
+  { level: 0, name: '겨자씨', emoji: '🌱', radius: 16, color: '#bbf7d0', border: '#16a34a', score: 10 },
+  { level: 1, name: '새싹', emoji: '🌿', radius: 22, color: '#6ee7b7', border: '#059669', score: 25 },
+  { level: 2, name: '비둘기', emoji: '🕊️', radius: 29, color: '#bae6fd', border: '#0284c7', score: 50 },
+  { level: 3, name: '성경책', emoji: '📖', radius: 37, color: '#fde68a', border: '#d97706', score: 100 },
+  { level: 4, name: '찬양기타', emoji: '🎸', radius: 46, color: '#fecdd3', border: '#e11d48', score: 200 },
+  { level: 5, name: '십자가', emoji: '✝️', radius: 56, color: '#ddd6fe', border: '#7c3aed', score: 400 },
+  { level: 6, name: '면류관', emoji: '👑', radius: 68, color: '#fef08a', border: '#ca8a04', score: 800 }
 ];
 
 const INITIAL_DATA = {
@@ -146,6 +161,11 @@ const INITIAL_DATA = {
     ],
     completers: ['중2 김민준', '고1 이서연', '중3 최유진', '고2 박지훈', '중1 정하은', '고3 강현우']
   },
+  gameRanking: [
+    { name: '고2 박지훈', score: 1420 },
+    { name: '중2 김민준', score: 1180 },
+    { name: '고1 이서연', score: 950 }
+  ],
   classes: {
     m1: { id: 'm1', grade: '중1', teacher: '김은혜 선생님', students: [{ id: 's1', name: '정하은', birth: '03.14', phone: '010-1234-5671' }] },
     m2: { id: 'm2', grade: '중2', teacher: '박준영 선생님', students: [{ id: 's3', name: '김민준', birth: '05.09', phone: '010-2345-6781' }] },
@@ -168,6 +188,411 @@ const getLatestSundayStr = () => {
   return `${sun.getFullYear()}-${String(sun.getMonth() + 1).padStart(2, '0')}-${String(sun.getDate()).padStart(2, '0')}`;
 };
 
+// ==========================================
+// 4. 성탄절 내리는 눈 오버레이 컴포넌트
+// ==========================================
+function SnowfallOverlay() {
+  const flakes = useMemo(() => {
+    return Array.from({ length: 28 }, (_, i) => ({
+      id: i,
+      left: `${(i * 37) % 100}%`,
+      size: `${6 + (i % 4) * 3}px`,
+      duration: `${5 + (i % 6) * 1.4}s`,
+      delay: `${(i % 7) * 0.7}s`,
+      opacity: 0.55 + (i % 4) * 0.1
+    }));
+  }, []);
+
+  return (
+    <div className="pointer-events-none fixed inset-0 z-40 overflow-hidden">
+      {flakes.map((f) => (
+        <span
+          key={f.id}
+          style={{
+            left: f.left,
+            width: f.size,
+            height: f.size,
+            opacity: f.opacity,
+            animationDuration: f.duration,
+            animationDelay: f.delay
+          }}
+          className="snowflake absolute -top-4 rounded-full bg-white shadow-[0_0_6px_rgba(255,255,255,0.9)]"
+        />
+      ))}
+    </div>
+  );
+}
+
+// ==========================================
+// 5. 수박 게임 스타일 '함께 지어져 가는 합체 퍼즐' 컴포넌트
+// ==========================================
+function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
+  const canvasRef = useRef(null);
+  const [score, setScore] = useState(0);
+  const [nextLevel, setNextLevel] = useState(0);
+  const [dropX, setDropX] = useState(160);
+  const [gameOver, setGameOver] = useState(false);
+  const [playerName, setPlayerName] = useState('');
+  const [scoreSaved, setScoreSaved] = useState(false);
+
+  const gameState = useRef({
+    balls: [],
+    score: 0,
+    nextLevel: 0,
+    canDrop: true,
+    gameOver: false,
+    idCounter: 1
+  });
+
+  const WIDTH = 320;
+  const HEIGHT = 410;
+  const DANGER_Y = 72;
+
+  const resetGame = () => {
+    gameState.current = {
+      balls: [],
+      score: 0,
+      nextLevel: Math.floor(Math.random() * 3),
+      canDrop: true,
+      gameOver: false,
+      idCounter: 1
+    };
+    setScore(0);
+    setNextLevel(gameState.current.nextLevel);
+    setGameOver(false);
+    setScoreSaved(false);
+  };
+
+  useEffect(() => {
+    resetGame();
+    let animId;
+
+    const updatePhysics = () => {
+      const state = gameState.current;
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+
+      if (!state.gameOver) {
+        const gravity = 0.38;
+        const damping = 0.45;
+        const friction = 0.96;
+
+        // 1. 이동 및 벽 충돌
+        for (let b of state.balls) {
+          b.vy += gravity;
+          b.vx *= friction;
+          b.x += b.vx;
+          b.y += b.vy;
+
+          if (b.x - b.r < 0) { b.x = b.r; b.vx = -b.vx * damping; }
+          if (b.x + b.r > WIDTH) { b.x = WIDTH - b.r; b.vx = -b.vx * damping; }
+          if (b.y + b.r > HEIGHT) {
+            b.y = HEIGHT - b.r;
+            b.vy = -b.vy * damping;
+            if (Math.abs(b.vy) < 0.5) b.vy = 0;
+          }
+        }
+
+        // 2. 공끼리 충돌 및 동일 단계 합체
+        let mergedIds = new Set();
+        let newBalls = [];
+
+        for (let i = 0; i < state.balls.length; i++) {
+          for (let j = i + 1; j < state.balls.length; j++) {
+            const b1 = state.balls[i];
+            const b2 = state.balls[j];
+            if (mergedIds.has(b1.id) || mergedIds.has(b2.id)) continue;
+
+            const dx = b2.x - b1.x;
+            const dy = b2.y - b1.y;
+            const dist = Math.hypot(dx, dy);
+            const minDist = b1.r + b2.r;
+
+            if (dist < minDist) {
+              if (b1.level === b2.level && b1.level < MERGE_LEVELS.length - 1) {
+                mergedIds.add(b1.id);
+                mergedIds.add(b2.id);
+                const nextLv = b1.level + 1;
+                const spec = MERGE_LEVELS[nextLv];
+                newBalls.push({
+                  id: state.idCounter++,
+                  level: nextLv,
+                  x: (b1.x + b2.x) / 2,
+                  y: (b1.y + b2.y) / 2,
+                  vx: 0,
+                  vy: -1.5,
+                  r: spec.radius,
+                  settledFrames: 0
+                });
+                state.score += spec.score;
+                setScore(state.score);
+              } else if (dist > 0) {
+                const overlap = (minDist - dist) * 0.5;
+                const nx = dx / dist;
+                const ny = dy / dist;
+                b1.x -= nx * overlap;
+                b1.y -= ny * overlap;
+                b2.x += nx * overlap;
+                b2.y += ny * overlap;
+
+                const rvx = b2.vx - b1.vx;
+                const rvy = b2.vy - b1.vy;
+                const velAlongNormal = rvx * nx + rvy * ny;
+                if (velAlongNormal < 0) {
+                  const impulse = -(1 + damping) * velAlongNormal * 0.5;
+                  b1.vx -= impulse * nx;
+                  b1.vy -= impulse * ny;
+                  b2.vx += impulse * nx;
+                  b2.vy += impulse * ny;
+                }
+              }
+            }
+          }
+        }
+
+        if (mergedIds.size > 0) {
+          state.balls = state.balls.filter((b) => !mergedIds.has(b.id)).concat(newBalls);
+        }
+
+        // 3. 상단 위험선 초과 체크
+        for (let b of state.balls) {
+          if (Math.abs(b.vy) < 0.4 && Math.abs(b.vx) < 0.4) {
+            b.settledFrames = (b.settledFrames || 0) + 1;
+          } else {
+            b.settledFrames = 0;
+          }
+          if (b.settledFrames > 45 && b.y - b.r < DANGER_Y) {
+            state.gameOver = true;
+            setGameOver(true);
+            break;
+          }
+        }
+      }
+
+      // 4. 캔버스 렌더링
+      ctx.clearRect(0, 0, WIDTH, HEIGHT);
+
+      // 위험선 점선
+      ctx.save();
+      ctx.strokeStyle = '#f43f5e';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([5, 5]);
+      ctx.beginPath();
+      ctx.moveTo(0, DANGER_Y);
+      ctx.lineTo(WIDTH, DANGER_Y);
+      ctx.stroke();
+      ctx.restore();
+
+      // 대기 중인 아이템 가이드
+      if (!state.gameOver && state.canDrop) {
+        const curSpec = MERGE_LEVELS[state.nextLevel];
+        ctx.save();
+        ctx.strokeStyle = 'rgba(148, 163, 184, 0.45)';
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(dropX, 32);
+        ctx.lineTo(dropX, HEIGHT);
+        ctx.stroke();
+        ctx.restore();
+
+        drawBall(ctx, dropX, 32, curSpec);
+      }
+
+      // 쌓인 아이템 렌더링
+      for (let b of state.balls) {
+        drawBall(ctx, b.x, b.y, MERGE_LEVELS[b.level]);
+      }
+
+      animId = requestAnimationFrame(updatePhysics);
+    };
+
+    animId = requestAnimationFrame(updatePhysics);
+    return () => cancelAnimationFrame(animId);
+  }, [dropX]);
+
+  const drawBall = (ctx, x, y, spec) => {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(x, y, spec.radius, 0, Math.PI * 2);
+    ctx.fillStyle = spec.color;
+    ctx.fill();
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = spec.border;
+    ctx.stroke();
+
+    ctx.font = `${Math.round(spec.radius * 1.05)}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(spec.emoji, x, y + 1);
+    ctx.restore();
+  };
+
+  const handlePointerMove = (e) => {
+    if (gameState.current.gameOver) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const relX = ((clientX - rect.left) / rect.width) * WIDTH;
+    const r = MERGE_LEVELS[gameState.current.nextLevel].radius;
+    setDropX(Math.max(r + 4, Math.min(WIDTH - r - 4, relX)));
+  };
+
+  const handleDrop = (e) => {
+    handlePointerMove(e);
+    const state = gameState.current;
+    if (state.gameOver || !state.canDrop) return;
+
+    const spec = MERGE_LEVELS[state.nextLevel];
+    const safeX = Math.max(spec.radius + 4, Math.min(WIDTH - spec.radius - 4, dropX));
+
+    state.balls.push({
+      id: state.idCounter++,
+      level: state.nextLevel,
+      x: safeX,
+      y: 34,
+      vx: (Math.random() - 0.5) * 0.4,
+      vy: 1,
+      r: spec.radius,
+      settledFrames: 0
+    });
+
+    state.canDrop = false;
+    const upcoming = Math.floor(Math.random() * 3);
+    state.nextLevel = upcoming;
+    setNextLevel(upcoming);
+
+    setTimeout(() => {
+      state.canDrop = true;
+    }, 350);
+  };
+
+  const handleRecordSubmit = (e) => {
+    e.preventDefault();
+    if (!playerName.trim() || score <= 0) return;
+    onSaveScore(playerName.trim(), score);
+    setScoreSaved(true);
+  };
+
+  return (
+    <div className="space-y-3.5">
+      <div className="flex items-center justify-between">
+        <button onClick={onBack} className="flex items-center gap-1 text-xs font-bold text-slate-600 bg-white/85 px-3 py-1.5 rounded-full">
+          <ChevronLeft className="w-4 h-4" /> 홈으로
+        </button>
+        <button
+          onClick={resetGame}
+          className="flex items-center gap-1 text-xs font-bold text-slate-700 bg-white/85 px-3 py-1.5 rounded-full border border-slate-200"
+        >
+          <RotateCcw className="w-3.5 h-3.5" /> 다시 시작
+        </button>
+      </div>
+
+      {/* 점수 및 다음 아이템 안내 바 */}
+      <div className="bg-slate-900 text-white p-3.5 rounded-2xl flex items-center justify-between shadow-md">
+        <div>
+          <div className="text-[10px] text-amber-300 font-bold">현재 점수</div>
+          <div className="text-xl font-extrabold">{score.toLocaleString()}점</div>
+        </div>
+        <div className="flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-xl">
+          <span className="text-[11px] text-slate-300">다음:</span>
+          <span className="text-lg">{MERGE_LEVELS[nextLevel].emoji}</span>
+          <span className="text-xs font-bold">{MERGE_LEVELS[nextLevel].name}</span>
+        </div>
+      </div>
+
+      {/* 진화 단계 가이드 */}
+      <div className="bg-white/85 backdrop-blur-md px-3 py-2 rounded-xl border border-white flex items-center justify-between text-[11px] overflow-x-auto">
+        {MERGE_LEVELS.map((lv, i) => (
+          <React.Fragment key={lv.level}>
+            <span className="flex flex-col items-center shrink-0">
+              <span className="text-sm">{lv.emoji}</span>
+              <span className="text-[9px] text-slate-500 font-medium">{lv.name}</span>
+            </span>
+            {i < MERGE_LEVELS.length - 1 && <span className="text-slate-300">›</span>}
+          </React.Fragment>
+        ))}
+      </div>
+
+      {/* 게임 보드 */}
+      <div className="relative bg-white/95 rounded-3xl border-2 border-slate-200 shadow-inner overflow-hidden flex justify-center">
+        <canvas
+          ref={canvasRef}
+          width={WIDTH}
+          height={HEIGHT}
+          onMouseMove={handlePointerMove}
+          onClick={handleDrop}
+          onTouchMove={handlePointerMove}
+          onTouchEnd={handleDrop}
+          className="w-full max-w-[340px] touch-none cursor-pointer"
+        />
+
+        {/* 게임 오버 및 랭킹 등록 오버레이 */}
+        {gameOver && (
+          <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl p-5 w-full max-w-xs text-center space-y-3 shadow-2xl">
+              <div className="text-2xl">🎉</div>
+              <h3 className="text-lg font-extrabold text-slate-900">게임 종료!</h3>
+              <div className="text-2xl font-black text-emerald-600">{score.toLocaleString()}점</div>
+
+              {!scoreSaved ? (
+                <form onSubmit={handleRecordSubmit} className="space-y-2 pt-1">
+                  <input
+                    type="text"
+                    required
+                    placeholder="학년 이름 (예: 중2 김민준)"
+                    value={playerName}
+                    onChange={(e) => setPlayerName(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs text-center font-bold"
+                  />
+                  <button type="submit" className="w-full py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold">
+                    🏆 명예의 전당에 기록 등록하기
+                  </button>
+                </form>
+              ) : (
+                <p className="text-xs font-bold text-emerald-700 bg-emerald-50 py-2 rounded-xl">
+                  랭킹에 기록이 등록되었습니다!
+                </p>
+              )}
+
+              <button
+                onClick={resetGame}
+                className="w-full py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold"
+              >
+                다시 도전하기
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 실시간 TOP 5 명예의 전당 랭킹 */}
+      <div className="bg-white/90 backdrop-blur-md p-4 rounded-2xl border border-white space-y-2">
+        <div className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+          <Trophy className="w-4 h-4 text-amber-500" /> 청소년부 실시간 최고 기록 TOP 5
+        </div>
+        <div className="space-y-1.5">
+          {rankings.slice(0, 5).map((r, idx) => (
+            <div key={idx} className="flex items-center justify-between text-xs py-1.5 px-2.5 rounded-xl bg-slate-50">
+              <div className="flex items-center gap-2">
+                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-extrabold ${
+                  idx === 0 ? 'bg-amber-400 text-white' : idx === 1 ? 'bg-slate-400 text-white' : idx === 2 ? 'bg-amber-700 text-white' : 'bg-slate-200 text-slate-600'
+                }`}>
+                  {idx + 1}
+                </span>
+                <span className="font-bold text-slate-800">{r.name}</span>
+              </div>
+              <span className="font-extrabold text-emerald-700">{r.score.toLocaleString()}점</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ==========================================
+// 6. 메인 애플리케이션
+// ==========================================
 export default function App() {
   const [data, setData] = useState(INITIAL_DATA);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -266,6 +691,15 @@ export default function App() {
     const keys = Object.keys(SEASONS);
     const nextIdx = (keys.indexOf(data.season) + 1) % keys.length;
     syncDataToCloud({ season: keys[nextIdx] });
+  };
+
+  // 게임 최고 기록 저장
+  const handleSaveGameScore = (name, newScore) => {
+    const currentList = data.gameRanking || INITIAL_DATA.gameRanking;
+    const updated = [...currentList, { name, score: newScore }]
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 10);
+    syncDataToCloud({ gameRanking: updated });
   };
 
   // 역할별 PIN 확인
@@ -516,7 +950,7 @@ export default function App() {
     return { totalCount, thisMonthRate, monthlyRates, consecutiveAbsentees };
   }, [data.classes, data.attendanceRecords]);
 
-  // 업그레이드된 엑셀(CSV) 다운로드: 총 출석일, 총 결석일, 출석률(%) 자동 합산 포함
+  // 업그레이드된 엑셀(CSV) 다운로드
   const downloadCSV = () => {
     const allStudents = Object.values(data.classes).flatMap(c => c.students.map(s => ({ ...s, grade: c.grade })));
     const dates = Object.keys(data.attendanceRecords).sort();
@@ -541,13 +975,8 @@ export default function App() {
       const rate = totalRecorded > 0 ? Math.round((presentCount / totalRecorded) * 100) + '%' : '0%';
 
       const row = [
-        stu.grade,
-        stu.name,
-        stu.birth,
-        stu.phone,
-        `${presentCount}회`,
-        `${absentCount}회`,
-        rate,
+        stu.grade, stu.name, stu.birth, stu.phone,
+        `${presentCount}회`, `${absentCount}회`, rate,
         ...dateCols
       ];
       csv += row.join(',') + '\n';
@@ -570,7 +999,7 @@ export default function App() {
   }
 
   return (
-    <div className={`min-h-screen ${currentSeason.outerBg} transition-colors duration-700 flex justify-center`}>
+    <div className={`min-h-screen ${currentSeason.outerBg} transition-colors duration-700 flex justify-center relative`}>
       <style>{`
         @keyframes marqueeScroll {
           0% { transform: translateX(0%); }
@@ -584,13 +1013,25 @@ export default function App() {
         .animate-marquee:hover {
           animation-play-state: paused;
         }
+        @keyframes snowFall {
+          0% { transform: translateY(-10vh) translateX(0px); }
+          50% { transform: translateY(45vh) translateX(14px); }
+          100% { transform: translateY(105vh) translateX(-10px); }
+        }
+        .snowflake {
+          animation-name: snowFall;
+          animation-timing-function: linear;
+          animation-iteration-count: infinite;
+        }
       `}</style>
 
-      {/* 전체 앱 프레임: 절기에 따라 전체 배경 그라데이션이 은은하고 화사하게 변경됨 */}
+      {/* 성탄절 선택 시 화면 전체에 눈 내리는 효과 */}
+      {currentSeason.snow && <SnowfallOverlay />}
+
       <div className={`w-full max-w-md min-h-screen bg-gradient-to-b ${currentSeason.pageBg} transition-all duration-700 shadow-xl flex flex-col justify-between relative overflow-x-hidden`}>
         
         {/* 상단 고정 헤더 */}
-        <header className="sticky top-0 z-30 bg-white/75 backdrop-blur-md border-b border-white/60 px-4 py-3 flex items-center justify-between">
+        <header className="sticky top-0 z-30 bg-white/85 backdrop-blur-md border-b border-slate-100/80 px-4 py-3 flex items-center justify-between">
           <button
             onClick={() => { setActiveTab('home'); setSelectedClassId(null); }}
             className="flex items-center gap-2 text-left"
@@ -603,7 +1044,7 @@ export default function App() {
 
           <button
             onClick={() => setShowVersePopup(true)}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-white/90 text-amber-800 border border-amber-200/80 text-xs font-semibold shadow-2xs hover:bg-amber-50 transition shrink-0"
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200/80 text-xs font-semibold hover:bg-amber-100 transition shrink-0"
           >
             <Sun className="w-3.5 h-3.5 text-amber-500" />
             <span>오늘의 말씀</span>
@@ -618,31 +1059,31 @@ export default function App() {
           {/* ========================================== */}
           {activeTab === 'home' && (
             <>
-              {/* 심플한 표어 카드 (전체 배경색과 조화를 이루는 깔끔한 글래스 박스) */}
-              <div className={`rounded-3xl p-5 bg-white/85 backdrop-blur-md border ${currentSeason.cardBorder} shadow-sm transition-all duration-500`}>
+              {/* 생동감 넘치는 진한 절기 그라데이션 표어 배너 */}
+              <div className={`rounded-3xl p-5 text-white bg-gradient-to-br ${currentSeason.bannerGradient} shadow-lg relative overflow-hidden transition-all duration-500`}>
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                  <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-xs">
                     2026 청소년부 표어
                   </span>
                   <button
                     onClick={cycleSeason}
-                    title="클릭하여 교회력 절기 배경 변경"
-                    className={`text-[11px] font-bold px-2.5 py-1 rounded-full border transition ${currentSeason.badgeBg}`}
+                    title="클릭하여 교회력 절기 색상 변경"
+                    className={`text-[11px] font-bold px-2.5 py-1 rounded-full border backdrop-blur-xs transition ${currentSeason.badgeBg}`}
                   >
                     절기: {currentSeason.name} ↻
                   </button>
                 </div>
 
-                <h1 className="text-[22px] sm:text-2xl font-extrabold tracking-tight text-slate-900 whitespace-nowrap mb-1.5">
+                <h1 className="text-[22px] sm:text-2xl font-extrabold tracking-tight whitespace-nowrap mb-1.5">
                   함께 지어져 가는 청소년부
                 </h1>
-                <p className={`text-xs font-medium ${currentSeason.accentText}`}>
+                <p className="text-xs text-white/90 leading-relaxed">
                   "그리스도 예수 안에서 함께 지어져 가느니라" (엡 2:22)
                 </p>
               </div>
 
               {/* 이번 주 주일 예배 순서 요약 카드 */}
-              <div className="bg-white/85 backdrop-blur-md rounded-2xl p-4 border border-white/80 shadow-2xs">
+              <div className="bg-white/90 backdrop-blur-md rounded-2xl p-4 border border-slate-200/70 shadow-2xs">
                 <div className="flex items-center justify-between mb-2.5">
                   <span className="text-xs font-bold text-slate-600 flex items-center gap-1.5">
                     <BookOpen className={`w-3.5 h-3.5 ${currentSeason.accentText}`} />
@@ -670,7 +1111,7 @@ export default function App() {
               {/* 주간 설교 말씀 퀴즈 ('도전하기 →') */}
               <div
                 onClick={() => { setActiveTab('quiz'); setQuizSubmitted(false); }}
-                className="cursor-pointer rounded-2xl bg-slate-900/95 backdrop-blur-md text-white p-4 shadow-md hover:shadow-lg transition"
+                className="cursor-pointer rounded-2xl bg-gradient-to-r from-slate-800 to-slate-900 text-white p-4 shadow-md hover:shadow-lg transition"
               >
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
@@ -710,11 +1151,11 @@ export default function App() {
                 </div>
               </div>
 
-              {/* 4대 핵심 메뉴 그리드 ('이번 달 청소년부' 반영) */}
+              {/* 4대 핵심 메뉴 그리드 (각기 다른 화사한 컬러 복원) */}
               <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={() => setActiveTab('praise')}
-                  className="p-4 rounded-2xl bg-white/85 backdrop-blur-md border border-white/80 text-left hover:bg-white transition shadow-2xs group"
+                  className="p-4 rounded-2xl bg-emerald-50/95 border border-emerald-200/80 text-left hover:bg-emerald-100/70 transition shadow-2xs group"
                 >
                   <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center mb-3 group-hover:scale-105 transition">
                     <Music className="w-5 h-5" />
@@ -725,7 +1166,7 @@ export default function App() {
 
                 <button
                   onClick={() => setActiveTab('calendar')}
-                  className="p-4 rounded-2xl bg-white/85 backdrop-blur-md border border-white/80 text-left hover:bg-white transition shadow-2xs group"
+                  className="p-4 rounded-2xl bg-sky-50/95 border border-sky-200/80 text-left hover:bg-sky-100/70 transition shadow-2xs group"
                 >
                   <div className="w-10 h-10 rounded-xl bg-sky-600 text-white flex items-center justify-center mb-3 group-hover:scale-105 transition">
                     <Calendar className="w-5 h-5" />
@@ -736,7 +1177,7 @@ export default function App() {
 
                 <button
                   onClick={() => setActiveTab('order')}
-                  className="p-4 rounded-2xl bg-white/85 backdrop-blur-md border border-white/80 text-left hover:bg-white transition shadow-2xs group"
+                  className="p-4 rounded-2xl bg-amber-50/95 border border-amber-200/80 text-left hover:bg-amber-100/70 transition shadow-2xs group"
                 >
                   <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center mb-3 group-hover:scale-105 transition">
                     <BookOpen className="w-5 h-5" />
@@ -747,7 +1188,7 @@ export default function App() {
 
                 <button
                   onClick={() => setActiveTab('photo')}
-                  className="p-4 rounded-2xl bg-white/85 backdrop-blur-md border border-white/80 text-left hover:bg-white transition shadow-2xs group"
+                  className="p-4 rounded-2xl bg-rose-50/95 border border-rose-200/80 text-left hover:bg-rose-100/70 transition shadow-2xs group"
                 >
                   <div className="w-10 h-10 rounded-xl bg-rose-500 text-white flex items-center justify-center mb-3 group-hover:scale-105 transition">
                     <ImageIcon className="w-5 h-5" />
@@ -756,7 +1197,40 @@ export default function App() {
                   <div className="text-xs text-slate-500 mt-0.5">함께한 은혜의 순간들</div>
                 </button>
               </div>
+
+              {/* 수박 게임 스타일 '함께 지어져 가는 미니게임' 배너 */}
+              <div
+                onClick={() => setActiveTab('game')}
+                className="cursor-pointer rounded-2xl p-4 bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 text-white shadow-md hover:shadow-lg transition flex items-center justify-between"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-2xl bg-white/15 flex items-center justify-center text-2xl shrink-0">
+                    👑
+                  </div>
+                  <div>
+                    <div className="text-[11px] font-bold text-amber-200 flex items-center gap-1">
+                      <Gamepad2 className="w-3.5 h-3.5" /> 기록 깨기 미니게임 (1위: {(data.gameRanking?.[0]?.score || 1420).toLocaleString()}점)
+                    </div>
+                    <div className="text-sm font-extrabold">함께 지어져 가는 합체 퍼즐</div>
+                    <div className="text-[11px] text-white/80">겨자씨부터 면류관까지 합쳐보세요!</div>
+                  </div>
+                </div>
+                <span className="text-xs bg-white text-indigo-700 px-3 py-1.5 rounded-full font-extrabold shrink-0">
+                  게임하기 →
+                </span>
+              </div>
             </>
+          )}
+
+          {/* ========================================== */}
+          {/* 0. 함께 지어져 가는 합체 퍼즐 게임 화면 */}
+          {/* ========================================== */}
+          {activeTab === 'game' && (
+            <MergePuzzleGame
+              rankings={data.gameRanking || INITIAL_DATA.gameRanking}
+              onSaveScore={handleSaveGameScore}
+              onBack={() => setActiveTab('home')}
+            />
           )}
 
           {/* ========================================== */}
@@ -765,7 +1239,7 @@ export default function App() {
           {activeTab === 'praise' && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <button onClick={() => { setActiveTab('home'); setIsEditingPraise(false); }} className="flex items-center gap-1 text-xs font-bold text-slate-600 bg-white/80 px-3 py-1.5 rounded-full">
+                <button onClick={() => { setActiveTab('home'); setIsEditingPraise(false); }} className="flex items-center gap-1 text-xs font-bold text-slate-600 bg-white/85 px-3 py-1.5 rounded-full">
                   <ChevronLeft className="w-4 h-4" /> 홈으로
                 </button>
                 <button
@@ -783,7 +1257,7 @@ export default function App() {
                 </button>
               </div>
 
-              <div className="bg-white/85 backdrop-blur-md p-4 rounded-2xl border border-white/80">
+              <div className="bg-white/90 backdrop-blur-md p-4 rounded-2xl border border-white/80">
                 <h2 className="text-xl font-extrabold text-slate-900">이번 달 찬양 리스트</h2>
                 <p className="text-xs text-slate-500 mt-1">찬양을 누르면 유튜브 영상으로 바로 연결됩니다.</p>
               </div>
@@ -841,7 +1315,7 @@ export default function App() {
                 {data.praises.map((song, idx) => (
                   <div
                     key={song.id}
-                    className="flex items-center justify-between p-4 rounded-2xl bg-white/90 backdrop-blur-md border border-white/80 shadow-2xs"
+                    className="flex items-center justify-between p-4 rounded-2xl bg-white/95 backdrop-blur-md border border-white/80 shadow-2xs"
                   >
                     <a
                       href={song.url}
@@ -888,7 +1362,7 @@ export default function App() {
           {activeTab === 'calendar' && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <button onClick={() => { setActiveTab('home'); setIsEditingCalendar(false); }} className="flex items-center gap-1 text-xs font-bold text-slate-600 bg-white/80 px-3 py-1.5 rounded-full">
+                <button onClick={() => { setActiveTab('home'); setIsEditingCalendar(false); }} className="flex items-center gap-1 text-xs font-bold text-slate-600 bg-white/85 px-3 py-1.5 rounded-full">
                   <ChevronLeft className="w-4 h-4" /> 홈으로
                 </button>
                 <button
@@ -906,14 +1380,14 @@ export default function App() {
                 </button>
               </div>
 
-              <div className="bg-white/85 backdrop-blur-md p-4 rounded-2xl border border-white/80">
+              <div className="bg-white/90 backdrop-blur-md p-4 rounded-2xl border border-white/80">
                 <h2 className="text-xl font-extrabold text-slate-900">이번 달 청소년부</h2>
                 <p className="text-xs text-slate-500 mt-1">주별 특별 프로그램과 예배 일정을 확인하세요.</p>
               </div>
 
               <div className="space-y-3">
                 {data.calendar.map((item, idx) => (
-                  <div key={idx} className="p-4 rounded-2xl bg-white/90 backdrop-blur-md border border-white/80 space-y-2 shadow-2xs">
+                  <div key={idx} className="p-4 rounded-2xl bg-white/95 backdrop-blur-md border border-white/80 space-y-2 shadow-2xs">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-sky-100 text-sky-800">
                         {item.week}
@@ -963,7 +1437,7 @@ export default function App() {
           {activeTab === 'order' && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <button onClick={() => { setActiveTab('home'); setIsEditingOrder(false); }} className="flex items-center gap-1 text-xs font-bold text-slate-600 bg-white/80 px-3 py-1.5 rounded-full">
+                <button onClick={() => { setActiveTab('home'); setIsEditingOrder(false); }} className="flex items-center gap-1 text-xs font-bold text-slate-600 bg-white/85 px-3 py-1.5 rounded-full">
                   <ChevronLeft className="w-4 h-4" /> 홈으로
                 </button>
                 <button
@@ -981,7 +1455,7 @@ export default function App() {
                 </button>
               </div>
 
-              <div className="bg-white/85 backdrop-blur-md p-4 rounded-2xl border border-white/80">
+              <div className="bg-white/90 backdrop-blur-md p-4 rounded-2xl border border-white/80">
                 <h2 className="text-xl font-extrabold text-slate-900">성경봉독 및 대표기도</h2>
               </div>
 
@@ -991,7 +1465,7 @@ export default function App() {
                 return (
                   <div
                     key={wk}
-                    className="p-4 rounded-2xl bg-white/90 backdrop-blur-md border border-white/80 space-y-3 shadow-2xs"
+                    className="p-4 rounded-2xl bg-white/95 backdrop-blur-md border border-white/80 space-y-3 shadow-2xs"
                   >
                     <div className={`text-xs font-extrabold ${isThis ? currentSeason.accentText : 'text-slate-500'}`}>
                       {isThis ? '이번 주일 예배 순서' : '다음 주일 예고'}
@@ -1050,10 +1524,10 @@ export default function App() {
           {/* ========================================== */}
           {activeTab === 'photo' && (
             <div className="space-y-4">
-              <button onClick={() => setActiveTab('home')} className="flex items-center gap-1 text-xs font-bold text-slate-600 bg-white/80 px-3 py-1.5 rounded-full">
+              <button onClick={() => setActiveTab('home')} className="flex items-center gap-1 text-xs font-bold text-slate-600 bg-white/85 px-3 py-1.5 rounded-full">
                 <ChevronLeft className="w-4 h-4" /> 홈으로 돌아가기
               </button>
-              <div className="bg-white/85 backdrop-blur-md p-4 rounded-2xl border border-white/80">
+              <div className="bg-white/90 backdrop-blur-md p-4 rounded-2xl border border-white/80">
                 <h2 className="text-xl font-extrabold text-slate-900">청소년부 사진첩</h2>
                 <p className="text-xs text-slate-500 mt-1">사진을 누르면 크게 볼 수 있습니다.</p>
               </div>
@@ -1080,7 +1554,7 @@ export default function App() {
           {/* ========================================== */}
           {activeTab === 'quiz' && (
             <div className="space-y-4">
-              <button onClick={() => setActiveTab('home')} className="flex items-center gap-1 text-xs font-bold text-slate-600 bg-white/80 px-3 py-1.5 rounded-full">
+              <button onClick={() => setActiveTab('home')} className="flex items-center gap-1 text-xs font-bold text-slate-600 bg-white/85 px-3 py-1.5 rounded-full">
                 <ChevronLeft className="w-4 h-4" /> 홈으로 돌아가기
               </button>
               <div className="p-4 rounded-2xl bg-slate-900 text-white">
@@ -1169,7 +1643,7 @@ export default function App() {
               <div className="flex items-center justify-between">
                 <button
                   onClick={() => { setActiveTab('home'); setSelectedClassId(null); }}
-                  className="flex items-center gap-1 text-xs font-bold text-slate-600 bg-white/80 px-3 py-1.5 rounded-full"
+                  className="flex items-center gap-1 text-xs font-bold text-slate-600 bg-white/85 px-3 py-1.5 rounded-full"
                 >
                   <ChevronLeft className="w-4 h-4" /> 학생 화면으로
                 </button>
@@ -1178,7 +1652,7 @@ export default function App() {
                 </span>
               </div>
 
-              <div className="grid grid-cols-4 gap-1.5 bg-white/80 backdrop-blur-md p-1 rounded-xl">
+              <div className="grid grid-cols-4 gap-1.5 bg-white/85 backdrop-blur-md p-1 rounded-xl">
                 {[
                   { id: 'attendance', label: '출석체크' },
                   { id: 'roster', label: '명단관리' },
@@ -1201,7 +1675,7 @@ export default function App() {
               {(adminTab === 'attendance' || adminTab === 'roster') && !selectedClassId && (
                 <div className="space-y-3">
                   {adminTab === 'attendance' && (
-                    <div className="p-3 rounded-xl bg-white/90 border border-white flex items-center justify-between">
+                    <div className="p-3 rounded-xl bg-white/95 border border-white flex items-center justify-between">
                       <span className="text-xs font-bold text-slate-800">출석 기준일 선택</span>
                       <input
                         type="date"
@@ -1246,7 +1720,7 @@ export default function App() {
                 <div className="space-y-3">
                   <button
                     onClick={() => setSelectedClassId(null)}
-                    className="flex items-center gap-1 text-xs font-bold text-slate-600 bg-white/80 px-3 py-1.5 rounded-full"
+                    className="flex items-center gap-1 text-xs font-bold text-slate-600 bg-white/85 px-3 py-1.5 rounded-full"
                   >
                     <ChevronLeft className="w-4 h-4" /> 전체 학년(2×3) 목록으로
                   </button>
@@ -1317,7 +1791,7 @@ export default function App() {
                 <div className="space-y-4">
                   <button
                     onClick={() => setSelectedClassId(null)}
-                    className="flex items-center gap-1 text-xs font-bold text-slate-600 bg-white/80 px-3 py-1.5 rounded-full"
+                    className="flex items-center gap-1 text-xs font-bold text-slate-600 bg-white/85 px-3 py-1.5 rounded-full"
                   >
                     <ChevronLeft className="w-4 h-4" /> 전체 학년(2×3) 목록으로
                   </button>
@@ -1482,6 +1956,7 @@ export default function App() {
                     </div>
                   </div>
 
+                  {/* 사진첩 업로드 */}
                   <form onSubmit={handlePhotoUpload} className="p-4 rounded-2xl bg-white/95 border border-white space-y-3">
                     <div className="text-sm font-extrabold text-slate-900 flex items-center gap-1.5">
                       <Camera className="w-4 h-4 text-rose-500" /> 활동 사진첩 새 사진 올리기
@@ -1517,6 +1992,7 @@ export default function App() {
                     </button>
                   </form>
 
+                  {/* 주간 설교 퀴즈 출제 */}
                   <form onSubmit={handlePublishNewQuiz} className="p-4 rounded-2xl bg-white/95 border border-white space-y-3">
                     <div className="text-sm font-extrabold text-slate-900 flex items-center gap-1.5">
                       <Award className="w-4 h-4 text-amber-500" /> 새 주간 설교 퀴즈 출제
@@ -1578,6 +2054,22 @@ export default function App() {
                       새 퀴즈 발행 (완료자 명단 초기화)
                     </button>
                   </form>
+
+                  {/* 미니게임 랭킹 초기화 버튼 */}
+                  <div className="p-4 rounded-2xl bg-white/95 border border-white flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-700">미니게임 최고 기록 초기화</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (window.confirm("미니게임 랭킹을 초기화할까요?")) {
+                          syncDataToCloud({ gameRanking: INITIAL_DATA.gameRanking });
+                        }
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200"
+                    >
+                      랭킹 초기화
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -1585,7 +2077,7 @@ export default function App() {
         </main>
 
         {/* 하단 푸터: 큼직한 원형 로고 3개 */}
-        <footer className="bg-white/70 backdrop-blur-md border-t border-white/60 px-4 py-5 text-center space-y-3.5">
+        <footer className="bg-white/80 backdrop-blur-md border-t border-slate-200/60 px-4 py-5 text-center space-y-3.5">
           <div className="flex items-center justify-center gap-5">
             <a
               href={CHURCH_LINKS.homepage}
