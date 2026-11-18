@@ -6,7 +6,7 @@ import {
   ChevronRight, ChevronLeft, X, CheckCircle2, XCircle, Sparkles, Lock,
   Sun, UserPlus, Trash2, Edit3, BarChart3, AlertTriangle,
   Download, Award, Send, Camera, Phone, Cake, Globe, Loader2, Settings,
-  Gamepad2, Trophy, RotateCcw
+  Gamepad2, Trophy, RotateCcw, Users
 } from 'lucide-react';
 
 // ==========================================
@@ -127,6 +127,98 @@ const MERGE_LEVELS = [
   { level: 6, name: '면류관', emoji: '👑', radius: 68, color: '#fef08a', border: '#ca8a04', score: 800 }
 ];
 
+// ==========================================
+// 4. 온양장로교회 청소년부 실제 반별 학생 명단 (총 44명)
+// ==========================================
+const REAL_ROSTER_CLASSES = {
+  m1: {
+    id: 'm1',
+    grade: '중1',
+    teacher: '김은혜 선생님',
+    students: [
+      { id: 'm1_1', name: '구하윤', birth: '4.27', phone: '010-4458-9415' },
+      { id: 'm1_2', name: '김지윤', birth: '10.18', phone: '010-5792-5520' },
+      { id: 'm1_3', name: '김지후', birth: '7.15', phone: '010-3346-8350' },
+      { id: 'm1_4', name: '박하늘', birth: '6.13', phone: '010-4907-1306' },
+      { id: 'm1_5', name: '안희윤', birth: '-', phone: '-' },
+      { id: 'm1_6', name: '이재준', birth: '2.18', phone: '010-9572-5310' },
+      { id: 'm1_7', name: '이해랑', birth: '6.16', phone: '010-3519-5405' },
+      { id: 'm1_8', name: '조아현', birth: '12.16', phone: '-' },
+      { id: 'm1_9', name: '조윤후', birth: '-', phone: '-' },
+      { id: 'm1_10', name: '차예송', birth: '1.1', phone: '010-8912-8278' },
+      { id: 'm1_11', name: '최수민', birth: '8.22', phone: '010-7361-7570' },
+      { id: 'm1_12', name: '이태규', birth: '-', phone: '010-9110-4655' }
+    ]
+  },
+  m2: {
+    id: 'm2',
+    grade: '중2',
+    teacher: '박준영 선생님',
+    students: [
+      { id: 'm2_1', name: '이주원', birth: '2.4', phone: '010-4533-2019' },
+      { id: 'm2_2', name: '김소미', birth: '2.14', phone: '010-8411-7395' },
+      { id: 'm2_3', name: '박정원', birth: '10.12', phone: '010-9132-9406' },
+      { id: 'm2_4', name: '송하윤', birth: '4.24', phone: '010-4758-9533' },
+      { id: 'm2_5', name: '심연지', birth: '4.9', phone: '010-5508-2153' },
+      { id: 'm2_6', name: '허윤슬', birth: '11.23', phone: '010-8111-2153' },
+      { id: 'm2_7', name: '허슬아', birth: '11.23', phone: '010-8112-2153' }
+    ]
+  },
+  m3: {
+    id: 'm3',
+    grade: '중3',
+    teacher: '이수진 선생님',
+    students: [
+      { id: 'm3_1', name: '강사무엘', birth: '11.1', phone: '010-8107-2197' },
+      { id: 'm3_2', name: '구하람', birth: '7.2', phone: '010-7409-9415' },
+      { id: 'm3_3', name: '박주원', birth: '2.13', phone: '010-9186-9406' },
+      { id: 'm3_4', name: '서여은', birth: '7.26', phone: '010-2244-3976' },
+      { id: 'm3_5', name: '이해온', birth: '12.26', phone: '010-3506-5405' },
+      { id: 'm3_6', name: '정예원', birth: '4.8', phone: '010-4131-0408' },
+      { id: 'm3_7', name: '차예강', birth: '12.12', phone: '010-5446-8278' }
+    ]
+  },
+  h1: {
+    id: 'h1',
+    grade: '고1',
+    teacher: '정성훈 선생님',
+    students: [
+      { id: 'h1_1', name: '박시연', birth: '3.31', phone: '010-7580-6052' },
+      { id: 'h1_2', name: '최은후', birth: '5.21', phone: '010-3579-0464' },
+      { id: 'h1_3', name: '안소윤', birth: '10.24', phone: '010-3898-7891' },
+      { id: 'h1_4', name: '서범승', birth: '3.17', phone: '010-2245-3976' },
+      { id: 'h1_5', name: '박지훈', birth: '2.26', phone: '010-8271-3368' },
+      { id: 'h1_6', name: '강서후', birth: '4.25', phone: '010-6437-3877' },
+      { id: 'h1_7', name: '허보민', birth: '9.27', phone: '010-7374-2153' }
+    ]
+  },
+  h2: {
+    id: 'h2',
+    grade: '고2',
+    teacher: '최지민 선생님',
+    students: [
+      { id: 'h2_1', name: '김소리', birth: '4.8', phone: '010-4898-7395' },
+      { id: 'h2_2', name: '강사랑', birth: '-', phone: '010-2308-3936' },
+      { id: 'h2_3', name: '송하준', birth: '5.4', phone: '010-4735-9533' },
+      { id: 'h2_4', name: '김지원', birth: '5.13', phone: '010-2476-2723' },
+      { id: 'h2_5', name: '박태진', birth: '-', phone: '010-2666-8460' },
+      { id: 'h2_6', name: '박유진', birth: '-', phone: '010-9291-8460' }
+    ]
+  },
+  h3: {
+    id: 'h3',
+    grade: '고3',
+    teacher: '윤태호 선생님',
+    students: [
+      { id: 'h3_1', name: '전지훈', birth: '7.17', phone: '010-9246-6585' },
+      { id: 'h3_2', name: '안하윤', birth: '12.3', phone: '010-5953-7891' },
+      { id: 'h3_3', name: '이유빈', birth: '11.4', phone: '010-5367-4656' },
+      { id: 'h3_4', name: '김채린', birth: '-', phone: '-' },
+      { id: 'h3_5', name: '김은우', birth: '-', phone: '-' }
+    ]
+  }
+};
+
 const INITIAL_DATA = {
   season: 'creation',
   praises: [
@@ -142,8 +234,8 @@ const INITIAL_DATA = {
     { week: '5주차', date: '11월 29일', title: '대림절 준비 기도회', desc: '성탄을 기다리며 이웃 사랑을 나누는 기도 시간' }
   ],
   worshipOrder: {
-    thisWeek: { date: '이번 주일', prayer: '이서연 (고1)', scripture: '김민준 (중2)', passage: '에베소서 2:19-22' },
-    nextWeek: { date: '다음 주일', prayer: '박지훈 (고2)', scripture: '최유진 (중3)', passage: '창세기 1:26-31' }
+    thisWeek: { date: '이번 주일', prayer: '안소윤 (고1)', scripture: '이주원 (중2)', passage: '에베소서 2:19-22' },
+    nextWeek: { date: '다음 주일', prayer: '송하준 (고2)', scripture: '강사무엘 (중3)', passage: '창세기 1:26-31' }
   },
   photos: [
     { id: 1, title: '가을 야외 예배 및 바비큐 파티', date: '2026.10.18', url: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=800&q=80', desc: '맑은 가을 하늘 아래 함께 웃고 뛰며 교제했던 행복한 시간이었습니다.' },
@@ -164,21 +256,10 @@ const INITIAL_DATA = {
         answer: 1
       }
     ],
-    completers: ['중2 김민준', '고1 이서연', '중3 최유진', '고2 박지훈', '중1 정하은', '고3 강현우']
+    completers: []
   },
-  gameRanking: [
-    { name: '고2 박지훈', score: 1420 },
-    { name: '중2 김민준', score: 1180 },
-    { name: '고1 이서연', score: 950 }
-  ],
-  classes: {
-    m1: { id: 'm1', grade: '중1', teacher: '김은혜 선생님', students: [{ id: 's1', name: '정하은', birth: '03.14', phone: '010-1234-5671' }] },
-    m2: { id: 'm2', grade: '중2', teacher: '박준영 선생님', students: [{ id: 's3', name: '김민준', birth: '05.09', phone: '010-2345-6781' }] },
-    m3: { id: 'm3', grade: '중3', teacher: '이수진 선생님', students: [{ id: 's5', name: '최유진', birth: '02.18', phone: '010-3456-7891' }] },
-    h1: { id: 'h1', grade: '고1', teacher: '정성훈 선생님', students: [{ id: 's6', name: '이서연', birth: '08.25', phone: '010-4567-8901' }] },
-    h2: { id: 'h2', grade: '고2', teacher: '최지민 선생님', students: [{ id: 's7', name: '박지훈', birth: '04.12', phone: '010-5678-9012' }] },
-    h3: { id: 'h3', grade: '고3', teacher: '윤태호 선생님', students: [{ id: 's8', name: '강현우', birth: '09.03', phone: '010-6789-0123' }] }
-  },
+  gameRanking: [],
+  classes: REAL_ROSTER_CLASSES,
   attendanceRecords: {}
 };
 
@@ -194,7 +275,7 @@ const getLatestSundayStr = () => {
 };
 
 // ==========================================
-// 4. 절기별 낙하 이펙트 오버레이 (눈송이 / 비둘기)
+// 5. 절기별 낙하 이펙트 오버레이 (눈송이 / 비둘기)
 // ==========================================
 function SeasonEffectOverlay({ type }) {
   const particles = useMemo(() => {
@@ -249,7 +330,7 @@ function SeasonEffectOverlay({ type }) {
 }
 
 // ==========================================
-// 5. 수박 게임 스타일 '함께 지어져 가는 합체 퍼즐'
+// 6. 수박 게임 스타일 '함께 지어져 가는 합체 퍼즐'
 // ==========================================
 function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
   const canvasRef = useRef(null);
@@ -570,7 +651,7 @@ function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
                   <input
                     type="text"
                     required
-                    placeholder="학년 이름 (예: 중2 김민준)"
+                    placeholder="학년 이름 (예: 중2 이주원)"
                     value={playerName}
                     onChange={(e) => setPlayerName(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs text-center font-bold"
@@ -600,28 +681,32 @@ function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
         <div className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
           <Trophy className="w-4 h-4 text-amber-500" /> 청소년부 실시간 최고 기록 TOP 5
         </div>
-        <div className="space-y-1.5">
-          {rankings.slice(0, 5).map((r, idx) => (
-            <div key={idx} className="flex items-center justify-between text-xs py-1.5 px-2.5 rounded-xl bg-slate-50">
-              <div className="flex items-center gap-2">
-                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-extrabold ${
-                  idx === 0 ? 'bg-amber-400 text-white' : idx === 1 ? 'bg-slate-400 text-white' : idx === 2 ? 'bg-amber-700 text-white' : 'bg-slate-200 text-slate-600'
-                }`}>
-                  {idx + 1}
-                </span>
-                <span className="font-bold text-slate-800">{r.name}</span>
+        {rankings.length > 0 ? (
+          <div className="space-y-1.5">
+            {rankings.slice(0, 5).map((r, idx) => (
+              <div key={idx} className="flex items-center justify-between text-xs py-1.5 px-2.5 rounded-xl bg-slate-50">
+                <div className="flex items-center gap-2">
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-extrabold ${
+                    idx === 0 ? 'bg-amber-400 text-white' : idx === 1 ? 'bg-slate-400 text-white' : idx === 2 ? 'bg-amber-700 text-white' : 'bg-slate-200 text-slate-600'
+                  }`}>
+                    {idx + 1}
+                  </span>
+                  <span className="font-bold text-slate-800">{r.name}</span>
+                </div>
+                <span className="font-extrabold text-emerald-700">{r.score.toLocaleString()}점</span>
               </div>
-              <span className="font-extrabold text-emerald-700">{r.score.toLocaleString()}점</span>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-slate-500">아직 등록된 기록이 없습니다. 첫 번째 1위에 도전해 보세요!</p>
+        )}
       </div>
     </div>
   );
 }
 
 // ==========================================
-// 6. 메인 애플리케이션
+// 7. 메인 애플리케이션
 // ==========================================
 export default function App() {
   const [data, setData] = useState(INITIAL_DATA);
@@ -718,7 +803,6 @@ export default function App() {
   const currentSeason = SEASONS[data.season] || SEASONS.creation;
   const canChangeSeason = authRoles.admin || authRoles.officer;
 
-  // 절기 변경: 교역자/교사(1234) 또는 임원(3333)만 변경 가능
   const handleSeasonClick = () => {
     if (!canChangeSeason) {
       setPinModalRole('season');
@@ -731,7 +815,7 @@ export default function App() {
 
   // 게임 최고 기록 저장
   const handleSaveGameScore = (name, newScore) => {
-    const currentList = data.gameRanking || INITIAL_DATA.gameRanking;
+    const currentList = data.gameRanking || [];
     const updated = [...currentList, { name, score: newScore }]
       .sort((a, b) => b.score - a.score)
       .slice(0, 10);
@@ -879,6 +963,13 @@ export default function App() {
     setEditingTeacher(false);
   };
 
+  // 실제 44명 명단 일괄 반영
+  const handleApplyRealRoster = () => {
+    if (!window.confirm("중1~고3 실제 학생 44명 명단으로 전체 반을 일괄 등록할까요?")) return;
+    syncDataToCloud({ classes: REAL_ROSTER_CLASSES });
+    alert("중1~고3 실제 학생 44명 명단이 모두 반영되었습니다!");
+  };
+
   // Cloudinary 사진 업로드
   const handlePhotoUpload = async (e) => {
     e.preventDefault();
@@ -923,7 +1014,7 @@ export default function App() {
   const handleQuizSubmit = (e) => {
     e.preventDefault();
     if (!quizStudentName.trim()) {
-      alert("학년과 이름을 입력해 주세요! (예: 중2 김민준)");
+      alert("학년과 이름을 입력해 주세요! (예: 중2 이주원)");
       return;
     }
     const nameBadge = quizStudentName.trim();
@@ -1041,6 +1132,8 @@ export default function App() {
       </div>
     );
   }
+
+  const topGameScore = data.gameRanking && data.gameRanking.length > 0 ? data.gameRanking[0].score : 0;
 
   return (
     <div className={`min-h-screen ${currentSeason.outerBg} transition-colors duration-700 flex justify-center relative`}>
@@ -1253,7 +1346,7 @@ export default function App() {
                   </div>
                   <div>
                     <div className="text-[11px] font-bold text-amber-200 flex items-center gap-1">
-                      <Gamepad2 className="w-3.5 h-3.5" /> 기록 깨기 미니게임 (1위: {(data.gameRanking?.[0]?.score || 1420).toLocaleString()}점)
+                      <Gamepad2 className="w-3.5 h-3.5" /> 기록 깨기 미니게임 {topGameScore > 0 ? `(1위: ${topGameScore.toLocaleString()}점)` : ''}
                     </div>
                     <div className="text-sm font-extrabold">함께 지어져 가는 합체 퍼즐</div>
                     <div className="text-[11px] text-white/80">겨자씨부터 면류관까지 합쳐보세요!</div>
@@ -1271,7 +1364,7 @@ export default function App() {
           {/* ========================================== */}
           {activeTab === 'game' && (
             <MergePuzzleGame
-              rankings={data.gameRanking || INITIAL_DATA.gameRanking}
+              rankings={data.gameRanking || []}
               onSaveScore={handleSaveGameScore}
               onBack={() => setActiveTab('home')}
             />
@@ -1614,7 +1707,7 @@ export default function App() {
                   <input
                     type="text"
                     required
-                    placeholder="예: 중2 김민준"
+                    placeholder="예: 중2 이주원"
                     value={quizStudentName}
                     onChange={(e) => setQuizStudentName(e.target.value)}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm bg-white focus:outline-none focus:border-emerald-500"
@@ -1784,9 +1877,13 @@ export default function App() {
                               <div className="font-bold text-sm text-slate-900">{stu.name}</div>
                               <div className="flex items-center gap-2.5 text-[11px] text-slate-500 mt-0.5">
                                 <span className="flex items-center gap-1"><Cake className="w-3 h-3 text-rose-400" /> {stu.birth}</span>
-                                <a href={`tel:${stu.phone}`} className="flex items-center gap-1 text-sky-600 font-medium">
-                                  <Phone className="w-3 h-3" /> {stu.phone}
-                                </a>
+                                {stu.phone !== '-' ? (
+                                  <a href={`tel:${stu.phone}`} className="flex items-center gap-1 text-sky-600 font-medium">
+                                    <Phone className="w-3 h-3" /> {stu.phone}
+                                  </a>
+                                ) : (
+                                  <span className="text-slate-400">번호 미등록</span>
+                                )}
                               </div>
                             </div>
 
@@ -1884,7 +1981,7 @@ export default function App() {
                       />
                       <input
                         type="text"
-                        placeholder="생일(05.12)"
+                        placeholder="생일(5.12)"
                         value={newStudent.birth}
                         onChange={(e) => setNewStudent({ ...newStudent, birth: e.target.value })}
                         className="px-2.5 py-2 rounded-xl border border-slate-300 text-xs bg-white"
@@ -1973,7 +2070,7 @@ export default function App() {
                 </div>
               )}
 
-              {/* (D) 콘텐츠 관리 */}
+              {/* (D) 콘텐츠 및 데이터 일괄 관리 */}
               {adminTab === 'content' && (
                 <div className="space-y-4">
                   <div className="p-4 rounded-2xl bg-white/95 border border-white space-y-2">
@@ -1998,6 +2095,23 @@ export default function App() {
                         이번 달 일정 →
                       </button>
                     </div>
+                  </div>
+
+                  {/* 중1~고3 실제 명단 44명 원클릭 일괄 반영 버튼 */}
+                  <div className="p-4 rounded-2xl bg-emerald-50/95 border border-emerald-200 space-y-2">
+                    <div className="text-sm font-extrabold text-emerald-900 flex items-center gap-1.5">
+                      <Users className="w-4 h-4 text-emerald-600" /> 중1~고3 실제 학생 명단(44명) 일괄 반영
+                    </div>
+                    <p className="text-[11px] text-emerald-800 leading-relaxed">
+                      입력해 주신 중1(12명), 중2(7명), 중3(7명), 고1(7명), 고2(6명), 고3(5명) 전체 이름과 생일·연락처를 한 번에 출석부로 불러옵니다.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleApplyRealRoster}
+                      className="w-full py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700"
+                    >
+                      실제 학생 명단(44명) 일괄 등록하기
+                    </button>
                   </div>
 
                   <form onSubmit={handlePhotoUpload} className="p-4 rounded-2xl bg-white/95 border border-white space-y-3">
