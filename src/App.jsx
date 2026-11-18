@@ -122,16 +122,18 @@ const DAILY_VERSES = [
 ];
 
 // ==========================================
-// 3. 수박 게임 스타일 '함께 지어져 가는 합체 퍼즐' 단계 설정
+// 3. 수박 게임 스타일 '함께 지어져 가는 합체 퍼즐' 9단계 설정 (난이도 상향)
 // ==========================================
 const MERGE_LEVELS = [
-  { level: 0, name: '겨자씨', emoji: '🌱', radius: 16, color: '#bbf7d0', border: '#16a34a', score: 10 },
-  { level: 1, name: '새싹', emoji: '🌿', radius: 22, color: '#6ee7b7', border: '#059669', score: 25 },
-  { level: 2, name: '비둘기', emoji: '🕊️', radius: 29, color: '#bae6fd', border: '#0284c7', score: 50 },
-  { level: 3, name: '성경책', emoji: '📖', radius: 37, color: '#fde68a', border: '#d97706', score: 100 },
-  { level: 4, name: '찬양기타', emoji: '🎸', radius: 46, color: '#fecdd3', border: '#e11d48', score: 200 },
-  { level: 5, name: '십자가', emoji: '✝️', radius: 56, color: '#ddd6fe', border: '#7c3aed', score: 400 },
-  { level: 6, name: '면류관', emoji: '👑', radius: 68, color: '#fef08a', border: '#ca8a04', score: 800 }
+  { level: 0, name: '겨자씨', emoji: '🌱', radius: 17, color: '#dcfce7', border: '#16a34a', score: 10 },
+  { level: 1, name: '새싹', emoji: '🌿', radius: 23, color: '#bbf7d0', border: '#059669', score: 25 },
+  { level: 2, name: '물고기', emoji: '🐟', radius: 29, color: '#bae6fd', border: '#0284c7', score: 50 },
+  { level: 3, name: '비둘기', emoji: '🕊️', radius: 36, color: '#e0e7ff', border: '#4f46e5', score: 90 },
+  { level: 4, name: '성경책', emoji: '📖', radius: 44, color: '#fef3c7', border: '#d97706', score: 150 },
+  { level: 5, name: '촛불', emoji: '🕯️', radius: 52, color: '#ffedd5', border: '#ea580c', score: 250 },
+  { level: 6, name: '찬양기타', emoji: '🎸', radius: 61, color: '#ffe4e6', border: '#e11d48', score: 400 },
+  { level: 7, name: '십자가', emoji: '✝️', radius: 71, color: '#ede9fe', border: '#7c3aed', score: 650 },
+  { level: 8, name: '면류관', emoji: '👑', radius: 82, color: '#fef08a', border: '#ca8a04', score: 1000 }
 ];
 
 const INITIAL_PUBLIC_DATA = {
@@ -174,7 +176,6 @@ const INITIAL_PUBLIC_DATA = {
     completers: []
   },
   gameRanking: [],
-  // 공개용 이달의 생일자 안전 목록 (전화번호 제외, 학년·이름·생일만 동기화)
   monthlyBirthdays: {
     month: 11,
     list: [
@@ -209,7 +210,6 @@ const getLatestSundayStr = () => {
   return `${sun.getFullYear()}-${String(sun.getMonth() + 1).padStart(2, '0')}-${String(sun.getDate()).padStart(2, '0')}`;
 };
 
-// 비공개 명단에서 현재 월 생일자의 학년·이름·생일만 안전하게 추출하는 헬퍼 함수
 const extractCurrentMonthBirthdays = (classesObj) => {
   const currentMonth = new Date().getMonth() + 1;
   const list = [];
@@ -296,7 +296,7 @@ function SeasonEffectOverlay({ type }) {
 }
 
 // ==========================================
-// 5. 수박 게임 스타일 '함께 지어져 가는 합체 퍼즐'
+// 5. 수박 게임 스타일 '함께 지어져 가는 합체 퍼즐' (9단계 + 정확한 종료 판정)
 // ==========================================
 function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
   const canvasRef = useRef(null);
@@ -318,8 +318,8 @@ function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
   });
 
   const WIDTH = 320;
-  const HEIGHT = 410;
-  const DANGER_Y = 72;
+  const HEIGHT = 420;
+  const DANGER_Y = 82;
 
   const resetGame = () => {
     const startLv = Math.floor(Math.random() * 3);
@@ -336,6 +336,15 @@ function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
     setNextLevel(startLv);
     setGameOver(false);
     setScoreSaved(false);
+  };
+
+  const triggerManualFinish = () => {
+    if (score <= 0) {
+      alert("점수를 획득한 뒤 기록을 남길 수 있습니다!");
+      return;
+    }
+    gameState.current.gameOver = true;
+    setGameOver(true);
   };
 
   useEffect(() => {
@@ -366,11 +375,12 @@ function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
       const ctx = canvas.getContext('2d');
 
       if (!state.gameOver) {
-        const gravity = 0.42;
-        const damping = 0.35;
+        const gravity = 0.45;
+        const damping = 0.32;
         const friction = 0.94;
 
         for (let b of state.balls) {
+          b.age = (b.age || 0) + 1;
           b.vy += gravity;
           b.vx *= friction;
           b.x += b.vx;
@@ -388,7 +398,7 @@ function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
         let mergedIds = new Set();
         let newBalls = [];
 
-        for (let iter = 0; iter < 3; iter++) {
+        for (let iter = 0; iter < 4; iter++) {
           for (let i = 0; i < state.balls.length; i++) {
             for (let j = i + 1; j < state.balls.length; j++) {
               const b1 = state.balls[i];
@@ -401,23 +411,31 @@ function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
               const minDist = b1.r + b2.r;
 
               if (dist < minDist) {
-                if (iter === 0 && b1.level === b2.level && b1.level < MERGE_LEVELS.length - 1) {
+                if (iter === 0 && b1.level === b2.level) {
                   mergedIds.add(b1.id);
                   mergedIds.add(b2.id);
-                  const nextLv = b1.level + 1;
-                  const spec = MERGE_LEVELS[nextLv];
-                  newBalls.push({
-                    id: state.idCounter++,
-                    level: nextLv,
-                    x: Math.max(spec.radius, Math.min(WIDTH - spec.radius, (b1.x + b2.x) / 2)),
-                    y: Math.min(HEIGHT - spec.radius, (b1.y + b2.y) / 2),
-                    vx: 0,
-                    vy: -1.2,
-                    r: spec.radius,
-                    settledFrames: 0
-                  });
-                  state.score += spec.score;
-                  setScore(state.score);
+
+                  if (b1.level < MERGE_LEVELS.length - 1) {
+                    const nextLv = b1.level + 1;
+                    const spec = MERGE_LEVELS[nextLv];
+                    newBalls.push({
+                      id: state.idCounter++,
+                      level: nextLv,
+                      x: Math.max(spec.radius, Math.min(WIDTH - spec.radius, (b1.x + b2.x) / 2)),
+                      y: Math.min(HEIGHT - spec.radius, (b1.y + b2.y) / 2),
+                      vx: 0,
+                      vy: -1.0,
+                      r: spec.radius,
+                      age: 40,
+                      dangerFrames: 0
+                    });
+                    state.score += spec.score;
+                    setScore(state.score);
+                  } else {
+                    // 면류관 2개가 합쳐지면 2000점 대박 보너스!
+                    state.score += 2000;
+                    setScore(state.score);
+                  }
                 } else if (dist > 0.001) {
                   const overlap = (minDist - dist) * 0.5;
                   const nx = dx / dist;
@@ -454,30 +472,38 @@ function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
           state.balls = state.balls.filter((b) => !mergedIds.has(b.id)).concat(newBalls);
         }
 
+        // 빨간 점선(DANGER_Y) 게임 오버 판정 강화:
+        // 드롭 유예 시간(약 0.9초 = 55프레임) 이후, 공의 윗부분이 점선에 닿거나 넘은 상태로 0.6초(35프레임) 유지되면 즉시 종료
         for (let b of state.balls) {
-          if (Math.abs(b.vy) < 0.5 && Math.abs(b.vx) < 0.5) {
-            b.settledFrames = (b.settledFrames || 0) + 1;
+          if (b.age > 55 && b.y - b.r <= DANGER_Y) {
+            b.dangerFrames = (b.dangerFrames || 0) + 1;
+            if (b.dangerFrames >= 35) {
+              state.gameOver = true;
+              setGameOver(true);
+              break;
+            }
           } else {
-            b.settledFrames = 0;
-          }
-          if (b.settledFrames > 55 && b.y - b.r < DANGER_Y) {
-            state.gameOver = true;
-            setGameOver(true);
-            break;
+            b.dangerFrames = 0;
           }
         }
       }
 
       ctx.clearRect(0, 0, WIDTH, HEIGHT);
 
+      // 위험선(빨간 점선) 그리기
       ctx.save();
       ctx.strokeStyle = '#f43f5e';
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([5, 5]);
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 4]);
       ctx.beginPath();
       ctx.moveTo(0, DANGER_Y);
       ctx.lineTo(WIDTH, DANGER_Y);
       ctx.stroke();
+
+      ctx.fillStyle = '#f43f5e';
+      ctx.font = 'bold 10px sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText('위험선 (닿으면 종료)', WIDTH - 8, DANGER_Y - 5);
       ctx.restore();
 
       if (!state.gameOver && state.canDrop) {
@@ -488,12 +514,12 @@ function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
         ctx.strokeStyle = 'rgba(148, 163, 184, 0.5)';
         ctx.setLineDash([3, 3]);
         ctx.beginPath();
-        ctx.moveTo(currentX, 32);
+        ctx.moveTo(currentX, 34);
         ctx.lineTo(currentX, HEIGHT);
         ctx.stroke();
         ctx.restore();
 
-        drawBall(ctx, currentX, 32, curSpec);
+        drawBall(ctx, currentX, 34, curSpec);
       }
 
       for (let b of state.balls) {
@@ -531,20 +557,22 @@ function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
       level: state.nextLevel,
       x: safeX,
       y: 34,
-      vx: (Math.random() - 0.5) * 0.3,
-      vy: 1.5,
+      vx: (Math.random() - 0.5) * 0.35,
+      vy: 1.8,
       r: spec.radius,
-      settledFrames: 0
+      age: 0,
+      dangerFrames: 0
     });
 
     state.canDrop = false;
-    const upcoming = Math.floor(Math.random() * 3);
+    // 초반 드롭 아이템은 겨자씨(0), 새싹(1), 물고기(2), 비둘기(3) 중에서 등장
+    const upcoming = Math.floor(Math.random() * 4);
     state.nextLevel = upcoming;
     setNextLevel(upcoming);
 
     setTimeout(() => {
       state.canDrop = true;
-    }, 320);
+    }, 340);
   };
 
   const handleRecordSubmit = (e) => {
@@ -556,16 +584,26 @@ function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
 
   return (
     <div className="space-y-3.5">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <button onClick={onBack} className="flex items-center gap-1 text-xs font-bold text-slate-600 bg-white/85 px-3 py-1.5 rounded-full">
           <ChevronLeft className="w-4 h-4" /> 홈으로
         </button>
-        <button
-          onClick={resetGame}
-          className="flex items-center gap-1 text-xs font-bold text-slate-700 bg-white/85 px-3 py-1.5 rounded-full border border-slate-200"
-        >
-          <RotateCcw className="w-3.5 h-3.5" /> 다시 시작
-        </button>
+        <div className="flex items-center gap-1.5">
+          {!gameOver && score > 0 && (
+            <button
+              onClick={triggerManualFinish}
+              className="flex items-center gap-1 text-xs font-bold text-amber-800 bg-amber-100 px-3 py-1.5 rounded-full border border-amber-200"
+            >
+              <Trophy className="w-3.5 h-3.5" /> 기록 남기기
+            </button>
+          )}
+          <button
+            onClick={resetGame}
+            className="flex items-center gap-1 text-xs font-bold text-slate-700 bg-white/85 px-3 py-1.5 rounded-full border border-slate-200"
+          >
+            <RotateCcw className="w-3.5 h-3.5" /> 다시 시작
+          </button>
+        </div>
       </div>
 
       <div className="bg-slate-900 text-white p-3.5 rounded-2xl flex items-center justify-between shadow-md">
@@ -580,7 +618,8 @@ function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
         </div>
       </div>
 
-      <div className="bg-white/85 backdrop-blur-md px-3 py-2 rounded-xl border border-white flex items-center justify-between text-[11px] overflow-x-auto">
+      {/* 9단계 합체 순서표 */}
+      <div className="bg-white/85 backdrop-blur-md px-2.5 py-2 rounded-xl border border-white flex items-center justify-between text-[10px] overflow-x-auto gap-1">
         {MERGE_LEVELS.map((lv, i) => (
           <React.Fragment key={lv.level}>
             <span className="flex flex-col items-center shrink-0">
@@ -606,7 +645,7 @@ function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
         />
 
         {gameOver && (
-          <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/85 backdrop-blur-xs flex items-center justify-center p-4 z-10">
             <div className="bg-white rounded-3xl p-5 w-full max-w-xs text-center space-y-3 shadow-2xl">
               <div className="text-2xl">🎉</div>
               <h3 className="text-lg font-extrabold text-slate-900">게임 종료!</h3>
@@ -614,27 +653,30 @@ function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
 
               {!scoreSaved ? (
                 <form onSubmit={handleRecordSubmit} className="space-y-2 pt-1">
+                  <label className="block text-[11px] font-bold text-slate-500">
+                    학년과 이름을 적고 명예의 전당에 등록하세요!
+                  </label>
                   <input
                     type="text"
                     required
                     placeholder="학년 이름 (예: 중2 이주원)"
                     value={playerName}
                     onChange={(e) => setPlayerName(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs text-center font-bold"
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs text-center font-bold focus:outline-none focus:border-emerald-500"
                   />
-                  <button type="submit" className="w-full py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold">
+                  <button type="submit" className="w-full py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700">
                     🏆 명예의 전당에 기록 등록하기
                   </button>
                 </form>
               ) : (
-                <p className="text-xs font-bold text-emerald-700 bg-emerald-50 py-2 rounded-xl">
-                  랭킹에 기록이 등록되었습니다!
+                <p className="text-xs font-bold text-emerald-700 bg-emerald-50 py-2.5 rounded-xl">
+                  ✨ {playerName} 친구의 기록이 등록되었습니다!
                 </p>
               )}
 
               <button
                 onClick={resetGame}
-                className="w-full py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold"
+                className="w-full py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200"
               >
                 다시 도전하기
               </button>
@@ -752,7 +794,7 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // 2) 비공개 명단·출석 데이터 동기화 (교역자·교사 PIN 인증 후에만 구독 + 이달의 생일자 안전 동기화)
+  // 2) 비공개 명단·출석 데이터 동기화
   useEffect(() => {
     if (!authRoles.admin) return;
 
@@ -772,7 +814,6 @@ export default function App() {
         setPrivateData(currentPriv);
       }
 
-      // 이달의 생일자(학년·이름·생일만) 자동 계산 후 공개 배너 데이터 최신화
       const extractedBdays = extractCurrentMonthBirthdays(currentPriv.classes);
       await setDoc(PUBLIC_DOC_REF, { monthlyBirthdays: extractedBdays }, { merge: true });
     });
@@ -780,7 +821,6 @@ export default function App() {
     return () => unsubscribePrivate();
   }, [authRoles.admin]);
 
-  // 공개 데이터 저장
   const syncPublicData = async (updatedFields) => {
     const nextData = { ...publicData, ...updatedFields };
     setPublicData(nextData);
@@ -792,7 +832,6 @@ export default function App() {
     }
   };
 
-  // 비공개 개인정보·출석 데이터 저장 + 명단 변경 시 생일자 배너 안전 갱신
   const syncPrivateData = async (updatedFields) => {
     if (!authRoles.admin) return;
     const nextData = { ...privateData, ...updatedFields };
@@ -846,7 +885,6 @@ export default function App() {
     syncPublicData({ gameRanking: updated });
   };
 
-  // 역할별 PIN 확인
   const handlePinSubmit = (e) => {
     e.preventDefault();
     const isMaster = pinInput === CHURCH_LINKS.adminPin;
@@ -883,7 +921,6 @@ export default function App() {
     }
   };
 
-  // 찬양 추가 / 삭제 / 기본 3곡 초기화
   const handleAddSong = (e) => {
     e.preventDefault();
     if (!newSong.title.trim()) return;
@@ -907,7 +944,6 @@ export default function App() {
     syncPublicData({ praises: INITIAL_PUBLIC_DATA.praises });
   };
 
-  // 예배 순서 & 일정 수정
   const handleOrderChange = (weekKey, field, val) => {
     syncPublicData({
       worshipOrder: {
@@ -922,7 +958,6 @@ export default function App() {
     syncPublicData({ calendar: updated });
   };
 
-  // 출석 상태 ('present' | 'second' | 'absent') 및 통합 메모 변경
   const setStudentAttendance = (studentId, status) => {
     const dayRecord = privateData.attendanceRecords[selectedDate] || {};
     const prevStudentRec = dayRecord[studentId] || { status: '', reason: '' };
@@ -945,7 +980,6 @@ export default function App() {
     });
   };
 
-  // 학생 추가 / 삭제 / 담임교사 수정
   const handleAddStudent = (e) => {
     e.preventDefault();
     if (!newStudent.name.trim() || !selectedClassId) return;
@@ -987,7 +1021,6 @@ export default function App() {
     setEditingTeacher(false);
   };
 
-  // Cloudinary 사진 업로드
   const handlePhotoUpload = async (e) => {
     e.preventDefault();
     if (!photoTitle.trim() || !photoFile) {
@@ -1027,7 +1060,6 @@ export default function App() {
     }
   };
 
-  // 퀴즈 제출 & 발행
   const handleQuizSubmit = (e) => {
     e.preventDefault();
     if (!quizStudentName.trim()) {
@@ -1065,7 +1097,6 @@ export default function App() {
     alert("새 설교 퀴즈가 등록되었으며 완료자 명단이 초기화되었습니다!");
   };
 
-  // 출석 통계 계산 (전체 평균 + 학년별 비교 표 데이터 포함)
   const statsSummary = useMemo(() => {
     const orderedClasses = CLASS_SEQUENTIAL_ORDER.map(id => privateData.classes[id]).filter(Boolean);
     const allStudents = orderedClasses.flatMap(c => c.students.map(s => ({ ...s, grade: c.grade })));
@@ -1099,7 +1130,6 @@ export default function App() {
       thisMonthRate = Math.round((sum / (thisMonthDates.length * totalCount)) * 100);
     }
 
-    // 반별(중1~고3) 출석 현황 비교 계산
     const classStats = orderedClasses.map((cls) => {
       const total = cls.students.length;
       if (total === 0 || targetDates.length === 0) {
@@ -1130,7 +1160,6 @@ export default function App() {
     };
   }, [privateData.classes, privateData.attendanceRecords]);
 
-  // 엑셀(CSV) 다운로드
   const downloadCSV = () => {
     const orderedClasses = CLASS_SEQUENTIAL_ORDER.map(id => privateData.classes[id]).filter(Boolean);
     const allStudents = orderedClasses.flatMap(c => c.students.map(s => ({ ...s, grade: c.grade })));
@@ -1252,7 +1281,6 @@ export default function App() {
           {/* ========================================== */}
           {activeTab === 'home' && (
             <>
-              {/* 1. 절기 그라데이션 표어 배너 */}
               <div className={`rounded-3xl p-5 text-white bg-gradient-to-br ${currentSeason.bannerGradient} shadow-lg relative overflow-hidden transition-all duration-500`}>
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-xs">
@@ -1275,7 +1303,6 @@ export default function App() {
                 </p>
               </div>
 
-              {/* 2. 이번 주 주일 예배 섬김이 카드 */}
               <div className="bg-white/90 backdrop-blur-md rounded-2xl p-4 border border-slate-200/70 shadow-2xs">
                 <div className="flex items-center justify-between mb-2.5">
                   <span className="text-xs font-bold text-slate-600 flex items-center gap-1.5">
@@ -1301,7 +1328,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* 3. 이번 달 생일자 축하 배너 (예배 섬김이 바로 아래 슬림 카드) */}
               {birthdayBannerData.list.length > 0 && (
                 <div className="rounded-2xl p-3.5 bg-gradient-to-r from-rose-50/95 via-pink-50/95 to-amber-50/95 border border-rose-200/80 shadow-2xs">
                   <div className="flex items-center justify-between mb-2">
@@ -1327,7 +1353,6 @@ export default function App() {
                 </div>
               )}
 
-              {/* 4. 주간 설교 말씀 퀴즈 카드 */}
               <div
                 onClick={() => { setActiveTab('quiz'); setQuizSubmitted(false); }}
                 className="cursor-pointer rounded-2xl bg-gradient-to-r from-slate-800 to-slate-900 text-white p-4 shadow-md hover:shadow-lg transition"
@@ -1370,7 +1395,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* 5. 4대 핵심 메뉴 그리드 */}
               <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={() => setActiveTab('praise')}
@@ -1417,7 +1441,6 @@ export default function App() {
                 </button>
               </div>
 
-              {/* 6. 합체 퍼즐 미니게임 배너 */}
               <div
                 onClick={() => setActiveTab('game')}
                 className="cursor-pointer rounded-2xl p-4 bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 text-white shadow-md hover:shadow-lg transition flex items-center justify-between"
@@ -1890,7 +1913,7 @@ export default function App() {
                 ))}
               </div>
 
-              {/* (A) 출석 체크 & (B) 반별 명단 관리: 고정 순서 (좌: 중1~중3, 우: 고1~고3) */}
+              {/* (A) 출석 체크 & (B) 반별 명단 관리 */}
               {(adminTab === 'attendance' || adminTab === 'roster') && !selectedClassId && (
                 <div className="space-y-3">
                   {adminTab === 'attendance' && (
@@ -2128,7 +2151,7 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* 학년별 출석 현황 비교 표 (중1 ~ 고3) */}
+                  {/* 학년별 출석 현황 비교 표 */}
                   <div className="p-4 rounded-2xl bg-white/95 border border-white space-y-3 shadow-2xs">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
