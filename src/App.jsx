@@ -6,7 +6,7 @@ import {
   ChevronRight, ChevronLeft, X, CheckCircle2, XCircle, Sparkles, Lock,
   Sun, UserPlus, Trash2, Edit3, BarChart3, AlertTriangle,
   Download, Award, Send, Camera, Phone, Cake, Globe, Loader2, Settings,
-  Gamepad2, Trophy, RotateCcw, Clock, ShieldCheck
+  Gamepad2, Trophy, RotateCcw, Clock, ShieldCheck, Users
 } from 'lucide-react';
 
 // ==========================================
@@ -173,7 +173,17 @@ const INITIAL_PUBLIC_DATA = {
     ],
     completers: []
   },
-  gameRanking: []
+  gameRanking: [],
+  // 공개용 이달의 생일자 안전 목록 (전화번호 제외, 학년·이름·생일만 동기화)
+  monthlyBirthdays: {
+    month: 11,
+    list: [
+      { grade: '중2', name: '허윤슬', birth: '11.23' },
+      { grade: '중2', name: '허슬아', birth: '11.23' },
+      { grade: '중3', name: '강사무엘', birth: '11.1' },
+      { grade: '고3', name: '이유빈', birth: '11.4' }
+    ]
+  }
 };
 
 const INITIAL_PRIVATE_DATA = {
@@ -197,6 +207,37 @@ const getLatestSundayStr = () => {
   const now = new Date();
   const sun = new Date(now.setDate(now.getDate() - now.getDay()));
   return `${sun.getFullYear()}-${String(sun.getMonth() + 1).padStart(2, '0')}-${String(sun.getDate()).padStart(2, '0')}`;
+};
+
+// 비공개 명단에서 현재 월 생일자의 학년·이름·생일만 안전하게 추출하는 헬퍼 함수
+const extractCurrentMonthBirthdays = (classesObj) => {
+  const currentMonth = new Date().getMonth() + 1;
+  const list = [];
+
+  CLASS_SEQUENTIAL_ORDER.forEach((cid) => {
+    const cls = classesObj?.[cid];
+    if (!cls || !Array.isArray(cls.students)) return;
+    cls.students.forEach((stu) => {
+      if (!stu.birth || stu.birth === '-') return;
+      const parts = stu.birth.trim().split(/[.\/-]/);
+      const bMonth = parseInt(parts[0], 10);
+      const bDay = parseInt(parts[1], 10) || 99;
+      if (bMonth === currentMonth) {
+        list.push({
+          grade: cls.grade,
+          name: stu.name,
+          birth: stu.birth.trim(),
+          day: bDay
+        });
+      }
+    });
+  });
+
+  list.sort((a, b) => a.day - b.day);
+  return {
+    month: currentMonth,
+    list: list.map(({ grade, name, birth }) => ({ grade, name, birth }))
+  };
 };
 
 // ==========================================
@@ -634,9 +675,7 @@ function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
 // 6. 메인 애플리케이션
 // ==========================================
 export default function App() {
-  // 공개 상태 (모든 방문자용 - 개인정보 미포함)
   const [publicData, setPublicData] = useState(INITIAL_PUBLIC_DATA);
-  // 비공개 상태 (교역자·교사 PIN 인증 후에만 로드)
   const [privateData, setPrivateData] = useState(INITIAL_PRIVATE_DATA);
 
   const [isLoaded, setIsLoaded] = useState(false);
@@ -686,7 +725,7 @@ export default function App() {
   const [newQuizOpts, setNewQuizOpts] = useState(['', '', '', '']);
   const [newQuizAns, setNewQuizAns] = useState(0);
 
-  // 1) 공개 데이터 실시간 동기화 (항상 연결)
+  // 1) 공개 데이터 실시간 동기화
   useEffect(() => {
     const unsubscribe = onSnapshot(PUBLIC_DOC_REF, async (snapshot) => {
       if (snapshot.exists()) {
@@ -699,7 +738,8 @@ export default function App() {
           worshipOrder: raw.worshipOrder ?? prev.worshipOrder,
           photos: raw.photos ?? prev.photos,
           quiz: raw.quiz ?? prev.quiz,
-          gameRanking: raw.gameRanking ?? prev.gameRanking
+          gameRanking: raw.gameRanking ?? prev.gameRanking,
+          monthlyBirthdays: raw.monthlyBirthdays ?? prev.monthlyBirthdays
         }));
       } else {
         await setDoc(PUBLIC_DOC_REF, INITIAL_PUBLIC_DATA);
@@ -712,24 +752,29 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // 2) 비공개 명단·출석 데이터 동기화 (교역자·교사 PIN 인증 후에만 구독 시작!)
+  // 2) 비공개 명단·출석 데이터 동기화 (교역자·교사 PIN 인증 후에만 구독 + 이달의 생일자 안전 동기화)
   useEffect(() => {
     if (!authRoles.admin) return;
 
     const unsubscribePrivate = onSnapshot(PRIVATE_DOC_REF, async (snapshot) => {
+      let currentPriv = INITIAL_PRIVATE_DATA;
       if (snapshot.exists()) {
-        setPrivateData((prev) => ({ ...prev, ...snapshot.data() }));
+        currentPriv = { ...INITIAL_PRIVATE_DATA, ...snapshot.data() };
+        setPrivateData(currentPriv);
       } else {
-        // 기존 main_data에 저장되어 있던 44명 명단·출석 기록을 자동으로 안전 이전
         const legacySnap = await getDoc(PUBLIC_DOC_REF);
         const legacy = legacySnap.exists() ? legacySnap.data() : {};
-        const migrated = {
+        currentPriv = {
           classes: legacy.classes || INITIAL_PRIVATE_DATA.classes,
           attendanceRecords: legacy.attendanceRecords || {}
         };
-        await setDoc(PRIVATE_DOC_REF, migrated);
-        setPrivateData(migrated);
+        await setDoc(PRIVATE_DOC_REF, currentPriv);
+        setPrivateData(currentPriv);
       }
+
+      // 이달의 생일자(학년·이름·생일만) 자동 계산 후 공개 배너 데이터 최신화
+      const extractedBdays = extractCurrentMonthBirthdays(currentPriv.classes);
+      await setDoc(PUBLIC_DOC_REF, { monthlyBirthdays: extractedBdays }, { merge: true });
     });
 
     return () => unsubscribePrivate();
@@ -747,13 +792,17 @@ export default function App() {
     }
   };
 
-  // 비공개 개인정보·출석 데이터 저장 (관리자 인증 상태에서만 허용)
+  // 비공개 개인정보·출석 데이터 저장 + 명단 변경 시 생일자 배너 안전 갱신
   const syncPrivateData = async (updatedFields) => {
     if (!authRoles.admin) return;
     const nextData = { ...privateData, ...updatedFields };
     setPrivateData(nextData);
     try {
       await setDoc(PRIVATE_DOC_REF, nextData, { merge: true });
+      if (updatedFields.classes) {
+        const extractedBdays = extractCurrentMonthBirthdays(updatedFields.classes);
+        await setDoc(PUBLIC_DOC_REF, { monthlyBirthdays: extractedBdays }, { merge: true });
+      }
     } catch (err) {
       console.error("비공개 데이터 저장 실패:", err);
       alert("출석·명단 저장에 실패했습니다. 인터넷 연결을 확인해 주세요.");
@@ -873,7 +922,7 @@ export default function App() {
     syncPublicData({ calendar: updated });
   };
 
-  // 출석 상태 ('present' | 'second' | 'absent') 및 통합 메모 변경 (비공개 저장소)
+  // 출석 상태 ('present' | 'second' | 'absent') 및 통합 메모 변경
   const setStudentAttendance = (studentId, status) => {
     const dayRecord = privateData.attendanceRecords[selectedDate] || {};
     const prevStudentRec = dayRecord[studentId] || { status: '', reason: '' };
@@ -896,7 +945,7 @@ export default function App() {
     });
   };
 
-  // 학생 추가 / 삭제 / 담임교사 수정 (비공개 저장소)
+  // 학생 추가 / 삭제 / 담임교사 수정
   const handleAddStudent = (e) => {
     e.preventDefault();
     if (!newStudent.name.trim() || !selectedClassId) return;
@@ -1016,7 +1065,7 @@ export default function App() {
     alert("새 설교 퀴즈가 등록되었으며 완료자 명단이 초기화되었습니다!");
   };
 
-  // 출석 통계 계산 (비공개 데이터 기반)
+  // 출석 통계 계산 (전체 평균 + 학년별 비교 표 데이터 포함)
   const statsSummary = useMemo(() => {
     const orderedClasses = CLASS_SEQUENTIAL_ORDER.map(id => privateData.classes[id]).filter(Boolean);
     const allStudents = orderedClasses.flatMap(c => c.students.map(s => ({ ...s, grade: c.grade })));
@@ -1039,6 +1088,8 @@ export default function App() {
     });
 
     const thisMonthDates = dates.filter(d => d.startsWith(currentMonth));
+    const targetDates = thisMonthDates.length > 0 ? thisMonthDates : dates;
+
     let thisMonthRate = 0;
     if (thisMonthDates.length > 0 && totalCount > 0) {
       let sum = 0;
@@ -1048,12 +1099,35 @@ export default function App() {
       thisMonthRate = Math.round((sum / (thisMonthDates.length * totalCount)) * 100);
     }
 
+    // 반별(중1~고3) 출석 현황 비교 계산
+    const classStats = orderedClasses.map((cls) => {
+      const total = cls.students.length;
+      if (total === 0 || targetDates.length === 0) {
+        return { id: cls.id, grade: cls.grade, teacher: cls.teacher, avgPresent: 0, total, rate: 0 };
+      }
+      let sumPresent = 0;
+      targetDates.forEach((d) => {
+        const dayRec = privateData.attendanceRecords[d] || {};
+        sumPresent += cls.students.filter((s) => isAttended(dayRec[s.id]?.status)).length;
+      });
+      const avgPresent = Math.round((sumPresent / targetDates.length) * 10) / 10;
+      const rate = Math.round((sumPresent / (targetDates.length * total)) * 100);
+      return { id: cls.id, grade: cls.grade, teacher: cls.teacher, avgPresent, total, rate };
+    });
+
     const recentTwoDates = dates.slice(-2);
     const consecutiveAbsentees = recentTwoDates.length === 2
       ? allStudents.filter(stu => recentTwoDates.every(d => privateData.attendanceRecords[d]?.[stu.id]?.status === 'absent'))
       : [];
 
-    return { totalCount, thisMonthRate, monthlyRates, consecutiveAbsentees };
+    return {
+      totalCount,
+      thisMonthRate,
+      monthlyRates,
+      classStats,
+      hasThisMonthData: thisMonthDates.length > 0,
+      consecutiveAbsentees
+    };
   }, [privateData.classes, privateData.attendanceRecords]);
 
   // 엑셀(CSV) 다운로드
@@ -1112,6 +1186,11 @@ export default function App() {
   }
 
   const topGameScore = publicData.gameRanking && publicData.gameRanking.length > 0 ? publicData.gameRanking[0].score : 0;
+  const currentMonthNum = new Date().getMonth() + 1;
+  const birthdayBannerData =
+    publicData.monthlyBirthdays && publicData.monthlyBirthdays.month === currentMonthNum
+      ? publicData.monthlyBirthdays
+      : { month: currentMonthNum, list: [] };
 
   return (
     <div className={`min-h-screen ${currentSeason.outerBg} transition-colors duration-700 flex justify-center relative`}>
@@ -1173,6 +1252,7 @@ export default function App() {
           {/* ========================================== */}
           {activeTab === 'home' && (
             <>
+              {/* 1. 절기 그라데이션 표어 배너 */}
               <div className={`rounded-3xl p-5 text-white bg-gradient-to-br ${currentSeason.bannerGradient} shadow-lg relative overflow-hidden transition-all duration-500`}>
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-xs">
@@ -1195,6 +1275,7 @@ export default function App() {
                 </p>
               </div>
 
+              {/* 2. 이번 주 주일 예배 섬김이 카드 */}
               <div className="bg-white/90 backdrop-blur-md rounded-2xl p-4 border border-slate-200/70 shadow-2xs">
                 <div className="flex items-center justify-between mb-2.5">
                   <span className="text-xs font-bold text-slate-600 flex items-center gap-1.5">
@@ -1220,6 +1301,33 @@ export default function App() {
                 </div>
               </div>
 
+              {/* 3. 이번 달 생일자 축하 배너 (예배 섬김이 바로 아래 슬림 카드) */}
+              {birthdayBannerData.list.length > 0 && (
+                <div className="rounded-2xl p-3.5 bg-gradient-to-r from-rose-50/95 via-pink-50/95 to-amber-50/95 border border-rose-200/80 shadow-2xs">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-extrabold text-rose-800 flex items-center gap-1.5">
+                      <Cake className="w-4 h-4 text-rose-500" />
+                      {birthdayBannerData.month}월 생일을 진심으로 축하합니다! 🎉
+                    </span>
+                    <span className="text-[10px] font-bold text-rose-600 bg-white/80 px-2 py-0.5 rounded-full">
+                      총 {birthdayBannerData.list.length}명
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {birthdayBannerData.list.map((b, idx) => (
+                      <span
+                        key={idx}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/90 border border-rose-200/70 text-xs font-bold text-slate-800 shadow-2xs"
+                      >
+                        <span>🎂 {b.grade} {b.name}</span>
+                        <span className="text-[10px] font-semibold text-rose-600">({b.birth})</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 4. 주간 설교 말씀 퀴즈 카드 */}
               <div
                 onClick={() => { setActiveTab('quiz'); setQuizSubmitted(false); }}
                 className="cursor-pointer rounded-2xl bg-gradient-to-r from-slate-800 to-slate-900 text-white p-4 shadow-md hover:shadow-lg transition"
@@ -1262,6 +1370,7 @@ export default function App() {
                 </div>
               </div>
 
+              {/* 5. 4대 핵심 메뉴 그리드 */}
               <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={() => setActiveTab('praise')}
@@ -1308,6 +1417,7 @@ export default function App() {
                 </button>
               </div>
 
+              {/* 6. 합체 퍼즐 미니게임 배너 */}
               <div
                 onClick={() => setActiveTab('game')}
                 className="cursor-pointer rounded-2xl p-4 bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 text-white shadow-md hover:shadow-lg transition flex items-center justify-between"
@@ -1745,7 +1855,7 @@ export default function App() {
           )}
 
           {/* ========================================== */}
-          {/* 6. 교사 / 목사님 전용 전체 관리자 페이지 (비공개 금고 연결) */}
+          {/* 6. 교사 / 목사님 전용 전체 관리자 페이지 */}
           {/* ========================================== */}
           {activeTab === 'admin' && authRoles.admin && (
             <div className="space-y-4">
@@ -1828,7 +1938,7 @@ export default function App() {
                 </div>
               )}
 
-              {/* 반 선택 후: 출석 체크 (출석 / 2부예배 / 결석 + 특이사항·기도제목·결석사유 통합 입력) */}
+              {/* 반 선택 후: 출석 체크 */}
               {adminTab === 'attendance' && selectedClassId && (
                 <div className="space-y-3">
                   <button
@@ -2004,7 +2114,7 @@ export default function App() {
                 </div>
               )}
 
-              {/* (C) 출석 통계 & 엑셀 다운로드 */}
+              {/* (C) 출석 통계 & 학년별 비교 표 & 엑셀 다운로드 */}
               {adminTab === 'stats' && (
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-3">
@@ -2018,6 +2128,51 @@ export default function App() {
                     </div>
                   </div>
 
+                  {/* 학년별 출석 현황 비교 표 (중1 ~ 고3) */}
+                  <div className="p-4 rounded-2xl bg-white/95 border border-white space-y-3 shadow-2xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+                        <Users className="w-4 h-4 text-emerald-600" /> 학년별 출석 현황
+                      </span>
+                      <span className="text-[10px] font-semibold text-slate-400">
+                        {statsSummary.hasThisMonthData ? '이번 달 평균 기준' : '전체 기록 평균 기준'}
+                      </span>
+                    </div>
+
+                    <div className="space-y-3 pt-1">
+                      {statsSummary.classStats.map((cls) => (
+                        <div key={cls.id} className="space-y-1">
+                          <div className="flex items-center justify-between text-xs">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-extrabold text-slate-800">{cls.grade}</span>
+                              <span className="text-[11px] text-slate-400">({cls.teacher})</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[11px] font-medium text-slate-500">
+                                {cls.avgPresent}/{cls.total}명
+                              </span>
+                              <span className="font-extrabold text-emerald-700 w-9 text-right">
+                                {cls.rate}%
+                              </span>
+                            </div>
+                          </div>
+                          <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                            <div
+                              style={{ width: `${Math.min(cls.rate, 100)}%` }}
+                              className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs">
+                      <span className="font-bold text-slate-500">전체 재적 인원</span>
+                      <span className="font-extrabold text-slate-800">총 {statsSummary.totalCount}명</span>
+                    </div>
+                  </div>
+
+                  {/* 올해 월별 평균 출석률 그래프 */}
                   <div className="p-4 rounded-2xl bg-white/95 border border-white space-y-3">
                     <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                       <BarChart3 className="w-4 h-4 text-emerald-600" /> 올해 월별 평균 출석률 (%)
@@ -2035,6 +2190,7 @@ export default function App() {
                     </div>
                   </div>
 
+                  {/* 연속 결석 관심·심방 대상자 */}
                   <div className="p-4 rounded-2xl bg-white/95 border border-rose-200 space-y-2">
                     <div className="text-xs font-extrabold text-rose-800 flex items-center gap-1.5">
                       <AlertTriangle className="w-4 h-4" /> 연속 결석 관심·심방 대상자
