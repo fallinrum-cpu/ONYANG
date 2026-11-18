@@ -264,21 +264,6 @@ const DAILY_VERSES = [
   { verse: "너희도 성령 안에서 하나님이 거하실 처소가 되기 위하여 그리스도 예수 안에서 함께 지어져 가느니라", ref: "에베소서 2:22", note: "오늘도 그리스도 안에서 서로를 세워주며 함께 지어져 가는 온양 청소년부가 됩시다!" }
 ];
 
-// ==========================================
-// 4. 게임 1: 수박 게임 스타일 '합체 퍼즐' 9단계
-// ==========================================
-const MERGE_LEVELS = [
-  { level: 0, name: '겨자씨', emoji: '🌱', radius: 17, color: '#dcfce7', border: '#16a34a', score: 10 },
-  { level: 1, name: '새싹', emoji: '🌿', radius: 23, color: '#bbf7d0', border: '#059669', score: 25 },
-  { level: 2, name: '물고기', emoji: '🐟', radius: 29, color: '#bae6fd', border: '#0284c7', score: 50 },
-  { level: 3, name: '비둘기', emoji: '🕊️', radius: 36, color: '#e0e7ff', border: '#4f46e5', score: 90 },
-  { level: 4, name: '성경책', emoji: '📖', radius: 44, color: '#fef3c7', border: '#d97706', score: 150 },
-  { level: 5, name: '촛불', emoji: '🕯️', radius: 52, color: '#ffedd5', border: '#ea580c', score: 250 },
-  { level: 6, name: '찬양기타', emoji: '🎸', radius: 61, color: '#ffe4e6', border: '#e11d48', score: 400 },
-  { level: 7, name: '십자가', emoji: '✝️', radius: 71, color: '#ede9fe', border: '#7c3aed', score: 650 },
-  { level: 8, name: '면류관', emoji: '👑', radius: 82, color: '#fef08a', border: '#ca8a04', score: 1000 }
-];
-
 const INITIAL_PUBLIC_DATA = {
   season: 'creation',
   praises: [
@@ -318,7 +303,8 @@ const INITIAL_PUBLIC_DATA = {
     ],
     completers: []
   },
-  gameRanking: [],
+  babelRanking: [],
+  mannaRanking: [],
   runnerRanking: [],
   luckyEvent: {
     active: false,
@@ -397,7 +383,7 @@ const extractCurrentMonthBirthdays = (classesObj) => {
 };
 
 // ==========================================
-// 5. 절기별 낙하 이펙트 오버레이
+// 4. 절기별 낙하 이펙트 오버레이
 // ==========================================
 function SeasonEffectOverlay({ type }) {
   const particles = useMemo(() => {
@@ -452,279 +438,504 @@ function SeasonEffectOverlay({ type }) {
 }
 
 // ==========================================
-// 6-A. 게임 1: 수박 게임 스타일 '합체 퍼즐'
+// 5-A. 게임 1: 🗼 바벨탑 쌓기 (점진적 속도 가속 + 하단 전용 탭 패드)
 // ==========================================
-function MergePuzzleGame({ rankings, onSaveScore }) {
+const TOWER_COLORS = ['#fbbf24', '#f59e0b', '#10b981', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899'];
+
+function BabelTowerGame({ rankings, onSaveScore }) {
   const canvasRef = useRef(null);
-  const [score, setScore] = useState(0);
-  const [nextLevel, setNextLevel] = useState(0);
+  const [floor, setFloor] = useState(0);
+  const [combo, setCombo] = useState(0);
+  const [isStarted, setIsStarted] = useState(false);
   const [gameOver, setGameOver] = useState(false);
   const [playerName, setPlayerName] = useState('');
   const [scoreSaved, setScoreSaved] = useState(false);
 
-  const dropXRef = useRef(160);
+  const WIDTH = 320;
+  const HEIGHT = 340;
+  const BLOCK_H = 26;
 
-  const gameState = useRef({
-    balls: [],
-    score: 0,
-    nextLevel: 0,
-    canDrop: true,
-    gameOver: false,
-    idCounter: 1
+  const stRef = useRef({
+    started: false,
+    over: false,
+    stack: [],
+    cur: null,
+    debris: [],
+    combo: 0,
+    camY: 0,
+    flashText: '',
+    flashTimer: 0
   });
 
-  const WIDTH = 320;
-  const HEIGHT = 420;
-  const DANGER_Y = 82;
-
-  const resetGame = () => {
-    const startLv = Math.floor(Math.random() * 3);
-    gameState.current = {
-      balls: [],
-      score: 0,
-      nextLevel: startLv,
-      canDrop: true,
-      gameOver: false,
-      idCounter: 1
+  const resetStandby = () => {
+    const baseW = 155;
+    stRef.current = {
+      started: false,
+      over: false,
+      stack: [{ x: (WIDTH - baseW) / 2, y: HEIGHT - BLOCK_H, w: baseW, color: TOWER_COLORS[0] }],
+      cur: { x: 20, y: HEIGHT - BLOCK_H * 2, w: baseW, dir: 1, speed: 2.3, color: TOWER_COLORS[1] },
+      debris: [],
+      combo: 0,
+      camY: 0,
+      flashText: '',
+      flashTimer: 0
     };
-    dropXRef.current = 160;
-    setScore(0);
-    setNextLevel(startLv);
+    setFloor(0);
+    setCombo(0);
+    setIsStarted(false);
     setGameOver(false);
     setScoreSaved(false);
   };
 
-  const triggerManualFinish = () => {
-    if (score <= 0) {
-      alert("점수를 획득한 뒤 기록을 남길 수 있습니다!");
-      return;
+  const startGame = () => {
+    stRef.current.started = true;
+    setIsStarted(true);
+  };
+
+  const dropBlock = () => {
+    const st = stRef.current;
+    if (!st.started || st.over || !st.cur) return;
+
+    const prev = st.stack[st.stack.length - 1];
+    const cur = st.cur;
+    const diff = cur.x - prev.x;
+
+    // 오차 6px 이내면 PERFECT!
+    if (Math.abs(diff) <= 6) {
+      cur.x = prev.x;
+      st.combo += 1;
+      setCombo(st.combo);
+      if (st.combo >= 3) {
+        cur.w = Math.min(165, cur.w + 8);
+        cur.x = Math.max(0, Math.min(WIDTH - cur.w, cur.x - 4));
+      }
+      st.flashText = `PERFECT! ×${st.combo}`;
+      st.flashTimer = 32;
+    } else {
+      st.combo = 0;
+      setCombo(0);
+      const overlap = cur.w - Math.abs(diff);
+      if (overlap <= 6) {
+        st.debris.push({ x: cur.x, y: cur.y, w: cur.w, vy: 0, color: cur.color });
+        st.over = true;
+        setGameOver(true);
+        return;
+      }
+      if (diff > 0) {
+        st.debris.push({ x: cur.x + overlap, y: cur.y, w: diff, vy: 0, color: cur.color });
+      } else {
+        st.debris.push({ x: cur.x, y: cur.y, w: -diff, vy: 0, color: cur.color });
+        cur.x = prev.x;
+      }
+      cur.w = overlap;
+      st.flashText = '';
     }
-    gameState.current.gameOver = true;
-    setGameOver(true);
+
+    st.stack.push({ x: cur.x, y: cur.y, w: cur.w, color: cur.color });
+    const nextFloor = st.stack.length - 1;
+    setFloor(nextFloor);
+
+    // 층수가 올라갈수록 이동 속도가 점진적으로 빨라짐 (초반 2.3 -> 후반 최대 7.6)
+    const nextY = cur.y - BLOCK_H;
+    const nextSpeed = Math.min(7.6, 2.3 + nextFloor * 0.22);
+    const startLeft = nextFloor % 2 === 0;
+    st.cur = {
+      x: startLeft ? 0 : WIDTH - cur.w,
+      y: nextY,
+      w: cur.w,
+      dir: startLeft ? 1 : -1,
+      speed: nextSpeed,
+      color: TOWER_COLORS[st.stack.length % TOWER_COLORS.length]
+    };
   };
 
   useEffect(() => {
-    resetGame();
+    resetStandby();
     let animId;
 
-    const drawBall = (ctx, x, y, spec) => {
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(x, y, spec.radius, 0, Math.PI * 2);
-      ctx.fillStyle = spec.color;
-      ctx.fill();
-      ctx.lineWidth = 2.5;
-      ctx.strokeStyle = spec.border;
-      ctx.stroke();
-
-      ctx.font = `${Math.round(spec.radius * 1.05)}px sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(spec.emoji, x, y + 1);
-      ctx.restore();
-    };
-
-    const updatePhysics = () => {
-      const state = gameState.current;
+    const loop = () => {
+      const st = stRef.current;
       const canvas = canvasRef.current;
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
 
-      if (!state.gameOver) {
-        const gravity = 0.45;
-        const damping = 0.32;
-        const friction = 0.94;
+      if (st.started && !st.over && st.cur) {
+        st.cur.x += st.cur.dir * st.cur.speed;
+        if (st.cur.x <= 0) {
+          st.cur.x = 0;
+          st.cur.dir = 1;
+        } else if (st.cur.x + st.cur.w >= WIDTH) {
+          st.cur.x = WIDTH - st.cur.w;
+          st.cur.dir = -1;
+        }
+      }
 
-        for (let b of state.balls) {
-          b.age = (b.age || 0) + 1;
-          b.vy += gravity;
-          b.vx *= friction;
-          b.x += b.vx;
-          b.y += b.vy;
+      const targetCam = Math.max(0, (st.stack.length - 6) * BLOCK_H);
+      st.camY += (targetCam - st.camY) * 0.14;
 
-          if (b.x - b.r < 0) { b.x = b.r; b.vx = -b.vx * damping; }
-          if (b.x + b.r > WIDTH) { b.x = WIDTH - b.r; b.vx = -b.vx * damping; }
-          if (b.y + b.r >= HEIGHT) {
-            b.y = HEIGHT - b.r;
-            b.vy = -b.vy * damping;
-            if (Math.abs(b.vy) < 0.8) b.vy = 0;
-          }
+      st.debris.forEach((d) => {
+        d.vy += 0.48;
+        d.y += d.vy;
+      });
+      st.debris = st.debris.filter((d) => d.y - st.camY < HEIGHT + 60);
+      if (st.flashTimer > 0) st.flashTimer -= 1;
+
+      ctx.clearRect(0, 0, WIDTH, HEIGHT);
+
+      ctx.save();
+      ctx.translate(0, st.camY);
+
+      st.stack.forEach((b) => {
+        ctx.fillStyle = b.color;
+        ctx.beginPath();
+        ctx.roundRect(b.x, b.y, b.w, BLOCK_H - 2, 6);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.28)';
+        ctx.fillRect(b.x + 3, b.y + 2, b.w - 6, 4);
+      });
+
+      if (!st.over && st.cur) {
+        ctx.fillStyle = st.cur.color;
+        ctx.beginPath();
+        ctx.roundRect(st.cur.x, st.cur.y, st.cur.w, BLOCK_H - 2, 6);
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.8;
+        ctx.stroke();
+      }
+
+      st.debris.forEach((d) => {
+        ctx.fillStyle = d.color;
+        ctx.globalAlpha = 0.7;
+        ctx.fillRect(d.x, d.y, d.w, BLOCK_H - 2);
+        ctx.globalAlpha = 1;
+      });
+
+      ctx.restore();
+
+      if (st.flashTimer > 0 && st.flashText) {
+        ctx.save();
+        ctx.fillStyle = '#fef08a';
+        ctx.font = '900 18px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(st.flashText, WIDTH / 2, 54);
+        ctx.restore();
+      }
+
+      animId = requestAnimationFrame(loop);
+    };
+
+    animId = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(animId);
+  }, []);
+
+  const handleRecordSubmit = (e) => {
+    e.preventDefault();
+    if (!playerName.trim() || floor <= 0) return;
+    onSaveScore(playerName.trim(), floor);
+    setScoreSaved(true);
+  };
+
+  return (
+    <div className="space-y-2.5">
+      <div className="bg-slate-900 text-white p-3.5 rounded-2xl flex items-center justify-between shadow-md">
+        <div>
+          <div className="text-[10px] text-amber-300 font-bold">현재 쌓은 층수 · 콤보</div>
+          <div className="text-xl font-extrabold">
+            {floor}층 <span className="text-xs font-semibold text-emerald-300">({combo}연속 PERFECT)</span>
+          </div>
+        </div>
+        <button
+          onClick={resetStandby}
+          className="flex items-center gap-1 text-xs font-bold bg-white/15 px-3 py-1.5 rounded-xl hover:bg-white/25"
+        >
+          <RotateCcw className="w-3.5 h-3.5" /> 다시 시작
+        </button>
+      </div>
+
+      {/* 게임 캔버스 (위쪽 시야 확보) */}
+      <div className="relative bg-gradient-to-b from-slate-900 via-indigo-950 to-slate-900 rounded-t-3xl border-2 border-b-0 border-slate-300 overflow-hidden flex justify-center select-none">
+        <canvas ref={canvasRef} width={WIDTH} height={HEIGHT} className="w-full max-w-[340px]" />
+
+        {!isStarted && !gameOver && (
+          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-[2px] flex items-center justify-center p-4 z-10">
+            <div className="bg-white/95 rounded-3xl p-5 max-w-[240px] text-center space-y-3 shadow-xl">
+              <div className="text-2xl">🗼</div>
+              <div className="text-sm font-extrabold text-slate-900">바벨탑 쌓기 준비!</div>
+              <p className="text-[11px] text-slate-500 leading-relaxed">
+                아래 조작 패드를 터치해 블록을 쌓으세요.<br />
+                높이 올라갈수록 속도가 빨라집니다!
+              </p>
+              <button
+                type="button"
+                onClick={startGame}
+                className="w-full py-3 rounded-2xl bg-amber-500 text-white text-sm font-extrabold hover:bg-amber-600 shadow-md flex items-center justify-center gap-1.5"
+              >
+                <Play className="w-4 h-4 fill-current" /> 시작하기
+              </button>
+            </div>
+          </div>
+        )}
+
+        {gameOver && (
+          <div className="absolute inset-0 bg-slate-900/85 backdrop-blur-xs flex items-center justify-center p-4 z-10">
+            <div className="bg-white rounded-3xl p-5 w-full max-w-xs text-center space-y-3 shadow-2xl">
+              <div className="text-2xl">🗼</div>
+              <h3 className="text-lg font-extrabold text-slate-900">바벨탑 완공!</h3>
+              <div className="text-3xl font-black text-amber-600">{floor}층</div>
+
+              {floor > 0 && !scoreSaved ? (
+                <form onSubmit={handleRecordSubmit} className="space-y-2 pt-1">
+                  <input
+                    type="text"
+                    required
+                    placeholder="학년 이름 (예: 중2 이주원)"
+                    value={playerName}
+                    onChange={(e) => setPlayerName(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs text-center font-bold"
+                  />
+                  <button type="submit" className="w-full py-2.5 rounded-xl bg-amber-500 text-white text-xs font-extrabold">
+                    🏆 바벨탑 명예의 전당 등록하기
+                  </button>
+                </form>
+              ) : scoreSaved ? (
+                <p className="text-xs font-bold text-emerald-700 bg-emerald-50 py-2 rounded-xl">
+                  ✨ {playerName} 친구의 {floor}층 기록 등록 완료!
+                </p>
+              ) : (
+                <p className="text-xs text-slate-500">1층 이상 쌓으면 기록을 등록할 수 있어요!</p>
+              )}
+
+              <button
+                onClick={resetStandby}
+                className="w-full py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold"
+              >
+                다시 도전하기
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 손가락 가림 방지용 하단 전용 조작 패드 */}
+      <button
+        type="button"
+        onMouseDown={(e) => { e.preventDefault(); dropBlock(); }}
+        onTouchStart={(e) => { e.preventDefault(); dropBlock(); }}
+        disabled={!isStarted || gameOver}
+        className="w-full h-20 -mt-2.5 rounded-b-3xl bg-gradient-to-r from-amber-500 to-orange-500 active:from-amber-600 active:to-orange-600 disabled:from-slate-300 disabled:to-slate-400 text-white font-extrabold text-base shadow-md flex flex-col items-center justify-center gap-0.5 select-none touch-none transition"
+      >
+        <span>⬇ 여기를 터치해서 블록 내려놓기</span>
+        <span className="text-[11px] font-medium text-white/85">엄지손가락이 위 화면을 가리지 않아요!</span>
+      </button>
+
+      <div className="bg-white/90 backdrop-blur-md p-4 rounded-2xl border border-white space-y-2">
+        <div className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+          <Trophy className="w-4 h-4 text-amber-500" /> 바벨탑 쌓기 최고 기록 TOP 5
+        </div>
+        {rankings.length > 0 ? (
+          <div className="space-y-1.5">
+            {rankings.slice(0, 5).map((r, idx) => (
+              <div key={idx} className="flex items-center justify-between text-xs py-1.5 px-2.5 rounded-xl bg-slate-50">
+                <div className="flex items-center gap-2">
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-extrabold ${
+                    idx === 0 ? 'bg-amber-400 text-white' : idx === 1 ? 'bg-slate-400 text-white' : idx === 2 ? 'bg-amber-700 text-white' : 'bg-slate-200 text-slate-600'
+                  }`}>
+                    {idx + 1}
+                  </span>
+                  <span className="font-bold text-slate-800">{r.name}</span>
+                </div>
+                <span className="font-extrabold text-amber-700">{r.score}층</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-slate-500">아직 등록된 기록이 없습니다. 첫 번째 건축가에 도전해 보세요!</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ==========================================
+// 5-B. 게임 2: 🍯 만나 받아먹기 (점진적 낙하 속도 가속 + 하단 슬라이드 조작 패드)
+// ==========================================
+function MannaCatchGame({ rankings, onSaveScore }) {
+  const canvasRef = useRef(null);
+  const padRef = useRef(null);
+  const [score, setScore] = useState(0);
+  const [lives, setLives] = useState(3);
+  const [speedLv, setSpeedLv] = useState(1);
+  const [isStarted, setIsStarted] = useState(false);
+  const [gameOver, setGameOver] = useState(false);
+  const [playerName, setPlayerName] = useState('');
+  const [scoreSaved, setScoreSaved] = useState(false);
+
+  const WIDTH = 320;
+  const HEIGHT = 340;
+
+  const stRef = useRef({
+    started: false,
+    over: false,
+    basketX: WIDTH / 2,
+    score: 0,
+    lives: 3,
+    combo: 0,
+    fever: 0,
+    items: [],
+    spawnTimer: 0,
+    elapsedFrames: 0
+  });
+
+  const resetStandby = () => {
+    stRef.current = {
+      started: false,
+      over: false,
+      basketX: WIDTH / 2,
+      score: 0,
+      lives: 3,
+      combo: 0,
+      fever: 0,
+      items: [],
+      spawnTimer: 0,
+      elapsedFrames: 0
+    };
+    setScore(0);
+    setLives(3);
+    setSpeedLv(1);
+    setIsStarted(false);
+    setGameOver(false);
+    setScoreSaved(false);
+  };
+
+  const startGame = () => {
+    stRef.current.started = true;
+    setIsStarted(true);
+  };
+
+  // 하단 슬라이드 패드에서 손가락 X좌표를 읽어 위쪽 바구니 위치로 변환
+  const moveBasketFromPad = (e) => {
+    const st = stRef.current;
+    if (!st.started || st.over || !padRef.current) return;
+    const rect = padRef.current.getBoundingClientRect();
+    const clientX = e.touches && e.touches.length > 0 ? e.touches[0].clientX : e.clientX;
+    if (typeof clientX !== 'number') return;
+    const relX = ((clientX - rect.left) / rect.width) * WIDTH;
+    st.basketX = Math.max(36, Math.min(WIDTH - 36, relX));
+  };
+
+  useEffect(() => {
+    resetStandby();
+    let animId;
+
+    const loop = () => {
+      const st = stRef.current;
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+
+      if (st.started && !st.over) {
+        st.elapsedFrames += 1;
+        // 시간과 점수에 따라 속도 배율이 1.0배 -> 최대 2.4배까지 점진 상승
+        const speedMultiplier = Math.min(2.4, 1.0 + st.elapsedFrames / 1500 + st.score / 2500);
+        const curLv = Math.min(5, Math.floor((speedMultiplier - 1.0) / 0.28) + 1);
+        setSpeedLv((prev) => (prev !== curLv ? curLv : prev));
+
+        if (st.fever > 0) st.fever -= 1;
+        st.spawnTimer -= 1;
+
+        if (st.spawnTimer <= 0) {
+          const r = Math.random();
+          let type = 'manna';
+          if (r < 0.26 + curLv * 0.02) type = 'storm';
+          else if (r < 0.42) type = 'honey';
+
+          st.items.push({
+            x: 24 + Math.random() * (WIDTH - 48),
+            y: -20,
+            vy: (2.3 + Math.random() * 1.1) * speedMultiplier,
+            type
+          });
+          st.spawnTimer = Math.max(15, Math.round(36 / speedMultiplier));
         }
 
-        let mergedIds = new Set();
-        let newBalls = [];
+        const basketY = HEIGHT - 34;
+        for (let i = st.items.length - 1; i >= 0; i--) {
+          const it = st.items[i];
+          it.y += it.vy;
 
-        for (let iter = 0; iter < 4; iter++) {
-          for (let i = 0; i < state.balls.length; i++) {
-            for (let j = i + 1; j < state.balls.length; j++) {
-              const b1 = state.balls[i];
-              const b2 = state.balls[j];
-              if (mergedIds.has(b1.id) || mergedIds.has(b2.id)) continue;
-
-              const dx = b2.x - b1.x;
-              const dy = b2.y - b1.y;
-              const dist = Math.hypot(dx, dy);
-              const minDist = b1.r + b2.r;
-
-              if (dist < minDist) {
-                if (iter === 0 && b1.level === b2.level) {
-                  mergedIds.add(b1.id);
-                  mergedIds.add(b2.id);
-
-                  if (b1.level < MERGE_LEVELS.length - 1) {
-                    const nextLv = b1.level + 1;
-                    const spec = MERGE_LEVELS[nextLv];
-                    newBalls.push({
-                      id: state.idCounter++,
-                      level: nextLv,
-                      x: Math.max(spec.radius, Math.min(WIDTH - spec.radius, (b1.x + b2.x) / 2)),
-                      y: Math.min(HEIGHT - spec.radius, (b1.y + b2.y) / 2),
-                      vx: 0,
-                      vy: -1.0,
-                      r: spec.radius,
-                      age: 40,
-                      dangerFrames: 0
-                    });
-                    state.score += spec.score;
-                    setScore(state.score);
-                  } else {
-                    state.score += 2000;
-                    setScore(state.score);
-                  }
-                } else if (dist > 0.001) {
-                  const overlap = (minDist - dist) * 0.5;
-                  const nx = dx / dist;
-                  const ny = dy / dist;
-                  b1.x -= nx * overlap;
-                  b1.y -= ny * overlap;
-                  b2.x += nx * overlap;
-                  b2.y += ny * overlap;
-
-                  if (b1.y + b1.r > HEIGHT) b1.y = HEIGHT - b1.r;
-                  if (b2.y + b2.r > HEIGHT) b2.y = HEIGHT - b2.r;
-                  if (b1.x - b1.r < 0) b1.x = b1.r;
-                  if (b1.x + b1.r > WIDTH) b1.x = WIDTH - b1.r;
-                  if (b2.x - b2.r < 0) b2.x = b2.r;
-                  if (b2.x + b2.r > WIDTH) b2.x = WIDTH - b2.r;
-
-                  const rvx = b2.vx - b1.vx;
-                  const rvy = b2.vy - b1.vy;
-                  const velAlongNormal = rvx * nx + rvy * ny;
-                  if (velAlongNormal < 0) {
-                    const impulse = -(1 + damping) * velAlongNormal * 0.5;
-                    b1.vx -= impulse * nx;
-                    b1.vy -= impulse * ny;
-                    b2.vx += impulse * nx;
-                    b2.vy += impulse * ny;
-                  }
-                }
+          if (Math.abs(it.y - basketY) < 22 && Math.abs(it.x - st.basketX) < 38) {
+            if (it.type === 'storm') {
+              st.lives -= 1;
+              st.combo = 0;
+              st.fever = 0;
+              setLives(st.lives);
+              if (st.lives <= 0) {
+                st.over = true;
+                setGameOver(true);
               }
+            } else {
+              const base = it.type === 'honey' ? 30 : 10;
+              const mult = st.fever > 0 ? 2 : 1;
+              st.score += base * mult;
+              st.combo += 1;
+              if (st.combo >= 6 && st.fever === 0) st.fever = 240;
+              setScore(st.score);
             }
+            st.items.splice(i, 1);
+            continue;
           }
-        }
 
-        if (mergedIds.size > 0) {
-          state.balls = state.balls.filter((b) => !mergedIds.has(b.id)).concat(newBalls);
-        }
-
-        for (let b of state.balls) {
-          if (b.age > 55 && b.y - b.r <= DANGER_Y) {
-            b.dangerFrames = (b.dangerFrames || 0) + 1;
-            if (b.dangerFrames >= 35) {
-              state.gameOver = true;
-              setGameOver(true);
-              break;
-            }
-          } else {
-            b.dangerFrames = 0;
+          if (it.y > HEIGHT + 25) {
+            if (it.type !== 'storm') st.combo = 0;
+            st.items.splice(i, 1);
           }
         }
       }
 
       ctx.clearRect(0, 0, WIDTH, HEIGHT);
 
-      ctx.save();
-      ctx.strokeStyle = '#f43f5e';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([6, 4]);
+      // 피버 모드 배경 반짝임
+      if (st.fever > 0) {
+        ctx.fillStyle = 'rgba(253, 224, 71, 0.25)';
+        ctx.fillRect(0, 0, WIDTH, HEIGHT);
+        ctx.fillStyle = '#b45309';
+        ctx.font = '900 13px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('🔥 FEVER TIME! 점수 2배! 🔥', WIDTH / 2, 24);
+      }
+
+      // 낙하 아이템 그리기
+      st.items.forEach((it) => {
+        ctx.font = '26px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const emoji = it.type === 'manna' ? '🍞' : it.type === 'honey' ? '🍯' : '⛈️';
+        ctx.fillText(emoji, it.x, it.y);
+      });
+
+      // 바구니 그리기
+      const bx = st.basketX;
+      const by = HEIGHT - 34;
+      ctx.fillStyle = st.fever > 0 ? '#f59e0b' : '#d97706';
       ctx.beginPath();
-      ctx.moveTo(0, DANGER_Y);
-      ctx.lineTo(WIDTH, DANGER_Y);
+      ctx.roundRect(bx - 34, by - 12, 68, 24, 10);
+      ctx.fill();
+      ctx.strokeStyle = '#78350f';
+      ctx.lineWidth = 2;
       ctx.stroke();
 
-      ctx.fillStyle = '#f43f5e';
-      ctx.font = 'bold 10px sans-serif';
-      ctx.textAlign = 'right';
-      ctx.fillText('위험선 (닿으면 종료)', WIDTH - 8, DANGER_Y - 5);
-      ctx.restore();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 11px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('은혜 바구니', bx, by + 1);
 
-      if (!state.gameOver && state.canDrop) {
-        const curSpec = MERGE_LEVELS[state.nextLevel];
-        const currentX = dropXRef.current;
-
-        ctx.save();
-        ctx.strokeStyle = 'rgba(148, 163, 184, 0.5)';
-        ctx.setLineDash([3, 3]);
-        ctx.beginPath();
-        ctx.moveTo(currentX, 34);
-        ctx.lineTo(currentX, HEIGHT);
-        ctx.stroke();
-        ctx.restore();
-
-        drawBall(ctx, currentX, 34, curSpec);
-      }
-
-      for (let b of state.balls) {
-        drawBall(ctx, b.x, b.y, MERGE_LEVELS[b.level]);
-      }
-
-      animId = requestAnimationFrame(updatePhysics);
+      animId = requestAnimationFrame(loop);
     };
 
-    animId = requestAnimationFrame(updatePhysics);
+    animId = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animId);
   }, []);
-
-  const updatePointerX = (e) => {
-    if (gameState.current.gameOver || !canvasRef.current) return;
-    const rect = canvasRef.current.getBoundingClientRect();
-    const clientX = e.touches && e.touches.length > 0 ? e.touches[0].clientX : e.clientX;
-    if (typeof clientX !== 'number') return;
-    const relX = ((clientX - rect.left) / rect.width) * WIDTH;
-    const r = MERGE_LEVELS[gameState.current.nextLevel].radius;
-    dropXRef.current = Math.max(r + 4, Math.min(WIDTH - r - 4, relX));
-  };
-
-  const handleDrop = (e) => {
-    if (e.type === 'touchend') e.preventDefault();
-    updatePointerX(e);
-    const state = gameState.current;
-    if (state.gameOver || !state.canDrop) return;
-
-    const spec = MERGE_LEVELS[state.nextLevel];
-    const safeX = Math.max(spec.radius + 4, Math.min(WIDTH - spec.radius - 4, dropXRef.current));
-
-    state.balls.push({
-      id: state.idCounter++,
-      level: state.nextLevel,
-      x: safeX,
-      y: 34,
-      vx: (Math.random() - 0.5) * 0.35,
-      vy: 1.8,
-      r: spec.radius,
-      age: 0,
-      dangerFrames: 0
-    });
-
-    state.canDrop = false;
-    const upcoming = Math.floor(Math.random() * 4);
-    state.nextLevel = upcoming;
-    setNextLevel(upcoming);
-
-    setTimeout(() => {
-      state.canDrop = true;
-    }, 340);
-  };
 
   const handleRecordSubmit = (e) => {
     e.preventDefault();
@@ -734,93 +945,84 @@ function MergePuzzleGame({ rankings, onSaveScore }) {
   };
 
   return (
-    <div className="space-y-3">
-      <div className="bg-slate-900 text-white p-3.5 rounded-2xl flex items-center justify-between shadow-md">
+    <div className="space-y-2.5">
+      <div className="bg-amber-950 text-white p-3.5 rounded-2xl flex items-center justify-between shadow-md">
         <div>
-          <div className="text-[10px] text-amber-300 font-bold">합체 퍼즐 점수</div>
-          <div className="text-xl font-extrabold">{score.toLocaleString()}점</div>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 bg-white/10 px-2.5 py-1.5 rounded-xl">
-            <span className="text-[10px] text-slate-300">다음:</span>
-            <span className="text-base">{MERGE_LEVELS[nextLevel].emoji}</span>
-          </div>
-          {!gameOver && score > 0 && (
-            <button
-              onClick={triggerManualFinish}
-              className="text-[11px] font-bold text-amber-900 bg-amber-300 px-2.5 py-1.5 rounded-xl"
-            >
-              기록 등록
-            </button>
-          )}
-          <button
-            onClick={resetGame}
-            className="p-2 rounded-xl bg-white/15 text-white hover:bg-white/25"
-            title="다시 시작"
-          >
-            <RotateCcw className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-
-      <div className="bg-white/85 backdrop-blur-md px-2.5 py-2 rounded-xl border border-white flex items-center justify-between text-[10px] overflow-x-auto gap-1">
-        {MERGE_LEVELS.map((lv, i) => (
-          <React.Fragment key={lv.level}>
-            <span className="flex flex-col items-center shrink-0">
-              <span className="text-sm">{lv.emoji}</span>
-              <span className="text-[9px] text-slate-500 font-medium">{lv.name}</span>
+          <div className="text-[10px] text-amber-300 font-bold flex items-center gap-1.5">
+            <span>만나 점수 · 남은 하트</span>
+            <span className="px-1.5 py-0.5 rounded bg-amber-500/30 text-amber-100 text-[9px]">
+              속도 Lv.{speedLv}
             </span>
-            {i < MERGE_LEVELS.length - 1 && <span className="text-slate-300">›</span>}
-          </React.Fragment>
-        ))}
+          </div>
+          <div className="text-xl font-extrabold flex items-center gap-2">
+            <span>{score.toLocaleString()}점</span>
+            <span className="text-sm">{'❤️'.repeat(Math.max(0, lives))}{'🖤'.repeat(Math.max(0, 3 - lives))}</span>
+          </div>
+        </div>
+        <button
+          onClick={resetStandby}
+          className="flex items-center gap-1 text-xs font-bold bg-white/15 px-3 py-1.5 rounded-xl hover:bg-white/25"
+        >
+          <RotateCcw className="w-3.5 h-3.5" /> 다시 시작
+        </button>
       </div>
 
-      <div className="relative bg-white/95 rounded-3xl border-2 border-slate-200 shadow-inner overflow-hidden flex justify-center">
-        <canvas
-          ref={canvasRef}
-          width={WIDTH}
-          height={HEIGHT}
-          onMouseMove={updatePointerX}
-          onClick={handleDrop}
-          onTouchStart={updatePointerX}
-          onTouchMove={updatePointerX}
-          onTouchEnd={handleDrop}
-          className="w-full max-w-[340px] touch-none cursor-pointer"
-        />
+      {/* 게임 캔버스 */}
+      <div className="relative bg-gradient-to-b from-sky-200 via-sky-100 to-amber-50 rounded-t-3xl border-2 border-b-0 border-slate-300 overflow-hidden flex justify-center select-none">
+        <canvas ref={canvasRef} width={WIDTH} height={HEIGHT} className="w-full max-w-[340px]" />
+
+        {!isStarted && !gameOver && (
+          <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-[2px] flex items-center justify-center p-4 z-10">
+            <div className="bg-white/95 rounded-3xl p-5 max-w-[240px] text-center space-y-3 shadow-xl">
+              <div className="text-2xl">🍯</div>
+              <div className="text-sm font-extrabold text-slate-900">만나 받아먹기 준비!</div>
+              <p className="text-[11px] text-slate-500 leading-relaxed">
+                🍞만나(+10)와 🍯꿀단지(+30)를 받고<br />
+                ⛈️먹구름 벼락은 피하세요!
+              </p>
+              <button
+                type="button"
+                onClick={startGame}
+                className="w-full py-3 rounded-2xl bg-emerald-600 text-white text-sm font-extrabold hover:bg-emerald-700 shadow-md flex items-center justify-center gap-1.5"
+              >
+                <Play className="w-4 h-4 fill-current" /> 시작하기
+              </button>
+            </div>
+          </div>
+        )}
 
         {gameOver && (
           <div className="absolute inset-0 bg-slate-900/85 backdrop-blur-xs flex items-center justify-center p-4 z-10">
             <div className="bg-white rounded-3xl p-5 w-full max-w-xs text-center space-y-3 shadow-2xl">
-              <div className="text-2xl">👑</div>
-              <h3 className="text-lg font-extrabold text-slate-900">합체 퍼즐 종료!</h3>
-              <div className="text-2xl font-black text-emerald-600">{score.toLocaleString()}점</div>
+              <div className="text-2xl">🍯</div>
+              <h3 className="text-lg font-extrabold text-slate-900">만나 수확 완료!</h3>
+              <div className="text-3xl font-black text-emerald-600">{score.toLocaleString()}점</div>
 
-              {!scoreSaved ? (
+              {score > 0 && !scoreSaved ? (
                 <form onSubmit={handleRecordSubmit} className="space-y-2 pt-1">
-                  <label className="block text-[11px] font-bold text-slate-500">
-                    학년과 이름을 적고 명예의 전당에 등록하세요!
-                  </label>
                   <input
                     type="text"
                     required
                     placeholder="학년 이름 (예: 중2 이주원)"
                     value={playerName}
                     onChange={(e) => setPlayerName(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs text-center font-bold focus:outline-none focus:border-emerald-500"
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs text-center font-bold"
                   />
-                  <button type="submit" className="w-full py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700">
-                    🏆 명예의 전당에 기록 등록하기
+                  <button type="submit" className="w-full py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-extrabold">
+                    🏆 만나 명예의 전당 등록하기
                   </button>
                 </form>
-              ) : (
-                <p className="text-xs font-bold text-emerald-700 bg-emerald-50 py-2.5 rounded-xl">
-                  ✨ {playerName} 친구의 기록이 등록되었습니다!
+              ) : scoreSaved ? (
+                <p className="text-xs font-bold text-emerald-700 bg-emerald-50 py-2 rounded-xl">
+                  ✨ {playerName} 친구의 {score.toLocaleString()}점 등록 완료!
                 </p>
+              ) : (
+                <p className="text-xs text-slate-500">점수를 획득하면 명예의 전당에 등록할 수 있어요!</p>
               )}
 
               <button
-                onClick={resetGame}
-                className="w-full py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200"
+                onClick={resetStandby}
+                className="w-full py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold"
               >
                 다시 도전하기
               </button>
@@ -829,9 +1031,22 @@ function MergePuzzleGame({ rankings, onSaveScore }) {
         )}
       </div>
 
+      {/* 손가락 가림 방지용 하단 전용 슬라이드 패드 */}
+      <div
+        ref={padRef}
+        onMouseMove={moveBasketFromPad}
+        onMouseDown={moveBasketFromPad}
+        onTouchStart={(e) => { e.preventDefault(); moveBasketFromPad(e); }}
+        onTouchMove={(e) => { e.preventDefault(); moveBasketFromPad(e); }}
+        className="w-full h-20 -mt-2.5 rounded-b-3xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 text-white font-extrabold text-sm shadow-md flex flex-col items-center justify-center gap-1 select-none touch-none cursor-ew-resize"
+      >
+        <span>◀ 손가락을 좌우로 문질러 바구니 이동 ▶</span>
+        <span className="text-[11px] font-medium text-white/85">이 영역에서 엄지를 움직이면 위 바구니가 따라갑니다</span>
+      </div>
+
       <div className="bg-white/90 backdrop-blur-md p-4 rounded-2xl border border-white space-y-2">
         <div className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
-          <Trophy className="w-4 h-4 text-amber-500" /> 합체 퍼즐 실시간 최고 기록 TOP 5
+          <Trophy className="w-4 h-4 text-emerald-500" /> 만나 받아먹기 최고 기록 TOP 5
         </div>
         {rankings.length > 0 ? (
           <div className="space-y-1.5">
@@ -850,7 +1065,7 @@ function MergePuzzleGame({ rankings, onSaveScore }) {
             ))}
           </div>
         ) : (
-          <p className="text-xs text-slate-500">아직 등록된 기록이 없습니다. 첫 번째 1위에 도전해 보세요!</p>
+          <p className="text-xs text-slate-500">아직 등록된 기록이 없습니다. 첫 번째 챔피언에 도전해 보세요!</p>
         )}
       </div>
     </div>
@@ -858,7 +1073,7 @@ function MergePuzzleGame({ rankings, onSaveScore }) {
 }
 
 // ==========================================
-// 6-B. 게임 2: 속도 가속·연속 장애물 강화형 '숫자 분할 러너' (시작하기 대기 버튼 포함)
+// 5-C. 게임 3: ⚡ 숫자 분할 러너 (하단 전용 홀드 패드 + 점진적 속도 가속)
 // ==========================================
 const getCubePalette = (val) => {
   if (val <= 2) return { bg: '#38bdf8', border: '#0284c7', text: '#ffffff' };
@@ -879,14 +1094,15 @@ function NumberSplitRunnerGame({ rankings, onSaveScore }) {
   const [bestNum, setBestNum] = useState(4);
   const [speedStage, setSpeedStage] = useState(1);
   const [isStarted, setIsStarted] = useState(false);
+  const [isHolding, setIsHolding] = useState(false);
   const [gameOver, setGameOver] = useState(false);
   const [playerName, setPlayerName] = useState('');
   const [scoreSaved, setScoreSaved] = useState(false);
 
   const WIDTH = 320;
-  const HEIGHT = 420;
+  const HEIGHT = 340;
   const LANES = [64, 160, 256];
-  const PLAYER_Y = 345;
+  const PLAYER_Y = 285;
 
   const runnerRef = useRef({
     started: false,
@@ -894,7 +1110,7 @@ function NumberSplitRunnerGame({ rankings, onSaveScore }) {
     bestValue: 4,
     isSplit: false,
     spread: 0,
-    speed: 3.3,
+    speed: 3.1,
     roadOffset: 0,
     spawnTimer: 0,
     waveCount: 0,
@@ -907,7 +1123,6 @@ function NumberSplitRunnerGame({ rankings, onSaveScore }) {
     idCounter: 1
   });
 
-  // 초기 대기 상태로 리셋 (바로 달리지 않고 시작 버튼 대기)
   const resetRunnerToStandby = () => {
     runnerRef.current = {
       started: false,
@@ -915,7 +1130,7 @@ function NumberSplitRunnerGame({ rankings, onSaveScore }) {
       bestValue: 4,
       isSplit: false,
       spread: 0,
-      speed: 3.3,
+      speed: 3.1,
       roadOffset: 0,
       spawnTimer: 18,
       waveCount: 0,
@@ -931,11 +1146,11 @@ function NumberSplitRunnerGame({ rankings, onSaveScore }) {
     setBestNum(4);
     setSpeedStage(1);
     setIsStarted(false);
+    setIsHolding(false);
     setGameOver(false);
     setScoreSaved(false);
   };
 
-  // 가운데 '시작하기' 버튼을 눌렀을 때 실제 주행 출발
   const handleStartGame = () => {
     runnerRef.current.started = true;
     setIsStarted(true);
@@ -1010,9 +1225,9 @@ function NumberSplitRunnerGame({ rankings, onSaveScore }) {
         st.items.push({ id: st.idCounter++, lane: 0, y: -30, type: 'cube', value: halfVal, hit: false });
         st.items.push({ id: st.idCounter++, lane: 2, y: -30, type: 'cube', value: halfVal, hit: false });
 
-        st.items.push({ id: st.idCounter++, lane: 0, y: -145, type: 'spike', value: 0, hit: false });
-        st.items.push({ id: st.idCounter++, lane: 2, y: -145, type: 'spike', value: 0, hit: false });
-        st.items.push({ id: st.idCounter++, lane: 1, y: -145, type: 'cube', value: doubleVal, hit: false });
+        st.items.push({ id: st.idCounter++, lane: 0, y: -140, type: 'spike', value: 0, hit: false });
+        st.items.push({ id: st.idCounter++, lane: 2, y: -140, type: 'spike', value: 0, hit: false });
+        st.items.push({ id: st.idCounter++, lane: 1, y: -140, type: 'cube', value: doubleVal, hit: false });
         return 75;
       } else if (roll < 0.44) {
         st.items.push({ id: st.idCounter++, lane: 1, y: -30, type: 'spike', value: 0, hit: false });
@@ -1040,11 +1255,10 @@ function NumberSplitRunnerGame({ rankings, onSaveScore }) {
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
 
-      // 시작 버튼을 누른 뒤부터만 주행·장애물 생성·충돌 처리 실행
       if (st.started && !st.gameOver) {
-        const targetSpeed = Math.min(8.2, 3.3 + st.waveCount * 0.14);
+        const targetSpeed = Math.min(7.8, 3.1 + st.waveCount * 0.14);
         st.speed = targetSpeed;
-        const nextStage = Math.min(5, Math.floor((st.speed - 3.3) / 1.0) + 1);
+        const nextStage = Math.min(5, Math.floor((st.speed - 3.1) / 0.95) + 1);
         setSpeedStage((prev) => (prev !== nextStage ? nextStage : prev));
 
         st.roadOffset = (st.roadOffset + st.speed) % 40;
@@ -1055,7 +1269,7 @@ function NumberSplitRunnerGame({ rankings, onSaveScore }) {
         st.spawnTimer -= 1;
         if (st.spawnTimer <= 0) {
           const extraDelay = spawnDynamicWave(st);
-          const baseInterval = Math.max(34, Math.round(185 / st.speed));
+          const baseInterval = Math.max(34, Math.round(175 / st.speed));
           st.spawnTimer = baseInterval + Math.round(extraDelay / st.speed);
         }
 
@@ -1128,7 +1342,6 @@ function NumberSplitRunnerGame({ rankings, onSaveScore }) {
         if (st.flashTimer > 0) st.flashTimer -= 1;
       }
 
-      // 배경 트랙 그리기
       ctx.clearRect(0, 0, WIDTH, HEIGHT);
       ctx.fillStyle = '#f8fafc';
       ctx.fillRect(0, 0, WIDTH, HEIGHT);
@@ -1186,15 +1399,17 @@ function NumberSplitRunnerGame({ rankings, onSaveScore }) {
     return () => cancelAnimationFrame(animId);
   }, []);
 
-  const handlePressStart = (e) => {
+  const handlePadDown = (e) => {
     if (e.cancelable) e.preventDefault();
     if (!runnerRef.current.started || runnerRef.current.gameOver) return;
     runnerRef.current.isSplit = true;
+    setIsHolding(true);
   };
 
-  const handlePressEnd = (e) => {
+  const handlePadUp = (e) => {
     if (e.cancelable) e.preventDefault();
     runnerRef.current.isSplit = false;
+    setIsHolding(false);
   };
 
   const handleRecordSubmit = (e) => {
@@ -1205,7 +1420,7 @@ function NumberSplitRunnerGame({ rankings, onSaveScore }) {
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2.5">
       <div className="bg-indigo-950 text-white p-3.5 rounded-2xl flex items-center justify-between shadow-md">
         <div>
           <div className="text-[10px] text-sky-300 font-bold flex items-center gap-1.5">
@@ -1226,37 +1441,23 @@ function NumberSplitRunnerGame({ rankings, onSaveScore }) {
         </button>
       </div>
 
-      <div className="bg-sky-50 border border-sky-200/80 px-3 py-2 rounded-xl text-[11px] text-sky-900 font-semibold text-center">
-        👆 화면을 <b>누르면 절반 분할</b> · <b>떼면 중앙 합체!</b> (갈수록 빨라집니다)
-      </div>
+      {/* 게임 캔버스 */}
+      <div className="relative bg-white rounded-t-3xl border-2 border-b-0 border-slate-300 overflow-hidden flex justify-center select-none">
+        <canvas ref={canvasRef} width={WIDTH} height={HEIGHT} className="w-full max-w-[340px]" />
 
-      <div className="relative bg-white rounded-3xl border-2 border-slate-200 shadow-inner overflow-hidden flex justify-center select-none">
-        <canvas
-          ref={canvasRef}
-          width={WIDTH}
-          height={HEIGHT}
-          onMouseDown={handlePressStart}
-          onMouseUp={handlePressEnd}
-          onMouseLeave={handlePressEnd}
-          onTouchStart={handlePressStart}
-          onTouchEnd={handlePressEnd}
-          className="w-full max-w-[340px] touch-none cursor-pointer"
-        />
-
-        {/* 시작 대기 오버레이 (화면을 중앙에 맞춘 뒤 시작하기 버튼 클릭) */}
         {!isStarted && !gameOver && (
           <div className="absolute inset-0 bg-slate-900/45 backdrop-blur-[2px] flex flex-col items-center justify-center p-4 z-10">
             <div className="bg-white/95 rounded-3xl p-5 max-w-[240px] text-center space-y-3 shadow-xl border border-white">
               <div className="text-2xl">⚡</div>
               <div className="text-sm font-extrabold text-slate-900">숫자 분할 러너 준비!</div>
               <p className="text-[11px] text-slate-500 leading-relaxed">
-                화면을 누르면 숫자가 반으로 갈라지고,<br />
-                손을 떼면 다시 합쳐집니다.
+                아래 패드를 누르면 숫자가 반으로 갈라지고,<br />
+                손을 떼면 다시 합쳐집니다!
               </p>
               <button
                 type="button"
                 onClick={handleStartGame}
-                className="w-full py-3 rounded-2xl bg-indigo-600 text-white text-sm font-extrabold hover:bg-indigo-700 shadow-md flex items-center justify-center gap-1.5 transition transform active:scale-95"
+                className="w-full py-3 rounded-2xl bg-indigo-600 text-white text-sm font-extrabold hover:bg-indigo-700 shadow-md flex items-center justify-center gap-1.5"
               >
                 <Play className="w-4 h-4 fill-current" /> 시작하기
               </button>
@@ -1274,18 +1475,15 @@ function NumberSplitRunnerGame({ rankings, onSaveScore }) {
 
               {!scoreSaved ? (
                 <form onSubmit={handleRecordSubmit} className="space-y-2 pt-1">
-                  <label className="block text-[11px] font-bold text-slate-500">
-                    학년과 이름을 적고 명예의 전당에 등록하세요!
-                  </label>
                   <input
                     type="text"
                     required
                     placeholder="학년 이름 (예: 중2 이주원)"
                     value={playerName}
                     onChange={(e) => setPlayerName(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs text-center font-bold focus:outline-none focus:border-indigo-500"
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs text-center font-bold"
                   />
-                  <button type="submit" className="w-full py-2.5 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700">
+                  <button type="submit" className="w-full py-2.5 rounded-xl bg-indigo-600 text-white text-xs font-extrabold">
                     🏆 러너 명예의 전당에 등록하기
                   </button>
                 </form>
@@ -1297,7 +1495,7 @@ function NumberSplitRunnerGame({ rankings, onSaveScore }) {
 
               <button
                 onClick={resetRunnerToStandby}
-                className="w-full py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200"
+                className="w-full py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold"
               >
                 다시 도전하기
               </button>
@@ -1305,6 +1503,27 @@ function NumberSplitRunnerGame({ rankings, onSaveScore }) {
           </div>
         )}
       </div>
+
+      {/* 손가락 가림 방지용 하단 전용 홀드 조작 패드 */}
+      <button
+        type="button"
+        onMouseDown={handlePadDown}
+        onMouseUp={handlePadUp}
+        onMouseLeave={handlePadUp}
+        onTouchStart={handlePadDown}
+        onTouchEnd={handlePadUp}
+        disabled={!isStarted || gameOver}
+        className={`w-full h-20 -mt-2.5 rounded-b-3xl font-extrabold text-sm shadow-md flex flex-col items-center justify-center gap-0.5 select-none touch-none transition ${
+          !isStarted || gameOver
+            ? 'bg-slate-300 text-slate-500'
+            : isHolding
+              ? 'bg-rose-600 text-white scale-[0.99]'
+              : 'bg-indigo-600 text-white'
+        }`}
+      >
+        <span>{isHolding ? '⚡ 분할 상태 유지 중! (손을 떼면 합체)' : '👆 여기를 누르면 분할 · 떼면 합체'}</span>
+        <span className="text-[11px] font-medium text-white/85">위 트랙이 손가락에 가리지 않는 전용 패드</span>
+      </button>
 
       <div className="bg-white/90 backdrop-blur-md p-4 rounded-2xl border border-white space-y-2">
         <div className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
@@ -1335,10 +1554,18 @@ function NumberSplitRunnerGame({ rankings, onSaveScore }) {
 }
 
 // ==========================================
-// 6-C. 게임 2종 통합 컨테이너 화면
+// 5-D. 게임 3종 통합 컨테이너 화면
 // ==========================================
-function MiniGameCenter({ puzzleRankings, runnerRankings, onSavePuzzle, onSaveRunner, onBack }) {
-  const [selectedGame, setSelectedGame] = useState('puzzle');
+function MiniGameCenter({
+  babelRankings,
+  mannaRankings,
+  runnerRankings,
+  onSaveBabel,
+  onSaveManna,
+  onSaveRunner,
+  onBack
+}) {
+  const [selectedGame, setSelectedGame] = useState('babel');
 
   return (
     <div className="space-y-3.5">
@@ -1351,32 +1578,47 @@ function MiniGameCenter({ puzzleRankings, runnerRankings, onSavePuzzle, onSaveRu
         </span>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 bg-white/85 backdrop-blur-md p-1.5 rounded-2xl border border-white shadow-2xs">
+      {/* 게임 3종 전환 탭 */}
+      <div className="grid grid-cols-3 gap-1.5 bg-white/85 backdrop-blur-md p-1.5 rounded-2xl border border-white shadow-2xs">
         <button
-          onClick={() => setSelectedGame('puzzle')}
-          className={`py-2.5 px-3 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1.5 ${
-            selectedGame === 'puzzle'
+          onClick={() => setSelectedGame('babel')}
+          className={`py-2.5 px-2 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1 ${
+            selectedGame === 'babel'
+              ? 'bg-amber-500 text-white shadow-sm'
+              : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <span>🗼</span> 바벨탑 쌓기
+        </button>
+        <button
+          onClick={() => setSelectedGame('manna')}
+          className={`py-2.5 px-2 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1 ${
+            selectedGame === 'manna'
               ? 'bg-emerald-600 text-white shadow-sm'
               : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
-          <span>👑</span> 합체 퍼즐
+          <span>🍯</span> 만나 받기
         </button>
         <button
           onClick={() => setSelectedGame('runner')}
-          className={`py-2.5 px-3 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1.5 ${
+          className={`py-2.5 px-2 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1 ${
             selectedGame === 'runner'
               ? 'bg-indigo-600 text-white shadow-sm'
               : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
-          <span>⚡</span> 숫자 분할 러너
+          <span>⚡</span> 숫자 러너
         </button>
       </div>
 
-      {selectedGame === 'puzzle' ? (
-        <MergePuzzleGame rankings={puzzleRankings} onSaveScore={onSavePuzzle} />
-      ) : (
+      {selectedGame === 'babel' && (
+        <BabelTowerGame rankings={babelRankings} onSaveScore={onSaveBabel} />
+      )}
+      {selectedGame === 'manna' && (
+        <MannaCatchGame rankings={mannaRankings} onSaveScore={onSaveManna} />
+      )}
+      {selectedGame === 'runner' && (
         <NumberSplitRunnerGame rankings={runnerRankings} onSaveScore={onSaveRunner} />
       )}
     </div>
@@ -1384,7 +1626,7 @@ function MiniGameCenter({ puzzleRankings, runnerRankings, onSavePuzzle, onSaveRu
 }
 
 // ==========================================
-// 7. 메인 애플리케이션
+// 6. 메인 애플리케이션
 // ==========================================
 export default function App() {
   const [publicData, setPublicData] = useState(INITIAL_PUBLIC_DATA);
@@ -1451,7 +1693,8 @@ export default function App() {
           worshipOrder: raw.worshipOrder ?? prev.worshipOrder,
           photos: raw.photos ?? prev.photos,
           quiz: raw.quiz ?? prev.quiz,
-          gameRanking: raw.gameRanking ?? prev.gameRanking,
+          babelRanking: raw.babelRanking ?? prev.babelRanking,
+          mannaRanking: raw.mannaRanking ?? prev.mannaRanking,
           runnerRanking: raw.runnerRanking ?? prev.runnerRanking,
           luckyEvent: mergedLucky,
           monthlyBirthdays: raw.monthlyBirthdays ?? prev.monthlyBirthdays
@@ -1627,12 +1870,20 @@ export default function App() {
     });
   };
 
-  const handleSavePuzzleScore = (name, newScore) => {
-    const currentList = publicData.gameRanking || [];
+  const handleSaveBabelScore = (name, newScore) => {
+    const currentList = publicData.babelRanking || [];
     const updated = [...currentList, { name, score: newScore }]
       .sort((a, b) => b.score - a.score)
       .slice(0, 10);
-    syncPublicData({ gameRanking: updated });
+    syncPublicData({ babelRanking: updated });
+  };
+
+  const handleSaveMannaScore = (name, newScore) => {
+    const currentList = publicData.mannaRanking || [];
+    const updated = [...currentList, { name, score: newScore }]
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 10);
+    syncPublicData({ mannaRanking: updated });
   };
 
   const handleSaveRunnerScore = (name, newScore) => {
@@ -2202,6 +2453,7 @@ export default function App() {
                 </button>
               </div>
 
+              {/* 미니게임 3종 진입 배너 */}
               <div
                 onClick={() => setActiveTab('game')}
                 className="cursor-pointer rounded-2xl p-4 bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 text-white shadow-md hover:shadow-lg transition flex items-center justify-between"
@@ -2212,9 +2464,9 @@ export default function App() {
                   </div>
                   <div>
                     <div className="text-[11px] font-bold text-amber-200 flex items-center gap-1">
-                      <Gamepad2 className="w-3.5 h-3.5" /> 기록 깨기 미니게임 (2종 탑재!)
+                      <Gamepad2 className="w-3.5 h-3.5" /> 기록 깨기 미니게임 3종!
                     </div>
-                    <div className="text-sm font-extrabold">합체 퍼즐 & 숫자 분할 러너</div>
+                    <div className="text-sm font-extrabold">바벨탑 · 만나 받기 · 숫자 러너</div>
                     <div className="text-[11px] text-white/80">명예의 전당 최고 기록에 도전하세요!</div>
                   </div>
                 </div>
@@ -2226,13 +2478,15 @@ export default function App() {
           )}
 
           {/* ========================================== */}
-          {/* 0. 미니게임 2종 화면 */}
+          {/* 0. 미니게임 3종 화면 */}
           {/* ========================================== */}
           {activeTab === 'game' && (
             <MiniGameCenter
-              puzzleRankings={publicData.gameRanking || []}
+              babelRankings={publicData.babelRanking || []}
+              mannaRankings={publicData.mannaRanking || []}
               runnerRankings={publicData.runnerRanking || []}
-              onSavePuzzle={handleSavePuzzleScore}
+              onSaveBabel={handleSaveBabelScore}
+              onSaveManna={handleSaveMannaScore}
               onSaveRunner={handleSaveRunnerScore}
               onBack={() => setActiveTab('home')}
             />
@@ -3212,12 +3466,12 @@ export default function App() {
                   </form>
 
                   <div className="p-4 rounded-2xl bg-white/95 border border-white flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-700">미니게임 랭킹 초기화</span>
+                    <span className="text-xs font-bold text-slate-700">미니게임 3종 랭킹 초기화</span>
                     <button
                       type="button"
                       onClick={() => {
-                        if (window.confirm("합체 퍼즐과 숫자 분할 러너 랭킹을 모두 초기화할까요?")) {
-                          syncPublicData({ gameRanking: [], runnerRanking: [] });
+                        if (window.confirm("바벨탑, 만나 받기, 숫자 러너 랭킹을 모두 초기화할까요?")) {
+                          syncPublicData({ babelRanking: [], mannaRanking: [], runnerRanking: [] });
                         }
                       }}
                       className="px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200"
