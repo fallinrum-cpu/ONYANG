@@ -39,7 +39,7 @@ const db = getFirestore(app);
 const STATE_DOC_REF = doc(db, "onyang_youth", "main_data");
 
 // ==========================================
-// 2. 교회력 6대 절기 (선명한 배너 + 은은한 전체 배경 + 성탄절 눈 효과)
+// 2. 교회력 6대 절기 (배너 + 전체 배경 + 절기별 낙하 이펙트)
 // ==========================================
 const SEASONS = {
   creation: {
@@ -49,26 +49,28 @@ const SEASONS = {
     outerBg: 'bg-emerald-50/50',
     badgeBg: 'bg-emerald-950/30 text-emerald-50 border-emerald-200/40',
     accentText: 'text-emerald-700',
-    accentBg: 'bg-emerald-600'
+    accentBg: 'bg-emerald-600',
+    effect: 'leaf' // 초록 나뭇잎 낙하
   },
   advent: {
     name: '대림절',
     bannerGradient: 'from-purple-700 via-indigo-700 to-violet-800',
-    pageBg: 'from-purple-50/90 via-indigo-50/40 to-slate-50',
-    outerBg: 'bg-purple-50/50',
+    pageBg: 'from-purple-100/80 via-indigo-50/50 to-slate-50',
+    outerBg: 'bg-purple-50/60',
     badgeBg: 'bg-purple-950/30 text-purple-100 border-purple-200/40',
     accentText: 'text-purple-700',
-    accentBg: 'bg-purple-700'
+    accentBg: 'bg-purple-700',
+    effect: 'snow' // 눈송이 낙하
   },
   christmas: {
     name: '성탄절',
     bannerGradient: 'from-rose-600 via-red-600 to-red-700',
-    pageBg: 'from-rose-100/80 via-red-50/50 to-amber-50/40',
+    pageBg: 'from-rose-100/85 via-red-50/55 to-amber-50/40',
     outerBg: 'bg-rose-50/60',
     badgeBg: 'bg-red-950/35 text-rose-50 border-amber-200/50',
     accentText: 'text-red-600',
     accentBg: 'bg-red-600',
-    snow: true
+    effect: 'snow' // 눈송이 낙하
   },
   epiphany: {
     name: '주현절',
@@ -77,7 +79,8 @@ const SEASONS = {
     outerBg: 'bg-teal-50/50',
     badgeBg: 'bg-teal-950/30 text-teal-50 border-teal-200/40',
     accentText: 'text-teal-700',
-    accentBg: 'bg-teal-600'
+    accentBg: 'bg-teal-600',
+    effect: null
   },
   lent: {
     name: '사순절',
@@ -86,7 +89,8 @@ const SEASONS = {
     outerBg: 'bg-fuchsia-50/40',
     badgeBg: 'bg-fuchsia-950/35 text-fuchsia-100 border-fuchsia-200/40',
     accentText: 'text-fuchsia-800',
-    accentBg: 'bg-fuchsia-800'
+    accentBg: 'bg-fuchsia-800',
+    effect: null
   },
   pentecost: {
     name: '성령강림절',
@@ -95,7 +99,8 @@ const SEASONS = {
     outerBg: 'bg-orange-50/50',
     badgeBg: 'bg-orange-950/30 text-orange-50 border-orange-200/40',
     accentText: 'text-orange-700',
-    accentBg: 'bg-orange-600'
+    accentBg: 'bg-orange-600',
+    effect: 'dove' // 비둘기 낙하
   }
 };
 
@@ -189,51 +194,73 @@ const getLatestSundayStr = () => {
 };
 
 // ==========================================
-// 4. 성탄절 내리는 눈 오버레이 컴포넌트
+// 4. 절기별 낙하 이펙트 오버레이 (눈송이 / 초록 나뭇잎 / 비둘기)
 // ==========================================
-function SnowfallOverlay() {
-  const flakes = useMemo(() => {
-    return Array.from({ length: 28 }, (_, i) => ({
+function SeasonEffectOverlay({ type }) {
+  const particles = useMemo(() => {
+    return Array.from({ length: 24 }, (_, i) => ({
       id: i,
-      left: `${(i * 37) % 100}%`,
-      size: `${6 + (i % 4) * 3}px`,
-      duration: `${5 + (i % 6) * 1.4}s`,
-      delay: `${(i % 7) * 0.7}s`,
-      opacity: 0.55 + (i % 4) * 0.1
+      left: `${(i * 41) % 98}%`,
+      size: `${14 + (i % 4) * 4}px`,
+      dotSize: `${7 + (i % 4) * 3}px`,
+      duration: `${6 + (i % 5) * 1.5}s`,
+      delay: `${(i % 7) * 0.8}s`,
+      opacity: 0.7 + (i % 3) * 0.1,
+      char: type === 'leaf' ? (i % 2 === 0 ? '🍃' : '🌿') : type === 'dove' ? '🕊️' : '❄️'
     }));
-  }, []);
+  }, [type]);
+
+  if (!type) return null;
 
   return (
     <div className="pointer-events-none fixed inset-0 z-40 overflow-hidden">
-      {flakes.map((f) => (
-        <span
-          key={f.id}
-          style={{
-            left: f.left,
-            width: f.size,
-            height: f.size,
-            opacity: f.opacity,
-            animationDuration: f.duration,
-            animationDelay: f.delay
-          }}
-          className="snowflake absolute -top-4 rounded-full bg-white shadow-[0_0_6px_rgba(255,255,255,0.9)]"
-        />
-      ))}
+      {particles.map((p) =>
+        type === 'snow' ? (
+          <span
+            key={p.id}
+            style={{
+              left: p.left,
+              width: p.dotSize,
+              height: p.dotSize,
+              opacity: p.opacity,
+              animationDuration: p.duration,
+              animationDelay: p.delay
+            }}
+            className="season-particle absolute -top-6 rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.95)]"
+          />
+        ) : (
+          <span
+            key={p.id}
+            style={{
+              left: p.left,
+              fontSize: p.size,
+              opacity: p.opacity,
+              animationDuration: p.duration,
+              animationDelay: p.delay
+            }}
+            className="season-particle absolute -top-8 select-none drop-shadow-xs"
+          >
+            {p.char}
+          </span>
+        )
+      )}
     </div>
   );
 }
 
 // ==========================================
-// 5. 수박 게임 스타일 '함께 지어져 가는 합체 퍼즐' 컴포넌트
+// 5. 수박 게임 스타일 '함께 지어져 가는 합체 퍼즐' (바닥 사라짐 버그 수정 완료)
 // ==========================================
 function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
   const canvasRef = useRef(null);
   const [score, setScore] = useState(0);
   const [nextLevel, setNextLevel] = useState(0);
-  const [dropX, setDropX] = useState(160);
   const [gameOver, setGameOver] = useState(false);
   const [playerName, setPlayerName] = useState('');
   const [scoreSaved, setScoreSaved] = useState(false);
+
+  // 마우스/터치 X 좌표를 Ref로 관리하여 렌더링 리셋 방지
+  const dropXRef = useRef(160);
 
   const gameState = useRef({
     balls: [],
@@ -249,16 +276,18 @@ function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
   const DANGER_Y = 72;
 
   const resetGame = () => {
+    const startLv = Math.floor(Math.random() * 3);
     gameState.current = {
       balls: [],
       score: 0,
-      nextLevel: Math.floor(Math.random() * 3),
+      nextLevel: startLv,
       canDrop: true,
       gameOver: false,
       idCounter: 1
     };
+    dropXRef.current = 160;
     setScore(0);
-    setNextLevel(gameState.current.nextLevel);
+    setNextLevel(startLv);
     setGameOver(false);
     setScoreSaved(false);
   };
@@ -267,6 +296,23 @@ function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
     resetGame();
     let animId;
 
+    const drawBall = (ctx, x, y, spec) => {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(x, y, spec.radius, 0, Math.PI * 2);
+      ctx.fillStyle = spec.color;
+      ctx.fill();
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = spec.border;
+      ctx.stroke();
+
+      ctx.font = `${Math.round(spec.radius * 1.05)}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(spec.emoji, x, y + 1);
+      ctx.restore();
+    };
+
     const updatePhysics = () => {
       const state = gameState.current;
       const canvas = canvasRef.current;
@@ -274,77 +320,93 @@ function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
       const ctx = canvas.getContext('2d');
 
       if (!state.gameOver) {
-        const gravity = 0.38;
-        const damping = 0.45;
-        const friction = 0.96;
+        const gravity = 0.42;
+        const damping = 0.35;
+        const friction = 0.94;
 
-        // 1. 이동 및 벽 충돌
+        // 1. 중력 이동 및 벽·바닥 정착
         for (let b of state.balls) {
           b.vy += gravity;
           b.vx *= friction;
           b.x += b.vx;
           b.y += b.vy;
 
-          if (b.x - b.r < 0) { b.x = b.r; b.vx = -b.vx * damping; }
-          if (b.x + b.r > WIDTH) { b.x = WIDTH - b.r; b.vx = -b.vx * damping; }
-          if (b.y + b.r > HEIGHT) {
+          if (b.x - b.r < 0) {
+            b.x = b.r;
+            b.vx = -b.vx * damping;
+          }
+          if (b.x + b.r > WIDTH) {
+            b.x = WIDTH - b.r;
+            b.vx = -b.vx * damping;
+          }
+          if (b.y + b.r >= HEIGHT) {
             b.y = HEIGHT - b.r;
             b.vy = -b.vy * damping;
-            if (Math.abs(b.vy) < 0.5) b.vy = 0;
+            if (Math.abs(b.vy) < 0.8) b.vy = 0;
           }
         }
 
-        // 2. 공끼리 충돌 및 동일 단계 합체
+        // 2. 공끼리 물리 충돌 및 같은 단계 합체 (여러 번 반복해 안정적 적층)
         let mergedIds = new Set();
         let newBalls = [];
 
-        for (let i = 0; i < state.balls.length; i++) {
-          for (let j = i + 1; j < state.balls.length; j++) {
-            const b1 = state.balls[i];
-            const b2 = state.balls[j];
-            if (mergedIds.has(b1.id) || mergedIds.has(b2.id)) continue;
+        for (let iter = 0; iter < 3; iter++) {
+          for (let i = 0; i < state.balls.length; i++) {
+            for (let j = i + 1; j < state.balls.length; j++) {
+              const b1 = state.balls[i];
+              const b2 = state.balls[j];
+              if (mergedIds.has(b1.id) || mergedIds.has(b2.id)) continue;
 
-            const dx = b2.x - b1.x;
-            const dy = b2.y - b1.y;
-            const dist = Math.hypot(dx, dy);
-            const minDist = b1.r + b2.r;
+              const dx = b2.x - b1.x;
+              const dy = b2.y - b1.y;
+              const dist = Math.hypot(dx, dy);
+              const minDist = b1.r + b2.r;
 
-            if (dist < minDist) {
-              if (b1.level === b2.level && b1.level < MERGE_LEVELS.length - 1) {
-                mergedIds.add(b1.id);
-                mergedIds.add(b2.id);
-                const nextLv = b1.level + 1;
-                const spec = MERGE_LEVELS[nextLv];
-                newBalls.push({
-                  id: state.idCounter++,
-                  level: nextLv,
-                  x: (b1.x + b2.x) / 2,
-                  y: (b1.y + b2.y) / 2,
-                  vx: 0,
-                  vy: -1.5,
-                  r: spec.radius,
-                  settledFrames: 0
-                });
-                state.score += spec.score;
-                setScore(state.score);
-              } else if (dist > 0) {
-                const overlap = (minDist - dist) * 0.5;
-                const nx = dx / dist;
-                const ny = dy / dist;
-                b1.x -= nx * overlap;
-                b1.y -= ny * overlap;
-                b2.x += nx * overlap;
-                b2.y += ny * overlap;
+              if (dist < minDist) {
+                if (iter === 0 && b1.level === b2.level && b1.level < MERGE_LEVELS.length - 1) {
+                  mergedIds.add(b1.id);
+                  mergedIds.add(b2.id);
+                  const nextLv = b1.level + 1;
+                  const spec = MERGE_LEVELS[nextLv];
+                  newBalls.push({
+                    id: state.idCounter++,
+                    level: nextLv,
+                    x: Math.max(spec.radius, Math.min(WIDTH - spec.radius, (b1.x + b2.x) / 2)),
+                    y: Math.min(HEIGHT - spec.radius, (b1.y + b2.y) / 2),
+                    vx: 0,
+                    vy: -1.2,
+                    r: spec.radius,
+                    settledFrames: 0
+                  });
+                  state.score += spec.score;
+                  setScore(state.score);
+                } else if (dist > 0.001) {
+                  const overlap = (minDist - dist) * 0.5;
+                  const nx = dx / dist;
+                  const ny = dy / dist;
+                  b1.x -= nx * overlap;
+                  b1.y -= ny * overlap;
+                  b2.x += nx * overlap;
+                  b2.y += ny * overlap;
 
-                const rvx = b2.vx - b1.vx;
-                const rvy = b2.vy - b1.vy;
-                const velAlongNormal = rvx * nx + rvy * ny;
-                if (velAlongNormal < 0) {
-                  const impulse = -(1 + damping) * velAlongNormal * 0.5;
-                  b1.vx -= impulse * nx;
-                  b1.vy -= impulse * ny;
-                  b2.vx += impulse * nx;
-                  b2.vy += impulse * ny;
+                  // 바닥 밖으로 밀려나지 않도록 보정
+                  if (b1.y + b1.r > HEIGHT) b1.y = HEIGHT - b1.r;
+                  if (b2.y + b2.r > HEIGHT) b2.y = HEIGHT - b2.r;
+                  if (b1.x - b1.r < 0) b1.x = b1.r;
+                  if (b1.x + b1.r > WIDTH) b1.x = WIDTH - b1.r;
+                  if (b2.x - b2.r < 0) b2.x = b2.r;
+                  if (b2.x + b2.r > WIDTH) b2.x = WIDTH - b2.r;
+
+                  const rvx = b2.vx - b1.vx;
+                  const rvy = b2.vy - b1.vy;
+                  const velAlongNormal = rvx * nx + rvy * ny;
+                  if (velAlongNormal < 0) {
+                    const impulse = -(1 + damping) * velAlongNormal * 0.5;
+                    b1.vx -= impulse * nx;
+                    b1.vy -= impulse * ny;
+                    b2.vx += impulse * nx;
+                    b2.vy += impulse * ny;
+                  }
                 }
               }
             }
@@ -357,12 +419,12 @@ function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
 
         // 3. 상단 위험선 초과 체크
         for (let b of state.balls) {
-          if (Math.abs(b.vy) < 0.4 && Math.abs(b.vx) < 0.4) {
+          if (Math.abs(b.vy) < 0.5 && Math.abs(b.vx) < 0.5) {
             b.settledFrames = (b.settledFrames || 0) + 1;
           } else {
             b.settledFrames = 0;
           }
-          if (b.settledFrames > 45 && b.y - b.r < DANGER_Y) {
+          if (b.settledFrames > 55 && b.y - b.r < DANGER_Y) {
             state.gameOver = true;
             setGameOver(true);
             break;
@@ -370,7 +432,7 @@ function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
         }
       }
 
-      // 4. 캔버스 렌더링
+      // 4. 캔버스 그리기
       ctx.clearRect(0, 0, WIDTH, HEIGHT);
 
       // 위험선 점선
@@ -387,16 +449,18 @@ function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
       // 대기 중인 아이템 가이드
       if (!state.gameOver && state.canDrop) {
         const curSpec = MERGE_LEVELS[state.nextLevel];
+        const currentX = dropXRef.current;
+
         ctx.save();
-        ctx.strokeStyle = 'rgba(148, 163, 184, 0.45)';
+        ctx.strokeStyle = 'rgba(148, 163, 184, 0.5)';
         ctx.setLineDash([3, 3]);
         ctx.beginPath();
-        ctx.moveTo(dropX, 32);
-        ctx.lineTo(dropX, HEIGHT);
+        ctx.moveTo(currentX, 32);
+        ctx.lineTo(currentX, HEIGHT);
         ctx.stroke();
         ctx.restore();
 
-        drawBall(ctx, dropX, 32, curSpec);
+        drawBall(ctx, currentX, 32, curSpec);
       }
 
       // 쌓인 아이템 렌더링
@@ -409,49 +473,34 @@ function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
 
     animId = requestAnimationFrame(updatePhysics);
     return () => cancelAnimationFrame(animId);
-  }, [dropX]);
+  }, []);
 
-  const drawBall = (ctx, x, y, spec) => {
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(x, y, spec.radius, 0, Math.PI * 2);
-    ctx.fillStyle = spec.color;
-    ctx.fill();
-    ctx.lineWidth = 2.5;
-    ctx.strokeStyle = spec.border;
-    ctx.stroke();
-
-    ctx.font = `${Math.round(spec.radius * 1.05)}px sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(spec.emoji, x, y + 1);
-    ctx.restore();
-  };
-
-  const handlePointerMove = (e) => {
-    if (gameState.current.gameOver) return;
+  const updatePointerX = (e) => {
+    if (gameState.current.gameOver || !canvasRef.current) return;
     const rect = canvasRef.current.getBoundingClientRect();
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientX = e.touches && e.touches.length > 0 ? e.touches[0].clientX : e.clientX;
+    if (typeof clientX !== 'number') return;
     const relX = ((clientX - rect.left) / rect.width) * WIDTH;
     const r = MERGE_LEVELS[gameState.current.nextLevel].radius;
-    setDropX(Math.max(r + 4, Math.min(WIDTH - r - 4, relX)));
+    dropXRef.current = Math.max(r + 4, Math.min(WIDTH - r - 4, relX));
   };
 
   const handleDrop = (e) => {
-    handlePointerMove(e);
+    if (e.type === 'touchend') e.preventDefault();
+    updatePointerX(e);
     const state = gameState.current;
     if (state.gameOver || !state.canDrop) return;
 
     const spec = MERGE_LEVELS[state.nextLevel];
-    const safeX = Math.max(spec.radius + 4, Math.min(WIDTH - spec.radius - 4, dropX));
+    const safeX = Math.max(spec.radius + 4, Math.min(WIDTH - spec.radius - 4, dropXRef.current));
 
     state.balls.push({
       id: state.idCounter++,
       level: state.nextLevel,
       x: safeX,
       y: 34,
-      vx: (Math.random() - 0.5) * 0.4,
-      vy: 1,
+      vx: (Math.random() - 0.5) * 0.3,
+      vy: 1.5,
       r: spec.radius,
       settledFrames: 0
     });
@@ -463,7 +512,7 @@ function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
 
     setTimeout(() => {
       state.canDrop = true;
-    }, 350);
+    }, 320);
   };
 
   const handleRecordSubmit = (e) => {
@@ -487,7 +536,6 @@ function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
         </button>
       </div>
 
-      {/* 점수 및 다음 아이템 안내 바 */}
       <div className="bg-slate-900 text-white p-3.5 rounded-2xl flex items-center justify-between shadow-md">
         <div>
           <div className="text-[10px] text-amber-300 font-bold">현재 점수</div>
@@ -500,7 +548,6 @@ function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
         </div>
       </div>
 
-      {/* 진화 단계 가이드 */}
       <div className="bg-white/85 backdrop-blur-md px-3 py-2 rounded-xl border border-white flex items-center justify-between text-[11px] overflow-x-auto">
         {MERGE_LEVELS.map((lv, i) => (
           <React.Fragment key={lv.level}>
@@ -513,20 +560,19 @@ function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
         ))}
       </div>
 
-      {/* 게임 보드 */}
       <div className="relative bg-white/95 rounded-3xl border-2 border-slate-200 shadow-inner overflow-hidden flex justify-center">
         <canvas
           ref={canvasRef}
           width={WIDTH}
           height={HEIGHT}
-          onMouseMove={handlePointerMove}
+          onMouseMove={updatePointerX}
           onClick={handleDrop}
-          onTouchMove={handlePointerMove}
+          onTouchStart={updatePointerX}
+          onTouchMove={updatePointerX}
           onTouchEnd={handleDrop}
           className="w-full max-w-[340px] touch-none cursor-pointer"
         />
 
-        {/* 게임 오버 및 랭킹 등록 오버레이 */}
         {gameOver && (
           <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-xs flex items-center justify-center p-4">
             <div className="bg-white rounded-3xl p-5 w-full max-w-xs text-center space-y-3 shadow-2xl">
@@ -565,7 +611,6 @@ function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
         )}
       </div>
 
-      {/* 실시간 TOP 5 명예의 전당 랭킹 */}
       <div className="bg-white/90 backdrop-blur-md p-4 rounded-2xl border border-white space-y-2">
         <div className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
           <Trophy className="w-4 h-4 text-amber-500" /> 청소년부 실시간 최고 기록 TOP 5
@@ -1013,20 +1058,20 @@ export default function App() {
         .animate-marquee:hover {
           animation-play-state: paused;
         }
-        @keyframes snowFall {
-          0% { transform: translateY(-10vh) translateX(0px); }
-          50% { transform: translateY(45vh) translateX(14px); }
-          100% { transform: translateY(105vh) translateX(-10px); }
+        @keyframes seasonFall {
+          0% { transform: translateY(-10vh) translateX(0px) rotate(0deg); }
+          50% { transform: translateY(48vh) translateX(16px) rotate(18deg); }
+          100% { transform: translateY(108vh) translateX(-12px) rotate(-14deg); }
         }
-        .snowflake {
-          animation-name: snowFall;
+        .season-particle {
+          animation-name: seasonFall;
           animation-timing-function: linear;
           animation-iteration-count: infinite;
         }
       `}</style>
 
-      {/* 성탄절 선택 시 화면 전체에 눈 내리는 효과 */}
-      {currentSeason.snow && <SnowfallOverlay />}
+      {/* 절기별 낙하 이펙트 (창조절: 초록 나뭇잎 / 대림절·성탄절: 눈 / 성령강림절: 비둘기) */}
+      <SeasonEffectOverlay type={currentSeason.effect} />
 
       <div className={`w-full max-w-md min-h-screen bg-gradient-to-b ${currentSeason.pageBg} transition-all duration-700 shadow-xl flex flex-col justify-between relative overflow-x-hidden`}>
         
@@ -1151,7 +1196,7 @@ export default function App() {
                 </div>
               </div>
 
-              {/* 4대 핵심 메뉴 그리드 (각기 다른 화사한 컬러 복원) */}
+              {/* 4대 핵심 메뉴 그리드 */}
               <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={() => setActiveTab('praise')}
