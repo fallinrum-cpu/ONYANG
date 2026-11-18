@@ -6,7 +6,7 @@ import {
   ChevronRight, ChevronLeft, X, CheckCircle2, XCircle, Sparkles, Lock,
   Sun, UserPlus, Trash2, Edit3, BarChart3, AlertTriangle,
   Download, Award, Send, Camera, Phone, Cake, Globe, Loader2, Settings,
-  Gamepad2, Trophy, RotateCcw, Users
+  Gamepad2, Trophy, RotateCcw, Clock
 } from 'lucide-react';
 
 // ==========================================
@@ -37,6 +37,10 @@ const CHURCH_LINKS = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const STATE_DOC_REF = doc(db, "onyang_youth", "main_data");
+
+// 고정 반 배치 순서: 왼쪽 열(중1, 중2, 중3), 오른쪽 열(고1, 고2, 고3)
+const CLASS_DISPLAY_ORDER = ['m1', 'h1', 'm2', 'h2', 'm3', 'h3'];
+const CLASS_SEQUENTIAL_ORDER = ['m1', 'm2', 'm3', 'h1', 'h2', 'h3'];
 
 // ==========================================
 // 2. 교회력 6대 절기 (배너 + 전체 배경 + 절기별 낙하 이펙트)
@@ -127,98 +131,6 @@ const MERGE_LEVELS = [
   { level: 6, name: '면류관', emoji: '👑', radius: 68, color: '#fef08a', border: '#ca8a04', score: 800 }
 ];
 
-// ==========================================
-// 4. 온양장로교회 청소년부 실제 반별 학생 명단 (총 44명)
-// ==========================================
-const REAL_ROSTER_CLASSES = {
-  m1: {
-    id: 'm1',
-    grade: '중1',
-    teacher: '김은혜 선생님',
-    students: [
-      { id: 'm1_1', name: '구하윤', birth: '4.27', phone: '010-4458-9415' },
-      { id: 'm1_2', name: '김지윤', birth: '10.18', phone: '010-5792-5520' },
-      { id: 'm1_3', name: '김지후', birth: '7.15', phone: '010-3346-8350' },
-      { id: 'm1_4', name: '박하늘', birth: '6.13', phone: '010-4907-1306' },
-      { id: 'm1_5', name: '안희윤', birth: '-', phone: '-' },
-      { id: 'm1_6', name: '이재준', birth: '2.18', phone: '010-9572-5310' },
-      { id: 'm1_7', name: '이해랑', birth: '6.16', phone: '010-3519-5405' },
-      { id: 'm1_8', name: '조아현', birth: '12.16', phone: '-' },
-      { id: 'm1_9', name: '조윤후', birth: '-', phone: '-' },
-      { id: 'm1_10', name: '차예송', birth: '1.1', phone: '010-8912-8278' },
-      { id: 'm1_11', name: '최수민', birth: '8.22', phone: '010-7361-7570' },
-      { id: 'm1_12', name: '이태규', birth: '-', phone: '010-9110-4655' }
-    ]
-  },
-  m2: {
-    id: 'm2',
-    grade: '중2',
-    teacher: '박준영 선생님',
-    students: [
-      { id: 'm2_1', name: '이주원', birth: '2.4', phone: '010-4533-2019' },
-      { id: 'm2_2', name: '김소미', birth: '2.14', phone: '010-8411-7395' },
-      { id: 'm2_3', name: '박정원', birth: '10.12', phone: '010-9132-9406' },
-      { id: 'm2_4', name: '송하윤', birth: '4.24', phone: '010-4758-9533' },
-      { id: 'm2_5', name: '심연지', birth: '4.9', phone: '010-5508-2153' },
-      { id: 'm2_6', name: '허윤슬', birth: '11.23', phone: '010-8111-2153' },
-      { id: 'm2_7', name: '허슬아', birth: '11.23', phone: '010-8112-2153' }
-    ]
-  },
-  m3: {
-    id: 'm3',
-    grade: '중3',
-    teacher: '이수진 선생님',
-    students: [
-      { id: 'm3_1', name: '강사무엘', birth: '11.1', phone: '010-8107-2197' },
-      { id: 'm3_2', name: '구하람', birth: '7.2', phone: '010-7409-9415' },
-      { id: 'm3_3', name: '박주원', birth: '2.13', phone: '010-9186-9406' },
-      { id: 'm3_4', name: '서여은', birth: '7.26', phone: '010-2244-3976' },
-      { id: 'm3_5', name: '이해온', birth: '12.26', phone: '010-3506-5405' },
-      { id: 'm3_6', name: '정예원', birth: '4.8', phone: '010-4131-0408' },
-      { id: 'm3_7', name: '차예강', birth: '12.12', phone: '010-5446-8278' }
-    ]
-  },
-  h1: {
-    id: 'h1',
-    grade: '고1',
-    teacher: '정성훈 선생님',
-    students: [
-      { id: 'h1_1', name: '박시연', birth: '3.31', phone: '010-7580-6052' },
-      { id: 'h1_2', name: '최은후', birth: '5.21', phone: '010-3579-0464' },
-      { id: 'h1_3', name: '안소윤', birth: '10.24', phone: '010-3898-7891' },
-      { id: 'h1_4', name: '서범승', birth: '3.17', phone: '010-2245-3976' },
-      { id: 'h1_5', name: '박지훈', birth: '2.26', phone: '010-8271-3368' },
-      { id: 'h1_6', name: '강서후', birth: '4.25', phone: '010-6437-3877' },
-      { id: 'h1_7', name: '허보민', birth: '9.27', phone: '010-7374-2153' }
-    ]
-  },
-  h2: {
-    id: 'h2',
-    grade: '고2',
-    teacher: '최지민 선생님',
-    students: [
-      { id: 'h2_1', name: '김소리', birth: '4.8', phone: '010-4898-7395' },
-      { id: 'h2_2', name: '강사랑', birth: '-', phone: '010-2308-3936' },
-      { id: 'h2_3', name: '송하준', birth: '5.4', phone: '010-4735-9533' },
-      { id: 'h2_4', name: '김지원', birth: '5.13', phone: '010-2476-2723' },
-      { id: 'h2_5', name: '박태진', birth: '-', phone: '010-2666-8460' },
-      { id: 'h2_6', name: '박유진', birth: '-', phone: '010-9291-8460' }
-    ]
-  },
-  h3: {
-    id: 'h3',
-    grade: '고3',
-    teacher: '윤태호 선생님',
-    students: [
-      { id: 'h3_1', name: '전지훈', birth: '7.17', phone: '010-9246-6585' },
-      { id: 'h3_2', name: '안하윤', birth: '12.3', phone: '010-5953-7891' },
-      { id: 'h3_3', name: '이유빈', birth: '11.4', phone: '010-5367-4656' },
-      { id: 'h3_4', name: '김채린', birth: '-', phone: '-' },
-      { id: 'h3_5', name: '김은우', birth: '-', phone: '-' }
-    ]
-  }
-};
-
 const INITIAL_DATA = {
   season: 'creation',
   praises: [
@@ -259,7 +171,14 @@ const INITIAL_DATA = {
     completers: []
   },
   gameRanking: [],
-  classes: REAL_ROSTER_CLASSES,
+  classes: {
+    m1: { id: 'm1', grade: '중1', teacher: '김은혜 선생님', students: [] },
+    m2: { id: 'm2', grade: '중2', teacher: '박준영 선생님', students: [] },
+    m3: { id: 'm3', grade: '중3', teacher: '이수진 선생님', students: [] },
+    h1: { id: 'h1', grade: '고1', teacher: '정성훈 선생님', students: [] },
+    h2: { id: 'h2', grade: '고2', teacher: '최지민 선생님', students: [] },
+    h3: { id: 'h3', grade: '고3', teacher: '윤태호 선생님', students: [] }
+  },
   attendanceRecords: {}
 };
 
@@ -275,7 +194,7 @@ const getLatestSundayStr = () => {
 };
 
 // ==========================================
-// 5. 절기별 낙하 이펙트 오버레이 (눈송이 / 비둘기)
+// 4. 절기별 낙하 이펙트 오버레이 (눈송이 / 비둘기)
 // ==========================================
 function SeasonEffectOverlay({ type }) {
   const particles = useMemo(() => {
@@ -330,7 +249,7 @@ function SeasonEffectOverlay({ type }) {
 }
 
 // ==========================================
-// 6. 수박 게임 스타일 '함께 지어져 가는 합체 퍼즐'
+// 5. 수박 게임 스타일 '함께 지어져 가는 합체 퍼즐'
 // ==========================================
 function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
   const canvasRef = useRef(null);
@@ -706,7 +625,7 @@ function MergePuzzleGame({ rankings, onSaveScore, onBack }) {
 }
 
 // ==========================================
-// 7. 메인 애플리케이션
+// 6. 메인 애플리케이션
 // ==========================================
 export default function App() {
   const [data, setData] = useState(INITIAL_DATA);
@@ -898,10 +817,10 @@ export default function App() {
     syncDataToCloud({ calendar: updated });
   };
 
-  // 출석 상태 및 사유 변경
+  // 출석 상태 ('present' | 'second' | 'absent') 및 통합 메모 변경
   const setStudentAttendance = (studentId, status) => {
     const dayRecord = data.attendanceRecords[selectedDate] || {};
-    const prevStudentRec = dayRecord[studentId] || { status: 'present', reason: '' };
+    const prevStudentRec = dayRecord[studentId] || { status: '', reason: '' };
     syncDataToCloud({
       attendanceRecords: {
         ...data.attendanceRecords,
@@ -910,13 +829,13 @@ export default function App() {
     });
   };
 
-  const setStudentReason = (studentId, reason) => {
+  const setStudentNote = (studentId, noteText) => {
     const dayRecord = data.attendanceRecords[selectedDate] || {};
-    const prevStudentRec = dayRecord[studentId] || { status: 'absent', reason: '' };
+    const prevStudentRec = dayRecord[studentId] || { status: '', reason: '' };
     syncDataToCloud({
       attendanceRecords: {
         ...data.attendanceRecords,
-        [selectedDate]: { ...dayRecord, [studentId]: { ...prevStudentRec, status: 'absent', reason } }
+        [selectedDate]: { ...dayRecord, [studentId]: { ...prevStudentRec, reason: noteText } }
       }
     });
   };
@@ -961,13 +880,6 @@ export default function App() {
       }
     });
     setEditingTeacher(false);
-  };
-
-  // 실제 44명 명단 일괄 반영
-  const handleApplyRealRoster = () => {
-    if (!window.confirm("중1~고3 실제 학생 44명 명단으로 전체 반을 일괄 등록할까요?")) return;
-    syncDataToCloud({ classes: REAL_ROSTER_CLASSES });
-    alert("중1~고3 실제 학생 44명 명단이 모두 반영되었습니다!");
   };
 
   // Cloudinary 사진 업로드
@@ -1048,13 +960,16 @@ export default function App() {
     alert("새 설교 퀴즈가 등록되었으며 완료자 명단이 초기화되었습니다!");
   };
 
-  // 출석 통계 계산
+  // 출석 통계 계산 ('출석' + '2부예배' 모두 예배 참석으로 집계)
   const statsSummary = useMemo(() => {
-    const allStudents = Object.values(data.classes).flatMap(c => c.students.map(s => ({ ...s, grade: c.grade })));
+    const orderedClasses = CLASS_SEQUENTIAL_ORDER.map(id => data.classes[id]).filter(Boolean);
+    const allStudents = orderedClasses.flatMap(c => c.students.map(s => ({ ...s, grade: c.grade })));
     const totalCount = allStudents.length;
     const dates = Object.keys(data.attendanceRecords).sort();
     const currentYear = new Date().getFullYear().toString();
     const currentMonth = getTodayStr().slice(0, 7);
+
+    const isAttended = (status) => status === 'present' || status === 'second';
 
     const monthlyRates = Array.from({ length: 12 }, (_, idx) => {
       const mStr = `${currentYear}-${String(idx + 1).padStart(2, '0')}`;
@@ -1062,7 +977,7 @@ export default function App() {
       if (mDates.length === 0 || totalCount === 0) return { month: `${idx + 1}월`, rate: 0 };
       let presentSum = 0;
       mDates.forEach(d => {
-        presentSum += Object.values(data.attendanceRecords[d] || {}).filter(r => r.status === 'present').length;
+        presentSum += Object.values(data.attendanceRecords[d] || {}).filter(r => isAttended(r.status)).length;
       });
       return { month: `${idx + 1}월`, rate: Math.round((presentSum / (mDates.length * totalCount)) * 100) };
     });
@@ -1072,7 +987,7 @@ export default function App() {
     if (thisMonthDates.length > 0 && totalCount > 0) {
       let sum = 0;
       thisMonthDates.forEach(d => {
-        sum += Object.values(data.attendanceRecords[d] || {}).filter(r => r.status === 'present').length;
+        sum += Object.values(data.attendanceRecords[d] || {}).filter(r => isAttended(r.status)).length;
       });
       thisMonthRate = Math.round((sum / (thisMonthDates.length * totalCount)) * 100);
     }
@@ -1085,33 +1000,40 @@ export default function App() {
     return { totalCount, thisMonthRate, monthlyRates, consecutiveAbsentees };
   }, [data.classes, data.attendanceRecords]);
 
-  // 엑셀(CSV) 다운로드
+  // 업그레이드된 엑셀(CSV) 다운로드 (출석 / 2부예배 / 결석 + 특이사항·기도제목 포함)
   const downloadCSV = () => {
-    const allStudents = Object.values(data.classes).flatMap(c => c.students.map(s => ({ ...s, grade: c.grade })));
+    const orderedClasses = CLASS_SEQUENTIAL_ORDER.map(id => data.classes[id]).filter(Boolean);
+    const allStudents = orderedClasses.flatMap(c => c.students.map(s => ({ ...s, grade: c.grade })));
     const dates = Object.keys(data.attendanceRecords).sort();
-    let csv = '\uFEFF학년,이름,생일,연락처,총 출석일,총 결석일,출석률(%),' + dates.join(',') + '\n';
+    let csv = '\uFEFF학년,이름,생일,연락처,총 출석(2부포함),총 결석,출석률(%),' + dates.join(',') + '\n';
 
     allStudents.forEach(stu => {
-      let presentCount = 0;
+      let attendedCount = 0;
       let absentCount = 0;
       const dateCols = dates.map(d => {
         const rec = data.attendanceRecords[d]?.[stu.id];
-        if (!rec) return '-';
+        if (!rec || !rec.status) {
+          return rec?.reason ? `메모(${rec.reason.replace(/,/g, ' ')})` : '-';
+        }
+        const memo = rec.reason ? `(${rec.reason.replace(/,/g, ' ')})` : '';
         if (rec.status === 'present') {
-          presentCount++;
-          return '출석';
+          attendedCount++;
+          return `출석${memo}`;
+        } else if (rec.status === 'second') {
+          attendedCount++;
+          return `2부예배${memo}`;
         } else {
           absentCount++;
-          return `결석(${rec.reason || '사유없음'})`;
+          return `결석${memo || '(사유미입력)'}`;
         }
       });
 
-      const totalRecorded = presentCount + absentCount;
-      const rate = totalRecorded > 0 ? Math.round((presentCount / totalRecorded) * 100) + '%' : '0%';
+      const totalRecorded = attendedCount + absentCount;
+      const rate = totalRecorded > 0 ? Math.round((attendedCount / totalRecorded) * 100) + '%' : '0%';
 
       const row = [
         stu.grade, stu.name, stu.birth, stu.phone,
-        `${presentCount}회`, `${absentCount}회`, rate,
+        `${attendedCount}회`, `${absentCount}회`, rate,
         ...dateCols
       ];
       csv += row.join(',') + '\n';
@@ -1162,7 +1084,6 @@ export default function App() {
         }
       `}</style>
 
-      {/* 절기별 낙하 이펙트 (대림절·성탄절: 눈 / 성령강림절: 비둘기) */}
       <SeasonEffectOverlay type={currentSeason.effect} />
 
       <div className={`w-full max-w-md min-h-screen bg-gradient-to-b ${currentSeason.pageBg} transition-all duration-700 shadow-xl flex flex-col justify-between relative overflow-x-hidden`}>
@@ -1196,7 +1117,6 @@ export default function App() {
           {/* ========================================== */}
           {activeTab === 'home' && (
             <>
-              {/* 절기 그라데이션 표어 배너 */}
               <div className={`rounded-3xl p-5 text-white bg-gradient-to-br ${currentSeason.bannerGradient} shadow-lg relative overflow-hidden transition-all duration-500`}>
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-xs">
@@ -1219,7 +1139,6 @@ export default function App() {
                 </p>
               </div>
 
-              {/* 이번 주 주일 예배 순서 요약 카드 */}
               <div className="bg-white/90 backdrop-blur-md rounded-2xl p-4 border border-slate-200/70 shadow-2xs">
                 <div className="flex items-center justify-between mb-2.5">
                   <span className="text-xs font-bold text-slate-600 flex items-center gap-1.5">
@@ -1245,7 +1164,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* 주간 설교 말씀 퀴즈 ('도전하기 →') */}
               <div
                 onClick={() => { setActiveTab('quiz'); setQuizSubmitted(false); }}
                 className="cursor-pointer rounded-2xl bg-gradient-to-r from-slate-800 to-slate-900 text-white p-4 shadow-md hover:shadow-lg transition"
@@ -1288,7 +1206,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* 4대 핵심 메뉴 그리드 */}
               <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={() => setActiveTab('praise')}
@@ -1335,7 +1252,6 @@ export default function App() {
                 </button>
               </div>
 
-              {/* 수박 게임 스타일 '함께 지어져 가는 미니게임' 배너 */}
               <div
                 onClick={() => setActiveTab('game')}
                 className="cursor-pointer rounded-2xl p-4 bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 text-white shadow-md hover:shadow-lg transition flex items-center justify-between"
@@ -1808,7 +1724,7 @@ export default function App() {
                 ))}
               </div>
 
-              {/* (A) 출석 체크 & (B) 반별 명단 관리: 2x3 학년 배열 */}
+              {/* (A) 출석 체크 & (B) 반별 명단 관리: 고정 순서 (좌: 중1~중3, 우: 고1~고3) */}
               {(adminTab === 'attendance' || adminTab === 'roster') && !selectedClassId && (
                 <div className="space-y-3">
                   {adminTab === 'attendance' && (
@@ -1824,9 +1740,13 @@ export default function App() {
                   )}
 
                   <div className="grid grid-cols-2 gap-3">
-                    {Object.values(data.classes).map((cls) => {
+                    {CLASS_DISPLAY_ORDER.map((classId) => {
+                      const cls = data.classes[classId];
+                      if (!cls) return null;
                       const dayRec = data.attendanceRecords[selectedDate] || {};
-                      const presentCnt = cls.students.filter(s => dayRec[s.id]?.status === 'present').length;
+                      const presentCnt = cls.students.filter(
+                        (s) => dayRec[s.id]?.status === 'present' || dayRec[s.id]?.status === 'second'
+                      ).length;
 
                       return (
                         <button
@@ -1852,14 +1772,14 @@ export default function App() {
                 </div>
               )}
 
-              {/* 반 선택 후: 출석 체크 */}
+              {/* 반 선택 후: 출석 체크 (출석 / 2부예배 / 결석 + 특이사항·기도제목·결석사유 통합 입력) */}
               {adminTab === 'attendance' && selectedClassId && (
                 <div className="space-y-3">
                   <button
                     onClick={() => setSelectedClassId(null)}
                     className="flex items-center gap-1 text-xs font-bold text-slate-600 bg-white/85 px-3 py-1.5 rounded-full"
                   >
-                    <ChevronLeft className="w-4 h-4" /> 전체 학년(2×3) 목록으로
+                    <ChevronLeft className="w-4 h-4" /> 전체 학년 목록으로
                   </button>
 
                   <div className="p-3.5 rounded-2xl bg-slate-800 text-white">
@@ -1871,11 +1791,11 @@ export default function App() {
                     {data.classes[selectedClassId].students.map((stu) => {
                       const rec = data.attendanceRecords[selectedDate]?.[stu.id] || { status: '', reason: '' };
                       return (
-                        <div key={stu.id} className="p-3.5 rounded-2xl bg-white/95 border border-white space-y-2.5">
-                          <div className="flex items-center justify-between">
-                            <div>
+                        <div key={stu.id} className="p-3.5 rounded-2xl bg-white/95 border border-white space-y-2.5 shadow-2xs">
+                          <div className="flex flex-col gap-2">
+                            <div className="flex items-center justify-between">
                               <div className="font-bold text-sm text-slate-900">{stu.name}</div>
-                              <div className="flex items-center gap-2.5 text-[11px] text-slate-500 mt-0.5">
+                              <div className="flex items-center gap-2 text-[11px] text-slate-500">
                                 <span className="flex items-center gap-1"><Cake className="w-3 h-3 text-rose-400" /> {stu.birth}</span>
                                 {stu.phone !== '-' ? (
                                   <a href={`tel:${stu.phone}`} className="flex items-center gap-1 text-sky-600 font-medium">
@@ -1887,10 +1807,11 @@ export default function App() {
                               </div>
                             </div>
 
-                            <div className="flex gap-1.5">
+                            {/* 출석 / 2부예배 / 결석 3버튼 */}
+                            <div className="grid grid-cols-3 gap-1.5">
                               <button
                                 onClick={() => setStudentAttendance(stu.id, 'present')}
-                                className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 border transition ${
+                                className={`py-1.5 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 border transition ${
                                   rec.status === 'present'
                                     ? 'bg-emerald-600 text-white border-emerald-600'
                                     : 'bg-slate-50 text-slate-600 border-slate-200'
@@ -1899,8 +1820,18 @@ export default function App() {
                                 <CheckCircle2 className="w-3.5 h-3.5" /> 출석
                               </button>
                               <button
+                                onClick={() => setStudentAttendance(stu.id, 'second')}
+                                className={`py-1.5 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 border transition ${
+                                  rec.status === 'second'
+                                    ? 'bg-sky-600 text-white border-sky-600'
+                                    : 'bg-slate-50 text-slate-600 border-slate-200'
+                                }`}
+                              >
+                                <Clock className="w-3.5 h-3.5" /> 2부예배
+                              </button>
+                              <button
                                 onClick={() => setStudentAttendance(stu.id, 'absent')}
-                                className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 border transition ${
+                                className={`py-1.5 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 border transition ${
                                   rec.status === 'absent'
                                     ? 'bg-rose-600 text-white border-rose-600'
                                     : 'bg-slate-50 text-slate-600 border-slate-200'
@@ -1911,15 +1842,18 @@ export default function App() {
                             </div>
                           </div>
 
-                          {rec.status === 'absent' && (
-                            <input
-                              type="text"
-                              placeholder="결석 사유를 입력하세요 (예: 가족 행사, 몸살, 시험기간)"
-                              value={rec.reason || ''}
-                              onChange={(e) => setStudentReason(stu.id, e.target.value)}
-                              className="w-full px-3 py-2 rounded-xl bg-rose-50/70 border border-rose-200 text-xs text-slate-800 focus:outline-none focus:border-rose-400"
-                            />
-                          )}
+                          {/* 상시 노출: 특이사항 · 기도제목 · 결석사유 통합 입력칸 */}
+                          <input
+                            type="text"
+                            placeholder="특이사항 · 기도제목 · 결석사유 (예: 시험 앞두고 많이 힘들어함)"
+                            value={rec.reason || ''}
+                            onChange={(e) => setStudentNote(stu.id, e.target.value)}
+                            className={`w-full px-3 py-2 rounded-xl border text-xs text-slate-800 focus:outline-none transition ${
+                              rec.status === 'absent'
+                                ? 'bg-rose-50/70 border-rose-200 focus:border-rose-400'
+                                : 'bg-slate-50/80 border-slate-200 focus:border-emerald-400'
+                            }`}
+                          />
                         </div>
                       );
                     })}
@@ -1934,7 +1868,7 @@ export default function App() {
                     onClick={() => setSelectedClassId(null)}
                     className="flex items-center gap-1 text-xs font-bold text-slate-600 bg-white/85 px-3 py-1.5 rounded-full"
                   >
-                    <ChevronLeft className="w-4 h-4" /> 전체 학년(2×3) 목록으로
+                    <ChevronLeft className="w-4 h-4" /> 전체 학년 목록으로
                   </button>
 
                   <div className="p-4 rounded-2xl bg-white/95 border border-white">
@@ -2065,12 +1999,12 @@ export default function App() {
                   </div>
 
                   <button onClick={downloadCSV} className="w-full py-3.5 rounded-2xl bg-slate-900 text-white text-xs font-bold flex items-center justify-center gap-2 hover:bg-slate-800 shadow-sm">
-                    <Download className="w-4 h-4" /> 출석 통계 엑셀(CSV) 다운로드 (출석률 자동합산)
+                    <Download className="w-4 h-4" /> 출석 통계 엑셀(CSV) 다운로드 (특이사항·출석률 포함)
                   </button>
                 </div>
               )}
 
-              {/* (D) 콘텐츠 및 데이터 일괄 관리 */}
+              {/* (D) 콘텐츠 관리 */}
               {adminTab === 'content' && (
                 <div className="space-y-4">
                   <div className="p-4 rounded-2xl bg-white/95 border border-white space-y-2">
@@ -2095,23 +2029,6 @@ export default function App() {
                         이번 달 일정 →
                       </button>
                     </div>
-                  </div>
-
-                  {/* 중1~고3 실제 명단 44명 원클릭 일괄 반영 버튼 */}
-                  <div className="p-4 rounded-2xl bg-emerald-50/95 border border-emerald-200 space-y-2">
-                    <div className="text-sm font-extrabold text-emerald-900 flex items-center gap-1.5">
-                      <Users className="w-4 h-4 text-emerald-600" /> 중1~고3 실제 학생 명단(44명) 일괄 반영
-                    </div>
-                    <p className="text-[11px] text-emerald-800 leading-relaxed">
-                      입력해 주신 중1(12명), 중2(7명), 중3(7명), 고1(7명), 고2(6명), 고3(5명) 전체 이름과 생일·연락처를 한 번에 출석부로 불러옵니다.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={handleApplyRealRoster}
-                      className="w-full py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700"
-                    >
-                      실제 학생 명단(44명) 일괄 등록하기
-                    </button>
                   </div>
 
                   <form onSubmit={handlePhotoUpload} className="p-4 rounded-2xl bg-white/95 border border-white space-y-3">
