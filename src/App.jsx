@@ -36,7 +36,7 @@ import {
   Layers,
   Images,
 } from 'lucide-react';
-
+import { requestAndSaveFcmToken, listenForegroundMessages } from './fcm';
 // ============================================================================
 // Firebase 설정 (환경변수 우선, 없으면 기존 구조 유지)
 // ============================================================================
@@ -846,7 +846,20 @@ export default function App() {
     fromLeftEdge: false,
     isAlbumArea: false,
   });
+const [pushStatusMsg, setPushStatusMsg] = useState('');
 
+  useEffect(() => {
+    const stopListen = listenForegroundMessages(({ title, body }) => {
+      setPushStatusMsg(`${title}: ${body}`);
+    });
+    return () => stopListen();
+  }, []);
+
+  const handleEnablePush = async () => {
+    setPushStatusMsg('알림 설정을 확인하는 중...');
+    const res = await requestAndSaveFcmToken(authRole || 'member');
+    setPushStatusMsg(res.ok ? '스마트폰 알림이 등록되었습니다!' : res.reason);
+  };
   // --------------------------------------------------------------------------
   // Firebase 실시간 동기화 (데이터 자동 초기화 방지 보호)
   // --------------------------------------------------------------------------
@@ -1463,7 +1476,18 @@ export default function App() {
               게임하기 →
             </span>
           </button>
-
+<div className="pt-1">
+            <button
+              type="button"
+              onClick={handleEnablePush}
+              className="w-full py-2.5 px-4 rounded-xl bg-amber-500 text-white text-sm font-bold"
+            >
+              🔔 아침 말씀·퀴즈 알림 받기
+            </button>
+            {pushStatusMsg && (
+              <p className="text-xs text-center text-slate-600 mt-2">{pushStatusMsg}</p>
+            )}
+          </div>
           <footer className="text-center text-xs text-slate-400 pt-2">
             한국기독교장로회 온양장로교회 청소년부 ♡
           </footer>
