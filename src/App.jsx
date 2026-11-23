@@ -31,9 +31,9 @@ const CHURCH_LINKS = {
   homepage: "https://www.oych.org/",
   youtube: "https://www.youtube.com/@oychurch",
   instagram: "https://www.instagram.com/do_bbyyyyyyyyy?exln=N2hwc2FjZ2NsYjI4",
-  adminPin: "0852",    // 교사 · 목사님 전용
-  praisePin: "2222",   // 찬양팀 학생 전용
-  officerPin: "2468"   // 학생 임원 전용
+  adminPin: "0852",
+  praisePin: "2222",
+  officerPin: "2468"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -1836,7 +1836,6 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('home');
   const [showVerseCard, setShowVerseCard] = useState(false);
 
-  // 알림 설정 팝업 & 등록 상태 (제안 1)
   const [showPushPopup, setShowPushPopup] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(() => {
     try {
@@ -1895,9 +1894,10 @@ export default function App() {
     { q: '', options: ['', '', '', ''], answer: 0 }
   ]);
 
-  const touchStartRef = useRef({ x: 0, y: 0, active: false, mode: 'back' });
+  const touchStartRef = useRef({ x: 0, y: 0, active: false, mode: 'nav' });
+  const isPopStateNavRef = useRef(false);
+  const pushedStateKeyRef = useRef('');
 
-  // FCM 포그라운드 수신 & 알림 등록 핸들러
   useEffect(() => {
     const stopListen = listenForegroundMessages(({ title, body }) => {
       setPushBannerText(`${title}: ${body}`);
@@ -1914,13 +1914,12 @@ export default function App() {
         localStorage.setItem('onyang_push_registered', '1');
       } catch (_) {}
       setShowPushPopup(false);
-      alert("🔔 아침 말씀·새 퀴즈 알림이 등록되었습니다!");
+      alert("알림이 등록되었습니다.");
     } else {
       alert(res.reason || "알림 설정을 완료하지 못했습니다.");
     }
   };
 
-  // 첫 접속 시 알림 팝업 노출 (말씀카드가 닫힌 뒤 미등록 기기 대상)
   useEffect(() => {
     if (!isLoaded || showVerseCard || pushEnabled || pushPopupShownRef.current) return;
     const today = getTodayStr();
@@ -1940,11 +1939,12 @@ export default function App() {
   };
 
   // ==========================================
-  // 뒤로 가기 공통 핸들러 (관리실 학년 선택 화면 우선 복귀)
+  // 뒤로 가기 공통 핸들러 (출석 화면 -> 학년 목록 우선 복귀)
   // ==========================================
   const handleGoBack = () => {
     if (selectedPhoto) {
       setSelectedPhoto(null);
+      setSelectedPhotoIdx(0);
       return;
     }
     if (pinModalRole) {
@@ -1969,21 +1969,36 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (activeTab !== 'home' || selectedClassId || selectedPhoto) {
-      window.history.pushState({ view: activeTab, cls: selectedClassId, photo: !!selectedPhoto }, '');
+    if (isPopStateNavRef.current) {
+      isPopStateNavRef.current = false;
+      return;
+    }
+    const navKey = `${activeTab}|${selectedClassId || ''}|${selectedPhoto?.id || ''}`;
+    if (activeTab === 'home' && !selectedClassId && !selectedPhoto) {
+      pushedStateKeyRef.current = '';
+      return;
+    }
+    if (pushedStateKeyRef.current !== navKey) {
+      pushedStateKeyRef.current = navKey;
+      try {
+        window.history.pushState({ view: activeTab, cls: selectedClassId, photoId: selectedPhoto?.id || null }, '');
+      } catch (_) {}
     }
   }, [activeTab, selectedClassId, selectedPhoto]);
 
   useEffect(() => {
     const onPopState = () => {
+      isPopStateNavRef.current = true;
       if (selectedPhoto) {
         setSelectedPhoto(null);
+        setSelectedPhotoIdx(0);
       } else if (activeTab === 'admin' && selectedClassId) {
         setSelectedClassId(null);
         setEditingStudentId(null);
         setEditingTeacher(false);
       } else if (activeTab !== 'home') {
         setActiveTab('home');
+        setSelectedClassId(null);
         setIsEditingPraise(false);
         setIsEditingOrder(false);
         setIsEditingCalendar(false);
@@ -1993,7 +2008,7 @@ export default function App() {
     return () => window.removeEventListener('popstate', onPopState);
   }, [activeTab, selectedClassId, selectedPhoto]);
 
-  // 스와이프 핸들러: 게임 화면 제외, 사진첩 모달 내 좌우 스와이프 및 좌측 엣지 뒤로 가기
+  // 좌/우 스와이프 핸들러 (사진첩 넘기기 + 화면 뒤로 가기)
   const handleEdgeTouchStart = (e) => {
     if (activeTab === 'game') {
       touchStartRef.current.active = false;
@@ -2007,8 +2022,8 @@ export default function App() {
       return;
     }
 
-    if (activeTab !== 'home' && t.clientX <= 36) {
-      touchStartRef.current = { x: t.clientX, y: t.clientY, active: true, mode: 'back' };
+    if (activeTab !== 'home') {
+      touchStartRef.current = { x: t.clientX, y: t.clientY, active: true, mode: 'nav' };
     } else {
       touchStartRef.current.active = false;
     }
@@ -2023,7 +2038,7 @@ export default function App() {
     const mode = touchStartRef.current.mode;
     touchStartRef.current.active = false;
 
-    if (mode === 'photo' && selectedPhoto && Math.abs(dx) > 45 && dy < 70) {
+    if (mode === 'photo' && selectedPhoto && Math.abs(dx) > 45 && dy < 75) {
       const imgs = selectedPhoto.urls;
       if (dx < 0) {
         setSelectedPhotoIdx((prev) => (prev + 1) % imgs.length);
@@ -2033,7 +2048,7 @@ export default function App() {
       return;
     }
 
-    if (mode === 'back' && dx > 75 && dy < 55) {
+    if (mode === 'nav' && Math.abs(dx) > 70 && dy < 55) {
       handleGoBack();
     }
   };
@@ -2597,7 +2612,6 @@ export default function App() {
     alert(`총 ${formattedQuestions.length}문제의 새 설교 퀴즈가 등록되었으며 완료자 명단이 초기화되었습니다!`);
   };
 
-  // 당일(selectedDate) 기준 전체 출석 및 장결자 합계 계산
   const dailyAttendanceSummary = useMemo(() => {
     const orderedClasses = CLASS_SEQUENTIAL_ORDER.map((id) => privateData.classes[id]).filter(Boolean);
     const allStudents = orderedClasses.flatMap((c) => c.students);
@@ -2768,7 +2782,6 @@ export default function App() {
         : [selectedPhoto.url])
     : [];
 
-  // 챌린지 슬라이드 아이템이 적을 때도 끊기지 않도록 최소 8개 이상 채움
   const challengeMarqueeItems = (() => {
     const base = publicData.quiz?.completers || [];
     if (base.length === 0) return [];
@@ -2838,7 +2851,6 @@ export default function App() {
 
       <div className={`w-full max-w-md min-h-screen bg-gradient-to-b ${currentSeason.pageBg} transition-all duration-700 shadow-xl flex flex-col justify-between relative overflow-x-hidden`}>
 
-        {/* 상단 고정 헤더 */}
         <header className="sticky top-0 z-30 bg-white/85 backdrop-blur-md border-b border-slate-100/80 px-4 py-3 flex items-center justify-between">
           <button
             onClick={() => { setActiveTab('home'); setSelectedClassId(null); }}
@@ -2868,7 +2880,6 @@ export default function App() {
           </div>
         )}
 
-        {/* 메인 콘텐츠 영역 */}
         <main className="flex-1 p-4 space-y-4 pb-10">
 
           {activeTab === 'home' && (
@@ -4241,7 +4252,6 @@ export default function App() {
           )}
         </main>
 
-        {/* 하단 푸터 (인스타그램 로고 옆 종 모양 알림 버튼) */}
         <footer className="bg-white/80 backdrop-blur-md border-t border-slate-200/60 px-4 py-5 text-center space-y-3.5">
           <div className="flex items-center justify-center gap-4">
             <a
@@ -4274,8 +4284,7 @@ export default function App() {
             <button
               type="button"
               onClick={() => (pushEnabled ? setShowPushPopup(true) : handleRegisterPush())}
-              aria-label="아침 말씀·퀴즈 알림 설정"
-              title={pushEnabled ? "알림 등록됨 (설정 확인)" : "아침 말씀·퀴즈 알림 받기"}
+              aria-label="알림 설정"
               className={`w-12 h-12 rounded-full border shadow-sm flex items-center justify-center hover:scale-105 transition ${
                 pushEnabled
                   ? 'bg-amber-50 border-amber-300 text-amber-600'
@@ -4298,7 +4307,6 @@ export default function App() {
           </div>
         </footer>
 
-        {/* 전체화면 감성 말씀카드 */}
         {showVerseCard && (
           <FullscreenVerseCard
             verseObj={todayVerse}
@@ -4307,37 +4315,23 @@ export default function App() {
           />
         )}
 
-        {/* 첫 접속 알림 설정 팝업 (제안 1) */}
         {showPushPopup && (
           <div className="fixed inset-0 z-50 bg-black/55 backdrop-blur-xs flex items-center justify-center p-4">
             <div className="w-full max-w-xs bg-white rounded-3xl p-6 shadow-2xl space-y-4 text-center">
               <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center mx-auto">
                 <Bell className="w-6 h-6" />
               </div>
-              <div className="space-y-1">
-                <h3 className="font-extrabold text-slate-900 text-base">
-                  {pushEnabled ? '알림이 켜져 있어요!' : '말씀과 퀴즈 알림을 받아볼까요?'}
-                </h3>
-                <p className="text-xs text-slate-500 leading-relaxed">
-                  매일 아침 7시 오늘의 말씀과 새 주일 설교 퀴즈 소식을 스마트폰으로 보내드립니다.
-                </p>
-              </div>
+              <p className="text-sm font-extrabold text-slate-900">
+                하단의 종모양을 눌러 알림을 켜주세요
+              </p>
               <div className="space-y-2">
-                {!pushEnabled ? (
+                {!pushEnabled && (
                   <button
                     type="button"
                     onClick={handleRegisterPush}
                     className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-extrabold transition"
                   >
-                    🔔 알림 켜기
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setShowPushPopup(false)}
-                    className="w-full py-2.5 rounded-xl bg-slate-900 text-white text-xs font-bold transition"
-                  >
-                    확인
+                    알림 켜기
                   </button>
                 )}
                 <button
@@ -4345,14 +4339,13 @@ export default function App() {
                   onClick={dismissPushPopupToday}
                   className="w-full py-2 rounded-xl bg-slate-100 text-slate-600 text-xs font-bold"
                 >
-                  오늘은 닫기
+                  닫기
                 </button>
               </div>
             </div>
           </div>
         )}
 
-        {/* 팝업 2: 깜짝 간식 당첨 축하 팝업 */}
         {showLuckyWinPopup && (
           <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
             <div className="w-full max-w-sm bg-gradient-to-b from-amber-50 to-white rounded-3xl p-6 shadow-2xl border-2 border-amber-300 space-y-4 text-center relative">
@@ -4414,7 +4407,6 @@ export default function App() {
           </div>
         )}
 
-        {/* 팝업 3: 역할별 비밀번호 인증 */}
         {pinModalRole && (
           <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
             <form onSubmit={handlePinSubmit} className="w-full max-w-xs bg-white rounded-3xl p-6 shadow-2xl space-y-4 text-center">
@@ -4459,7 +4451,6 @@ export default function App() {
           </div>
         )}
 
-        {/* 팝업 4: 사진첩 크게 보기 (여러 장 슬라이드 & 좌우 스와이프 지원) */}
         {selectedPhoto && (
           <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={() => setSelectedPhoto(null)}>
             <div className="w-full max-w-sm bg-white rounded-3xl overflow-hidden shadow-2xl" onClick={(e) => e.stopPropagation()}>
