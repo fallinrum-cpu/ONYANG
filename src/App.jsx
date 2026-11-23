@@ -3,10 +3,10 @@ import { initializeApp } from 'firebase/app';
 import { getFirestore, doc, onSnapshot, setDoc, getDoc } from 'firebase/firestore';
 import {
   Music, Calendar, BookOpen, Image as ImageIcon, Heart, Youtube, Instagram,
-  ChevronRight, ChevronLeft, X, CheckCircle2, XCircle, Sparkles, Lock,
+  ChevronRight, ChevronLeft, X, CheckCircle2, XCircle, Lock,
   Sun, UserPlus, Trash2, Edit3, BarChart3, AlertTriangle,
   Download, Award, Send, Camera, Phone, Cake, Globe, Loader2, Settings,
-  Gamepad2, Trophy, RotateCcw, Clock, ShieldCheck, Users, Gift, Play
+  Gamepad2, Trophy, RotateCcw, Clock, ShieldCheck, Users, Gift, Play, Plus, Check
 } from 'lucide-react';
 
 // ==========================================
@@ -110,7 +110,105 @@ const SEASONS = {
 };
 
 // ==========================================
-// 3. 오늘의 말씀 150선
+// 3. 매일 바뀌는 감성 자연 풍경 7종 & 한국어 성경 구절 줄바꿈 헬퍼
+// ==========================================
+const VERSE_CARD_BACKGROUNDS = [
+  {
+    img: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=900&q=80',
+    grad: 'linear-gradient(180deg, #1e3a5f 0%, #4a7c9b 100%)'
+  },
+  {
+    img: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=900&q=80',
+    grad: 'linear-gradient(180deg, #143d29 0%, #2d6a4f 100%)'
+  },
+  {
+    img: 'https://images.unsplash.com/photo-1439066615861-d1af74d74000?auto=format&fit=crop&w=900&q=80',
+    grad: 'linear-gradient(180deg, #164e63 0%, #0e7490 100%)'
+  },
+  {
+    img: 'https://images.unsplash.com/photo-1507502707541-f369a3b18502?auto=format&fit=crop&w=900&q=80',
+    grad: 'linear-gradient(180deg, #7c2d12 0%, #b45309 100%)'
+  },
+  {
+    img: 'https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?auto=format&fit=crop&w=900&q=80',
+    grad: 'linear-gradient(180deg, #0f172a 0%, #312e81 100%)'
+  },
+  {
+    img: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=900&q=80',
+    grad: 'linear-gradient(180deg, #1e293b 0%, #475569 100%)'
+  },
+  {
+    img: 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=900&q=80',
+    grad: 'linear-gradient(180deg, #3f6212 0%, #65a30d 100%)'
+  }
+];
+
+function formatKoreanVerseLines(rawText) {
+  const cleaned = (rawText || '').replace(/\s+/g, ' ').trim();
+  if (!cleaned) return [];
+  if (rawText.includes('\n')) {
+    return rawText.split('\n').map((s) => s.trim()).filter(Boolean);
+  }
+
+  const words = cleaned.split(' ');
+  const totalLen = cleaned.length;
+
+  let targetLines = 3;
+  if (totalLen <= 26) targetLines = 2;
+  else if (totalLen <= 56) targetLines = 3;
+  else targetLines = 4;
+
+  if (words.length <= targetLines) return words;
+
+  const clauseEndRegex = /(위하여|하리라|되리라|있으리라|하노라|이니라|함이니라|것이라|것이요|말지어다|하시고|주시리라|없으리로다|가느니라|받으라|행하라|사랑하라|지키라|기뻐하라|감사하라|기도하라|믿으라|오라|살리라|이루리라|지으셨으니|주셨으니|얻게|하도록|함이라|됨이라|지로다|리로다|도다|고|며|니|면|서|로|에|의|은|는|이|가|을|를)[,.]?$/;
+
+  const idealLineLen = totalLen / targetLines;
+  const lines = [];
+  let currentWords = [];
+  let currentLen = 0;
+
+  for (let i = 0; i < words.length; i++) {
+    const w = words[i];
+    const remainingWords = words.length - i;
+    const remainingLines = targetLines - lines.length;
+
+    currentWords.push(w);
+    currentLen += (currentWords.length > 1 ? 1 : 0) + w.length;
+
+    if (remainingLines <= 1) continue;
+
+    if (remainingWords - 1 <= remainingLines - 1) {
+      lines.push(currentWords.join(' '));
+      currentWords = [];
+      currentLen = 0;
+      continue;
+    }
+
+    const isClauseEnd = clauseEndRegex.test(w);
+    const minAcceptLen = idealLineLen * 0.72;
+    const maxAcceptLen = idealLineLen * 1.24;
+
+    if ((isClauseEnd && currentLen >= minAcceptLen) || currentLen >= maxAcceptLen) {
+      if (i === words.length - 2) continue;
+      lines.push(currentWords.join(' '));
+      currentWords = [];
+      currentLen = 0;
+    }
+  }
+
+  if (currentWords.length > 0) {
+    if (lines.length > 0 && currentWords.length === 1 && currentWords[0].length <= 4) {
+      lines[lines.length - 1] += ' ' + currentWords[0];
+    } else {
+      lines.push(currentWords.join(' '));
+    }
+  }
+
+  return lines;
+}
+
+// ==========================================
+// 4. 오늘의 말씀 150선
 // ==========================================
 const DAILY_VERSES = [
   { verse: "너희도 성령 안에서 하나님이 거하실 처소가 되기 위하여 그리스도 예수 안에서 함께 지어져 가느니라", ref: "에베소서 2:22", note: "우리 청소년부 한 사람 한 사람이 모여 아름다운 하나님의 집을 이루어 갑니다." },
@@ -162,110 +260,11 @@ const DAILY_VERSES = [
   { verse: "예수 그리스도는 어제나 오늘이나 영원토록 동일하시니라", ref: "히브리서 13:8", note: "변화무쌍한 세상 속에서도 변함없이 우리를 사랑하시는 주님을 의지하세요." },
   { verse: "너희 중에 누구든지 지혜가 부족하거든 모든 사람에게 후히 주시고 꾸짖지 아니하시는 하나님께 구하라 그리하면 주시리라", ref: "야고보서 1:5", note: "공부할 때도, 진로를 고민할 때도 하나님께 지혜를 구하면 후히 주십니다." },
   { verse: "하나님을 가까이 하라 그리하면 너희를 가까이 하시리라", ref: "야고보서 4:8", note: "오늘 주님께 한 걸음 더 가까이 다가가 보세요." },
-  { verse: "사랑하는 자들아 우리가 서로 사랑하자 사랑은 하나님께 속한 것이니", ref: "요한일서 4:7", note: "먼저 다가가 인사하고 웃어주는 작은 사랑이 공동체를 살립니다." },
-  { verse: "복 있는 사람은 악인들의 꾀를 따르지 아니하며 죄인들의 길에 서지 아니하며 오만한 자들의 자리에 앉지 아니하고", ref: "시편 1:1", note: "진정한 복은 하나님과 함께 걷는 삶에 있습니다." },
-  { verse: "그는 시냇가에 심은 나무가 철을 따라 열매를 맺으며 그 잎사귀가 마르지 아니함 같으니 그가 하는 모든 일이 다 형통하리로다", ref: "시편 1:3", note: "말씀의 시냇가에 뿌리내려 시들지 않는 푸른 청소년이 됩시다." },
-  { verse: "여호와는 나의 빛이요 나의 구원이시니 내가 누구를 두려워하리요", ref: "시편 27:1", note: "주님이 나의 빛이 되시니 어떤 어둠도 두려워할 필요가 없습니다." },
-  { verse: "너는 여호와를 기다릴지어다 강하고 담대하며 여호와를 기다릴지어다", ref: "시편 27:14", note: "조급해하지 말고 가장 좋은 때를 준비하시는 하나님을 기다려 보세요." },
-  { verse: "여호와의 선하심을 맛보아 알지어다 그에게 피하는 자는 복이 있도다", ref: "시편 34:8", note: "오늘 하루 삶 속에서 하나님의 선하심을 깊이 경험하길 바랍니다." },
-  { verse: "또 여호와를 기뻐하라 그가 네 마음의 소원을 네게 이루어 주시리로다", ref: "시편 37:4", note: "하나님을 기뻐할 때 하나님께서 우리의 마음의 소원도 선하게 빚어가십니다." },
-  { verse: "하나님은 우리의 피난처시요 힘이시니 환난 중에 만날 큰 도움이시라", ref: "시편 46:1", note: "힘들고 지칠 때 언제든 달려갈 수 있는 안전한 피난처가 주님께 있습니다." },
-  { verse: "너희는 가만히 있어 내가 하나님 됨을 알지어다", ref: "시편 46:10", note: "분주한 마음을 잠시 멈추고 주님의 음성에 귀 기울여 보세요." },
-  { verse: "하나님이여 내 속에 정한 마음을 창조하시고 내 안에 정직한 영을 새롭게 하소서", ref: "시편 51:10", note: "매일 아침 깨끗하고 정직한 마음으로 하루를 시작하게 해달라고 기도해요." },
-  { verse: "내가 두려워하는 날에는 내가 주를 의지하리이다", ref: "시편 56:3", note: "두려움이 찾아오는 바로 그 순간이 주님을 의지할 타이밍입니다." },
-  { verse: "나의 영혼이 잠잠히 하나님만 바람이여 나의 구원이 그에게서 나오는도다", ref: "시편 62:1", note: "오직 하나님 한 분만으로 충분함을 고백하는 하루가 되길 바랍니다." },
-  { verse: "주의 인자하심이 생명보다 나으므로 내 입술이 주를 찬양할 것이라", ref: "시편 63:3", note: "오늘도 주님의 한결같은 사랑을 찬양하며 기쁘게 나아갑시다." },
-  { verse: "여호와를 경외하는 것이 지식의 근본이거늘", ref: "잠언 1:7", note: "모든 배움과 지혜의 출발점은 하나님을 경외하는 마음입니다." },
-  { verse: "모든 지킬 만한 것 중에 더욱 네 마음을 지키라 생명의 근원이 이에서 남이니라", ref: "잠언 4:23", note: "부정적인 생각과 비교하는 마음으로부터 너의 소중한 마음을 꼭 지키세요." },
-  { verse: "유순한 대답은 분노를 쉬게 하여도 과격한 말은 노를 격동하느니라", ref: "잠언 15:1", note: "오늘 내가 건네는 부드러운 말 한마디가 누군가의 하루를 바꿉니다." },
-  { verse: "마음의 즐거움은 양약이라도 심령의 근심은 뼈를 마르게 하느니라", ref: "잠언 17:22", note: "주님이 주시는 기쁨으로 오늘도 환하게 웃는 하루가 되세요!" },
-  { verse: "친구는 사랑이 끊어지지 아니하고 형제는 위급한 때를 위하여 났느니라", ref: "잠언 17:17", note: "함께 웃고 기도해 주는 믿음의 친구들이 곁에 있음에 감사해요." },
-  { verse: "너는 내일 일을 자랑하지 말라 하루 동안에 무슨 일이 일어날는지 네가 알 수 없음이니라", ref: "잠언 27:1", note: "내일 걱정은 내일에게 맡기고 오늘 주어진 하루에 충실합시다." },
-  { verse: "너희는 먼저 그의 나라와 그의 의를 구하라 그리하면 이 모든 것을 너희에게 더하시리라", ref: "마태복음 6:33", note: "삶의 우선순위를 하나님께 둘 때 필요한 모든 것을 채워주십니다." },
-  { verse: "구하라 그리하면 너희에게 주실 것이요 찾으라 그리하면 찾아낼 것이요 문을 두드리라 그리하면 너희에게 열릴 것이니", ref: "마태복음 7:7", note: "포기하지 않고 구하고 찾고 두드리는 기도의 사람이 됩시다." },
-  { verse: "그러므로 무엇이든지 남에게 대접을 받고자 하는 대로 너희도 남을 대접하라", ref: "마태복음 7:12", note: "내가 받고 싶은 배려와 친절을 먼저 친구에게 베풀어 보세요." },
-  { verse: "사람으로는 할 수 없으되 하나님으로서는 다 하실 수 있느니라", ref: "마태복음 19:26", note: "내 한계를 넘어 일하시는 전능하신 하나님을 기대해 보세요." },
-  { verse: "네 마음을 다하고 목숨을 다하고 뜻을 다하여 주 너의 하나님을 사랑하라", ref: "마태복음 22:37", note: "온 마음을 다해 하나님을 사랑하는 것이 가장 큰 계명입니다." },
-  { verse: "둘째도 그와 같으니 네 이웃을 네 자신 같이 사랑하라 하셨으니", ref: "마태복음 22:39", note: "나 자신을 소중히 여기듯 내 곁의 친구도 아끼고 사랑합시다." },
-  { verse: "볼지어다 내가 세상 끝날까지 너희와 항상 함께 있으리라", ref: "마태복음 28:20", note: "세상 끝날까지 너와 함께하시겠다는 예수님의 약속을 기억하세요." },
-  { verse: "할 수 있거든이 무슨 말이냐 믿는 자에게는 능히 하지 못할 일이 없느니라", ref: "마가복음 9:23", note: "안 된다는 생각 대신 믿음의 눈으로 가능성을 바라봅시다." },
-  { verse: "지극히 작은 것에 충성된 자는 큰 것에도 충성되고", ref: "누가복음 16:10", note: "오늘 맡겨진 작은 일에 최선을 다하는 사람이 큰 일도 감당합니다." },
-  { verse: "말씀이 육신이 되어 우리 가운데 거하시매 우리가 그의 영광을 보니 아버지의 독생자의 영광이요 은혜와 진리가 충만하더라", ref: "요한복음 1:14", note: "우리 곁에 찾아오신 예수님의 은혜와 진리가 오늘도 충만하길 기도합니다." },
-  { verse: "진리를 알지니 진리가 너희를 자유롭게 하리라", ref: "요한복음 8:32", note: "하나님의 말씀 안에서 참된 자유와 기쁨을 누리세요." },
-  { verse: "나는 선한 목자라 선한 목자는 양들을 위하여 목숨을 버리거니와", ref: "요한복음 10:11", note: "우리를 위해 생명까지 내어주신 선한 목자 예수님이 늘 곁에 계십니다." },
-  { verse: "나는 포도나무요 너희는 가지라 그가 내 안에, 내가 그 안에 거하면 사람이 열매를 많이 맺나니", ref: "요한복음 15:5", note: "예수님께 꼭 붙어 있기만 하면 아름다운 삶의 열매가 저절로 맺힙니다." },
-  { verse: "내 계명은 곧 내가 너희를 사랑한 것 같이 너희도 서로 사랑하라 하는 이것이니라", ref: "요한복음 15:12", note: "예수님께 받은 그 사랑으로 오늘도 서로를 따뜻하게 대합시다." },
-  { verse: "세상에서는 너희가 환난을 당하나 담대하라 내가 세상을 이기었노라", ref: "요한복음 16:33", note: "이미 세상을 이기신 예수님 편에 서 있으니 담대하게 나아가세요!" },
-  { verse: "오직 성령이 너희에게 임하시면 너희가 권능을 받고 예루살렘과 온 유대와 사마리아와 땅 끝까지 이르러 내 증인이 되리라", ref: "사도행전 1:8", note: "성령님이 주시는 능력으로 학교와 가정에서 예수님의 증인으로 살아가요." },
-  { verse: "주 예수를 믿으라 그리하면 너와 네 집이 구원을 받으리라", ref: "사도행전 16:31", note: "우리 가정이 모두 예수님 안에서 구원의 기쁨을 누리길 기도합니다." },
-  { verse: "내가 복음을 부끄러워하지 아니하노니 이 복음은 모든 믿는 자에게 구원을 주시는 하나님의 능력이 됨이라", ref: "로마서 1:16", note: "그리스도인이라는 정체성을 당당하고 자랑스럽게 여기세요." },
-  { verse: "우리가 아직 죄인 되었을 때에 그리스도께서 우리를 위하여 죽으심으로 하나님께서 우리에 대한 자기의 사랑을 확증하셨느니라", ref: "로마서 5:8", note: "우리가 완벽해서가 아니라 있는 모습 그대로 사랑하신 하나님의 은혜입니다." },
-  { verse: "그러므로 이제 그리스도 예수 안에 있는 자에게는 결코 정죄함이 없나니", ref: "로마서 8:1", note: "실수하고 넘어졌더라도 자책하지 마세요. 주님 안에는 늘 새로운 기회가 있습니다." },
-  { verse: "하나님이 우리를 위하시면 누가 우리를 대적하리요", ref: "로마서 8:31", note: "하나님이 네 편이 되어주시니 어떤 어려움도 넉넉히 이길 수 있습니다." },
-  { verse: "그러나 이 모든 일에 우리를 사랑하시는 이로 말미암아 우리가 넉넉히 이기느니라", ref: "로마서 8:37", note: "간신히 버티는 것이 아니라 주님의 사랑으로 넉넉히 이기는 하루가 되자!" },
-  { verse: "악에게 지지 말고 선으로 악을 이기라", ref: "로마서 12:21", note: "미움과 다툼 대신 선함과 친절함으로 승리하는 멋진 사람이 됩시다." },
-  { verse: "소망의 하나님이 모든 기쁨과 평강을 믿음 안에서 너희에게 충만하게 하사", ref: "로마서 15:13", note: "소망의 하나님이 오늘 너의 하루에 기쁨과 평강을 가득 부어주시길 축복합니다." },
-  { verse: "너희는 너희가 하나님의 성전인 것과 하나님의 성령이 너희 안에 계시는 것을 알지 못하느냐", ref: "고린도전서 3:16", note: "네 안에는 성령님이 거하십니다. 너 자신을 귀하고 거룩하게 가꾸어 가세요." },
-  { verse: "사람이 감당할 시험 밖에는 너희가 당한 것이 없나니 오직 하나님은 미쁘사 너희가 감당하지 못할 시험 당함을 허락하지 아니하시고", ref: "고린도전서 10:13", note: "지금 겪는 어려움도 피할 길과 감당할 힘을 하나님이 반드시 주십니다." },
-  { verse: "그런즉 너희가 먹든지 마시든지 무엇을 하든지 다 하나님의 영광을 위하여 하라", ref: "고린도전서 10:31", note: "평범한 일상 속 작은 일들도 하나님의 영광이 될 수 있습니다." },
-  { verse: "깨어 믿음에 굳게 서서 남자답게 강건하라 너희 모든 일을 사랑으로 행하라", ref: "고린도전서 16:13-14", note: "흔들리지 않는 믿음 위에 사랑으로 모든 일을 행하는 청소년이 됩시다." },
-  { verse: "우리 주 예수 그리스도의 은혜와 하나님의 사랑과 성령의 교통하심이 너희 무리와 함께 있을지어다", ref: "고린도후서 13:13", note: "삼위일체 하나님의 은혜와 사랑이 오늘 너의 걸음마다 함께하십니다." },
-  { verse: "내가 그리스도와 함께 십자가에 못 박혔나니 그런즉 이제는 내가 사는 것이 아니요 오직 내 안에 그리스도께서 사시는 것이라", ref: "갈라디아서 2:20", note: "내 안에 살아계신 예수님과 동행하는 복된 하루를 보내세요." },
-  { verse: "오직 성령의 충만함을 받으라", ref: "에베소서 5:18", note: "세상의 다른 것이 아닌 성령님의 은혜로 채워지는 하루가 되길 기도합니다." },
-  { verse: "빛의 자녀들처럼 행하라 빛의 열매는 모든 착함과 의로움과 진실함에 있느니라", ref: "에베소서 5:8-9", note: "어디에 있든지 착하고 의롭고 진실한 빛의 자녀로 살아갑시다." },
-  { verse: "종말로 너희가 주 안에서와 그 힘의 능력으로 강건하여지고", ref: "에베소서 6:10", note: "주님이 주시는 전신갑주를 입고 영적으로 강건하게 서자!" },
-  { verse: "나의 간절한 기대와 소망을 따라 아무 일에든지 부끄러워하지 아니하고 지금도 전과 같이 온전히 담대하여", ref: "빌립보서 1:20", note: "오늘 하루도 주님 안에서 당당하고 담대하게 걸어가세요." },
-  { verse: "나의 하나님이 그리스도 예수 안에서 영광 가운데 그 풍성한 대로 너희 모든 쓸 것을 채우시리라", ref: "빌립보서 4:19", note: "우리의 필요를 가장 잘 아시는 하나님이 풍성하게 채워주십니다." },
-  { verse: "그리스도의 평강이 너희 마음을 주장하게 하라 너희는 평강을 위하여 한 몸으로 부르심을 받았나니 너희는 또한 감사하는 자가 되라", ref: "골로새서 3:15", note: "불평 대신 감사를 선택할 때 마음이 평안해집니다." },
-  { verse: "그리스도의 말씀이 너희 속에 풍성히 거하여 모든 지혜로 피차 가르치며 권면하고", ref: "골로새서 3:16", note: "서로에게 지혜와 격려를 나누어 주는 믿음의 공동체가 됩시다." },
-  { verse: "기도를 계속하고 기도에 감사함으로 깨어 있으라", ref: "골로새서 4:2", note: "짧은 한 줄 기도라도 매일 꾸준히 이어가는 기도의 습관을 세워요." },
-  { verse: "피차 권면하고 서로 덕을 세우기를 너희가 하는 것 같이 하라", ref: "데살로니가전서 5:11", note: "비난보다는 칭찬과 격려로 서로를 세워주는 청소년부가 됩시다." },
-  { verse: "평강의 하나님이 친히 너희를 온전히 거룩하게 하시고", ref: "데살로니가전서 5:23", note: "너의 영과 혼과 몸이 주님 안에서 건강하고 거룩하게 지켜지길 축복합니다." },
-  { verse: "주는 미쁘사 너희를 굳건하게 하시고 악한 자에게서 지키시리라", ref: "데살로니가후서 3:3", note: "신실하신 주님이 오늘도 너를 굳건히 붙들고 보호하십니다." },
-  { verse: "경건에 이르도록 네 자신을 연단하라", ref: "디모데전서 4:7", note: "운동선수가 훈련하듯 매일의 큐티와 기도로 영적인 체력을 길러요." },
-  { verse: "선한 싸움을 싸우고 나의 달려갈 길을 마치고 믿음을 지켰으니", ref: "디모데후서 4:7", note: "오늘 주어진 경주도 끝까지 믿음으로 완주하는 멋진 하루가 되자!" },
-  { verse: "그러므로 우리는 긍휼하심을 받고 때를 따라 돕는 은혜를 얻기 위하여 은혜의 보좌 앞에 담대히 나아갈 것이니라", ref: "히브리서 4:16", note: "도움이 필요할 때 망설이지 말고 은혜의 보좌 앞으로 나아가세요." },
-  { verse: "믿음의 주요 또 온전하게 하시는 이인 예수를 바라보자", ref: "히브리서 12:2", note: "주변 환경에 흔들릴 때 시선을 들어 예수님만 바라봅시다." },
-  { verse: "서로 돌아보아 사랑과 선행을 격려하며", ref: "히브리서 10:24", note: "오늘 보이지 않는 친구에게 안부 메시지 한 통 보내보는 건 어떨까요?" },
-  { verse: "시험을 참는 자는 복이 있나니 이는 시련을 견디어 낸 자가 주께서 자기를 사랑하는 자들에게 약속하신 생명의 면류관을 얻을 것이기 때문이라", ref: "야고보서 1:12", note: "지금의 인내와 수고 끝에는 하나님이 예비하신 생명의 면류관이 있습니다." },
-  { verse: "온갖 좋은 은사와 온전한 선물이 다 위로부터 빛들의 아버지께로부터 내려오나니", ref: "야고보서 1:17", note: "너에게 주신 재능과 달란트는 하나님이 주신 귀한 선물입니다." },
-  { verse: "그러나 너희는 택하신 족속이요 왕 같은 제사장들이요 거룩한 나라요 그의 소유가 된 백성이니", ref: "베드로전서 2:9", note: "너는 하나님이 특별히 택하신 왕 같은 제사장입니다. 자부심을 가지세요!" },
-  { verse: "무엇보다도 뜨겁게 서로 사랑할지니 사랑은 허다한 죄를 덮느니라", ref: "베드로전서 4:8", note: "서로의 부족함을 덮어주고 안아주는 따뜻한 사랑이 넘치길 기도합니다." },
-  { verse: "오직 우리 주 곧 구주 예수 그리스도의 은혜와 그를 아는 지식에서 자라 가라", ref: "베드로후서 3:18", note: "키와 지식이 자라듯 하나님을 아는 믿음도 날마다 쑥쑥 자라가길 축복합니다." },
-  { verse: "자녀들아 우리가 말과 혀로만 사랑하지 말고 행함과 진실함으로 하자", ref: "요한일서 3:18", note: "말뿐인 사랑이 아니라 작은 행동과 진심으로 사랑을 표현해 보세요." },
-  { verse: "두려워하지 말라 나는 처음이요 마지막이니", ref: "요한계시록 1:17", note: "인생의 시작과 끝을 쥐고 계신 주님이 너와 함께하십니다." },
-  { verse: "볼지어다 내가 문 밖에 서서 두드리노니 누구든지 내 음성을 듣고 문을 열면 내가 그에게로 들어가 그와 더불어 먹고 그는 나와 더불어 먹으리라", ref: "요한계시록 3:20", note: "오늘도 네 마음의 문을 두드리시는 예수님을 기쁘게 맞이하세요." },
-  { verse: "내가 너희에게 분부한 모든 것을 가르쳐 지키게 하라", ref: "마태복음 28:20", note: "배운 말씀을 삶으로 살아낼 때 진짜 능력이 나타납니다." },
-  { verse: "여호와는 네게 복을 주시고 너를 지키시기를 원하며", ref: "민수기 6:24", note: "오늘 하루 하나님의 크신 복과 보호하심이 너의 삶에 가득하길 축복합니다." },
-  { verse: "여호와는 그의 얼굴을 네게 비추사 은혜 베푸시기를 원하며", ref: "민수기 6:25", note: "하나님의 따뜻한 미소와 은혜가 오늘 너의 얼굴에도 환히 비치길 기도합니다." },
-  { verse: "여호와는 그 얼굴을 네게로 향하여 드사 평강 주시기를 원하노라", ref: "민수기 6:26", note: "세상이 흔들려도 주님이 주시는 깊은 평강이 너를 지켜주실 것입니다." },
-  { verse: "너는 마음을 다하고 뜻을 다하고 힘을 다하여 네 하나님 여호와를 사랑하라", ref: "신명기 6:5", note: "오늘 내가 하는 모든 일의 동기가 하나님을 사랑하는 마음이 되길 소망합니다." },
-  { verse: "여호와께서 너를 위하여 하늘의 아름다운 보고를 여시사 네 땅에 때를 따라 비를 내리시고 네 손으로 하는 모든 일에 복을 주시리니", ref: "신명기 28:12", note: "성실하게 땀 흘리는 너의 손길 위에 하나님이 때를 따라 복을 내려주십니다." },
-  { verse: "여호와는 나의 반석이시요 나의 요새시요 나를 건지시는 이시요", ref: "시편 18:2", note: "어떤 폭풍우가 불어와도 흔들리지 않는 반석 되신 주님 위에 서세요." },
-  { verse: "내가 주께 범죄하지 아니하려 하여 주의 말씀을 내 마음에 두었나이다", ref: "시편 119:11", note: "마음속에 새긴 말씀 한 구절이 유혹의 순간에 우리를 지켜줍니다." },
-  { verse: "주의 법을 사랑하는 자에게는 큰 평안이 있으니 그들에게 장애물이 없으리이다", ref: "시편 119:165", note: "말씀을 사랑하는 마음 안에 주님이 주시는 큰 평안이 깃듭니다." },
-  { verse: "여호와께서 집을 세우지 아니하시면 세우는 자의 수고가 헛되며", ref: "시편 127:1", note: "우리의 학업과 미래의 집을 하나님이 직접 세워주시도록 기도해요." },
-  { verse: "보라 형제가 연합하여 동거함이 어찌 그리 선하고 아름다운고", ref: "시편 133:1", note: "온양 청소년부가 함께 모여 예배하고 웃는 모습이 하나님 보시기에 가장 아름답습니다." },
-  { verse: "내가 주께 감사하옴은 나를 지으심이 심히 기묘하심이라 주께서 하시는 일이 기이함을 내 영혼이 잘 아나이다", ref: "시편 139:14", note: "너는 우연히 태어난 존재가 아니라 하나님이 기묘하게 빚으신 특별한 작품입니다." },
-  { verse: "여호와께 감사하라 그는 선하시며 그 인자하심이 영원함이로다", ref: "시편 136:1", note: "영원히 변치 않는 하나님의 사랑에 감사하며 하루를 열어봅시다." },
-  { verse: "할렐루야 그의 성소에서 하나님을 찬양하며 그의 권능의 궁창에서 그를 찬양할지어다", ref: "시편 150:1", note: "호흡이 있는 동안 기쁨으로 하나님을 찬양하는 청소년이 됩시다!" },
-  { verse: "은혜와 진리는 예수 그리스도로 말미암아 온 것이라", ref: "요한복음 1:17", note: "예수님 안에서 넘치는 은혜와 진리를 누리는 하루가 되길 바랍니다." },
-  { verse: "내 양은 내 음성을 들으며 나는 그들을 알며 그들은 나를 따르느니라", ref: "요한복음 10:27", note: "세상의 시끄러운 소리보다 선한 목자 되신 예수님의 음성에 귀를 기울여 보세요." },
-  { verse: "평안을 너희에게 끼치노니 곧 나의 평안을 너희에게 주노라 내가 너희에게 주는 것은 세상이 주는 것과 같지 아니하니라", ref: "요한복음 14:27", note: "마음에 근심하지도 말고 두려워하지도 마세요. 주님의 평안이 함께합니다." },
-  { verse: "너희가 내 안에 거하고 내 말이 너희 안에 거하면 무엇이든지 원하는 대로 구하라 그리하면 이루리라", ref: "요한복음 15:7", note: "말씀 안에 거하며 드리는 기도는 반드시 열매를 맺습니다." },
-  { verse: "너희가 서로 사랑하면 이로써 모든 사람이 너희가 내 제자인 줄 알리라", ref: "요한복음 13:35", note: "우리가 서로 아끼고 사랑하는 모습을 통해 세상이 예수님을 보게 됩니다." },
-  { verse: "항상 선을 따르라", ref: "데살로니가전서 5:15", note: "어떤 상황에서도 선한 편을 선택하는 용기 있는 청소년이 됩시다." },
-  { verse: "여호와 너의 하나님이 너의 가운데에 계시니 그는 구원을 베푸실 전능자이시라 그가 너로 말미암아 기쁨을 이기지 못하시며", ref: "스바냐 3:17", note: "하나님은 너를 바라보실 때마다 기쁨을 이기지 못하실 만큼 너를 사랑하십니다!" },
-  { verse: "오직 정의를 행하며 인자를 사랑하며 겸손하게 네 하나님과 함께 행하는 것이 아니냐", ref: "미가 6:8", note: "정의롭고 따뜻하며 겸손하게 하나님과 동행하는 멋진 하루가 되길 기도합니다." },
-  { verse: "비록 무화과나무가 무성하지 못하며 포도나무에 열매가 없으며... 나는 여호와로 말미암아 즐거워하며 나의 구원의 하나님으로 말미암아 기뻐하리로다", ref: "하박국 3:17-18", note: "상황과 조건 때문이 아니라 구원의 하나님 한 분 때문에 기뻐하는 믿음을 구해요." },
-  { verse: "이는 힘으로 되지 아니하며 능력으로 되지 아니하고 오직 나의 영으로 되느니라", ref: "스가랴 4:6", note: "내 힘이 부족하다고 느껴질 때 성령님의 도우심을 구하면 능히 감당합니다." },
-  { verse: "너희는 세상의 소금이니 소금이 만일 그 맛을 잃으면 무엇으로 짜게 하리요", ref: "마태복음 5:13", note: "내가 속한 학교와 반에서 꼭 필요한 선한 영향력을 발휘하는 소금이 되자!" },
-  { verse: "이같이 너희 빛이 사람 앞에 비치게 하여 그들로 너희 착한 행실을 보고 하늘에 계신 너희 아버지께 영광을 돌리게 하라", ref: "마태복음 5:16", note: "우리의 착한 행실과 밝은 미소가 하나님께 큰 영광이 됩니다." },
-  { verse: "너희도 성령 안에서 하나님이 거하실 처소가 되기 위하여 그리스도 예수 안에서 함께 지어져 가느니라", ref: "에베소서 2:22", note: "오늘도 그리스도 안에서 서로를 세워주며 함께 지어져 가는 온양 청소년부가 됩시다!" }
+  { verse: "사랑하는 자들아 우리가 서로 사랑하자 사랑은 하나님께 속한 것이니", ref: "요한일서 4:7", note: "먼저 다가가 인사하고 웃어주는 작은 사랑이 공동체를 살립니다." }
 ];
 
 // ==========================================
-// 4. 면류관 만들기(합체 퍼즐) 9단계 설정
+// 5. 면류관 만들기(합체 퍼즐) 9단계 설정
 // ==========================================
 const MERGE_LEVELS = [
   { level: 0, name: '겨자씨', emoji: '🌱', radius: 17, color: '#dcfce7', border: '#16a34a', score: 10 },
@@ -294,12 +293,27 @@ const INITIAL_PUBLIC_DATA = {
     { week: '5주차', date: '11월 29일', title: '대림절 준비 기도회', desc: '성탄을 기다리며 이웃 사랑을 나누는 기도 시간' }
   ],
   worshipOrder: {
+    weekKey: '',
     thisWeek: { date: '이번 주일', prayer: '안소윤 (고1)', scripture: '이주원 (중2)', passage: '에베소서 2:19-22' },
     nextWeek: { date: '다음 주일', prayer: '송하준 (고2)', scripture: '강사무엘 (중3)', passage: '창세기 1:26-31' }
   },
   photos: [
-    { id: 1, title: '가을 야외 예배 및 바비큐 파티', date: '2026.10.18', url: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=800&q=80', desc: '맑은 가을 하늘 아래 함께 웃고 뛰며 교제했던 행복한 시간이었습니다.' },
-    { id: 2, title: '찬양팀 특별 연습 현장', date: '2026.11.07', url: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=800&q=80', desc: '주일 예배를 사모하며 기도로 준비하는 청소년부 찬양팀!' }
+    {
+      id: 1,
+      title: '가을 야외 예배 및 바비큐 파티',
+      date: '2026.10.18',
+      url: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=800&q=80',
+      urls: ['https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=800&q=80'],
+      desc: '맑은 가을 하늘 아래 함께 웃고 뛰며 교제했던 행복한 시간이었습니다.'
+    },
+    {
+      id: 2,
+      title: '찬양팀 특별 연습 현장',
+      date: '2026.11.07',
+      url: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=800&q=80',
+      urls: ['https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=800&q=80'],
+      desc: '주일 예배를 사모하며 기도로 준비하는 청소년부 찬양팀!'
+    }
   ],
   quiz: {
     title: '지난 주일 설교 말씀 퀴즈',
@@ -318,9 +332,9 @@ const INITIAL_PUBLIC_DATA = {
     ],
     completers: []
   },
-  gameRanking: [],   // 1. 면류관 만들기 랭킹
-  doveRanking: [],   // 2. 성령의 비둘기 랭킹
-  babelRanking: [],  // 3. 바벨탑 쌓기 랭킹
+  gameRanking: [],
+  doveRanking: [],
+  babelRanking: [],
   luckyEvent: {
     active: false,
     prizeName: '빙그레 바나나우유 🍌',
@@ -330,30 +344,33 @@ const INITIAL_PUBLIC_DATA = {
   },
   monthlyBirthdays: {
     month: 11,
-    list: [
-      { grade: '중2', name: '허윤슬', birth: '11.23' },
-      { grade: '중2', name: '허슬아', birth: '11.23' },
-      { grade: '중3', name: '강사무엘', birth: '11.1' },
-      { grade: '고3', name: '이유빈', birth: '11.4' }
-    ]
+    list: []
   }
 };
 
 const INITIAL_PRIVATE_DATA = {
   classes: {
-    m1: { id: 'm1', grade: '중1', teacher: '김은혜 선생님', students: [] },
-    m2: { id: 'm2', grade: '중2', teacher: '박준영 선생님', students: [] },
-    m3: { id: 'm3', grade: '중3', teacher: '이수진 선생님', students: [] },
-    h1: { id: 'h1', grade: '고1', teacher: '정성훈 선생님', students: [] },
-    h2: { id: 'h2', grade: '고2', teacher: '최지민 선생님', students: [] },
-    h3: { id: 'h3', grade: '고3', teacher: '윤태호 선생님', students: [] }
+    m1: { id: 'm1', grade: '중1', teacher: '담당 선생님', students: [] },
+    m2: { id: 'm2', grade: '중2', teacher: '담당 선생님', students: [] },
+    m3: { id: 'm3', grade: '중3', teacher: '담당 선생님', students: [] },
+    h1: { id: 'h1', grade: '고1', teacher: '담당 선생님', students: [] },
+    h2: { id: 'h2', grade: '고2', teacher: '담당 선생님', students: [] },
+    h3: { id: 'h3', grade: '고3', teacher: '담당 선생님', students: [] }
   },
   attendanceRecords: {}
 };
 
+// ==========================================
+// 6. 날짜 및 주간 기준 유틸리티 함수
+// ==========================================
 const getTodayStr = () => {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+};
+
+const getFormattedDateDot = () => {
+  const now = new Date();
+  return `${now.getFullYear()}. ${String(now.getMonth() + 1).padStart(2, '0')}. ${String(now.getDate()).padStart(2, '0')}`;
 };
 
 const getNowTimeStr = () => {
@@ -363,8 +380,17 @@ const getNowTimeStr = () => {
 
 const getLatestSundayStr = () => {
   const now = new Date();
-  const sun = new Date(now.setDate(now.getDate() - now.getDay()));
+  const sun = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
   return `${sun.getFullYear()}-${String(sun.getMonth() + 1).padStart(2, '0')}-${String(sun.getDate()).padStart(2, '0')}`;
+};
+
+// 매주 월요일 00:00 기준으로 바뀌는 주간 키 (예: "2026-11-23")
+const getMondayWeekKey = () => {
+  const now = new Date();
+  const day = now.getDay(); // 0(일) ~ 6(토)
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diffToMonday);
+  return `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, '0')}-${String(monday.getDate()).padStart(2, '0')}`;
 };
 
 const extractCurrentMonthBirthdays = (classesObj) => {
@@ -398,7 +424,183 @@ const extractCurrentMonthBirthdays = (classesObj) => {
 };
 
 // ==========================================
-// 5. 절기별 낙하 이펙트 오버레이
+// 7. 전체화면 감성 말씀카드 (터치 지점 수면 개방 전환 효과)
+// ==========================================
+function FullscreenVerseCard({ verseObj, onClose, onHideToday }) {
+  const overlayRef = useRef(null);
+  const rippleLayerRef = useRef(null);
+  const isClosingRef = useRef(false);
+  const animIdRef = useRef(null);
+
+  const dayTheme = useMemo(() => {
+    const idx = new Date().getDay();
+    return VERSE_CARD_BACKGROUNDS[idx % VERSE_CARD_BACKGROUNDS.length];
+  }, []);
+
+  const formattedLines = useMemo(() => {
+    return formatKoreanVerseLines(verseObj?.verse || '');
+  }, [verseObj]);
+
+  useEffect(() => {
+    return () => {
+      if (animIdRef.current) cancelAnimationFrame(animIdRef.current);
+    };
+  }, []);
+
+  const handleCardTap = (e) => {
+    if (isClosingRef.current) return;
+    isClosingRef.current = true;
+
+    const overlayEl = overlayRef.current;
+    const rippleEl = rippleLayerRef.current;
+    if (!overlayEl) {
+      onClose();
+      return;
+    }
+
+    const rect = overlayEl.getBoundingClientRect();
+    const clientX = e.touches && e.touches.length > 0 ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches && e.touches.length > 0 ? e.touches[0].clientY : e.clientY;
+    const x = (typeof clientX === 'number' ? clientX : rect.left + rect.width / 2) - rect.left;
+    const y = (typeof clientY === 'number' ? clientY : rect.top + rect.height / 2) - rect.top;
+
+    // 선/테두리 일그러짐 없이 터치 좌표에서 부드럽게 퍼지는 빛의 물결 고리
+    if (rippleEl) {
+      const glowRing = document.createElement('div');
+      glowRing.style.cssText = `
+        position: absolute;
+        left: ${x}px;
+        top: ${y}px;
+        width: 420px;
+        height: 420px;
+        border-radius: 9999px;
+        background: radial-gradient(circle, rgba(255,255,255,0) 42%, rgba(255,255,255,0.28) 54%, rgba(255,255,255,0) 68%);
+        animation: softWaterRing 1.25s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      `;
+      rippleEl.appendChild(glowRing);
+    }
+
+    const maxRadius = Math.hypot(
+      Math.max(x, rect.width - x),
+      Math.max(y, rect.height - y)
+    ) + 150;
+
+    const duration = 1350;
+    const startTime = performance.now();
+
+    const animateReveal = (now) => {
+      const elapsed = now - startTime;
+      const t = Math.min(1, elapsed / duration);
+      const ease = -(Math.cos(Math.PI * t) - 1) / 2;
+
+      const currentRadius = ease * maxRadius;
+      const feather = 140;
+      const innerStop = Math.max(0, currentRadius - feather);
+      const outerStop = currentRadius + feather * 0.45;
+
+      const maskGrad = `radial-gradient(circle at ${x}px ${y}px, rgba(0,0,0,0) ${innerStop}px, rgba(0,0,0,0.45) ${(innerStop + outerStop) / 2}px, rgba(0,0,0,1) ${outerStop}px)`;
+      overlayEl.style.maskImage = maskGrad;
+      overlayEl.style.webkitMaskImage = maskGrad;
+
+      if (t < 1) {
+        animIdRef.current = requestAnimationFrame(animateReveal);
+      } else {
+        onClose();
+      }
+    };
+
+    animIdRef.current = requestAnimationFrame(animateReveal);
+  };
+
+  const handleHideClick = (e) => {
+    e.stopPropagation();
+    if (isClosingRef.current) return;
+    isClosingRef.current = true;
+    if (overlayRef.current) {
+      overlayRef.current.classList.add('verse-card-dissolving');
+    }
+    setTimeout(() => {
+      onHideToday();
+    }, 550);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-center pointer-events-none">
+      <div className="w-full max-w-md h-full relative overflow-hidden pointer-events-auto">
+        <div
+          ref={overlayRef}
+          onClick={handleCardTap}
+          className="verse-card-layer absolute inset-0 cursor-pointer overflow-hidden flex flex-col justify-between p-6 text-white select-none"
+        >
+          {/* 배경 사진 & 폴백 그라데이션 */}
+          <div
+            className="absolute inset-0 -z-20"
+            style={{ background: dayTheme.grad }}
+          />
+          <img
+            src={dayTheme.img}
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover -z-10"
+          />
+          <div
+            className="absolute inset-0 -z-10"
+            style={{
+              background:
+                'radial-gradient(circle at 50% 42%, rgba(0,0,0,0.24) 0%, rgba(0,0,0,0.52) 68%, rgba(0,0,0,0.78) 100%)'
+            }}
+          />
+
+          {/* 상단 날짜 & 교회 표기 */}
+          <div className="relative z-10 flex items-center justify-between text-[11px] text-white/75 tracking-wide pt-1">
+            <span>{getFormattedDateDot()}</span>
+            <span>온양장로교회 청소년부</span>
+          </div>
+
+          {/* 중앙 캘리그라피 말씀 구절 + 장절 + 짧은 묵상글 */}
+          <div className="relative z-10 flex flex-col items-center text-center px-2 my-auto">
+            <div className="font-verse text-[17px] leading-[1.95] tracking-[-0.01em] text-white/95 drop-shadow-[0_2px_10px_rgba(0,0,0,0.4)] space-y-0.5">
+              {formattedLines.map((line, i) => (
+                <p key={i}>{line}</p>
+              ))}
+            </div>
+
+            <div className="w-6 h-[1px] bg-white/40 my-4" />
+
+            <p className="font-verse text-[13px] text-white/85 tracking-wider">
+              — {verseObj?.ref}
+            </p>
+
+            {/* 짧은 묵상글 반투명 유리 박스 */}
+            {verseObj?.note && (
+              <div className="mt-6 w-full max-w-[300px] px-4 py-3.5 rounded-2xl bg-black/25 backdrop-blur-md border border-white/15 shadow-lg">
+                <p className="text-[12.5px] leading-[1.65] text-white/90 font-normal break-keep">
+                  {verseObj.note}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* 하단 오늘 하루 보지 않기 */}
+          <div className="relative z-10 flex justify-center pb-2">
+            <button
+              type="button"
+              onClick={handleHideClick}
+              className="px-4 py-1.5 rounded-full text-[11px] text-white/80 hover:text-white bg-black/25 hover:bg-black/45 border border-white/20 backdrop-blur-xs transition"
+            >
+              오늘 하루 보지 않기
+            </button>
+          </div>
+        </div>
+
+        {/* 물결 빛 번짐 레이어 */}
+        <div ref={rippleLayerRef} className="pointer-events-none absolute inset-0 z-10 overflow-hidden" />
+      </div>
+    </div>
+  );
+}
+
+// ==========================================
+// 8. 절기별 낙하 이펙트 오버레이
 // ==========================================
 function SeasonEffectOverlay({ type }) {
   const particles = useMemo(() => {
@@ -453,7 +655,7 @@ function SeasonEffectOverlay({ type }) {
 }
 
 // ==========================================
-// 6-A. 게임 1: 👑 면류관 만들기 (위험선 게임 오버 판정 강화판)
+// 9-A. 게임 1: 👑 면류관 만들기
 // ==========================================
 function MergePuzzleGame({ rankings, onSaveScore }) {
   const canvasRef = useRef(null);
@@ -628,8 +830,6 @@ function MergePuzzleGame({ rankings, onSaveScore }) {
           state.balls = state.balls.filter((b) => !mergedIds.has(b.id)).concat(newBalls);
         }
 
-        // 위험선(DANGER_Y) 접촉 시 확실한 게임 오버 판정:
-        // 드롭 후 0.7초(42프레임) 경과한 공의 윗부분이 빨간 점선(y <= 82)에 닿으면 누적 카운트가 올라가고 0.4초(24프레임) 도달 시 즉시 종료
         for (let b of state.balls) {
           if (b.age > 42 && b.y - b.r <= DANGER_Y) {
             b.dangerFrames = (b.dangerFrames || 0) + 1;
@@ -861,7 +1061,7 @@ function MergePuzzleGame({ rankings, onSaveScore }) {
 }
 
 // ==========================================
-// 6-B. 게임 2: 🕊️ 성령의 비둘기 비행 (완만 가속 + 하단 전용 패드)
+// 9-B. 게임 2: 🕊️ 성령의 비둘기 비행
 // ==========================================
 function DoveFlightGame({ rankings, onSaveScore }) {
   const canvasRef = useRef(null);
@@ -1212,7 +1412,7 @@ function DoveFlightGame({ rankings, onSaveScore }) {
 }
 
 // ==========================================
-// 6-C. 게임 3: 🗼 바벨탑 쌓기 (더블 터치 중복 입력 완벽 차단판)
+// 9-C. 게임 3: 🗼 바벨탑 쌓기
 // ==========================================
 const TOWER_COLORS = ['#fbbf24', '#f59e0b', '#10b981', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899'];
 
@@ -1275,7 +1475,6 @@ function BabelTowerGame({ rankings, onSaveScore }) {
     if (e.cancelable) e.preventDefault();
     e.stopPropagation();
 
-    // 모바일 터치 직후 발생하는 합성 마우스 이벤트 및 0.22초 이내 연속 중복 클릭 완벽 차단
     const now = Date.now();
     if (now - lastDropTimeRef.current < 220) return;
     lastDropTimeRef.current = now;
@@ -1286,7 +1485,6 @@ function BabelTowerGame({ rankings, onSaveScore }) {
     const prev = st.stack[st.stack.length - 1];
     const cur = st.cur;
 
-    // 1. 오차 10px 이내면 PERFECT! (절대 잘리지 않고 이전 블록과 정확히 일치)
     if (Math.abs(cur.x - prev.x) <= 10) {
       cur.x = prev.x;
       cur.w = prev.w;
@@ -1303,7 +1501,6 @@ function BabelTowerGame({ rankings, onSaveScore }) {
       st.flashText = `PERFECT! ×${st.combo}`;
       st.flashTimer = 34;
     } else {
-      // 2. 실제 겹치는 구간만 남기고 잘린 조각 떨어뜨리기
       st.combo = 0;
       setCombo(0);
 
@@ -1560,7 +1757,7 @@ function BabelTowerGame({ rankings, onSaveScore }) {
 }
 
 // ==========================================
-// 6-D. 게임 3종 통합 컨테이너 화면 (면류관 만들기 · 성령의 비둘기 · 바벨탑 쌓기)
+// 9-D. 게임 3종 통합 컨테이너 화면
 // ==========================================
 function MiniGameCenter({
   crownRankings,
@@ -1576,15 +1773,18 @@ function MiniGameCenter({
   return (
     <div className="space-y-3.5">
       <div className="flex items-center justify-between">
-        <button onClick={onBack} className="flex items-center gap-1 text-xs font-bold text-slate-600 bg-white/85 px-3 py-1.5 rounded-full">
-          <ChevronLeft className="w-4 h-4" /> 홈으로
+        <button
+          onClick={onBack}
+          aria-label="뒤로 가기"
+          className="w-8 h-8 rounded-full bg-white/90 text-slate-700 flex items-center justify-center shadow-2xs hover:bg-white transition"
+        >
+          <ChevronLeft className="w-4 h-4" />
         </button>
         <span className="text-xs font-extrabold text-indigo-700 bg-white/90 px-3 py-1 rounded-full">
           청소년부 미니게임존 🎮
         </span>
       </div>
 
-      {/* 게임 3종 전환 탭 */}
       <div className="grid grid-cols-3 gap-1.5 bg-white/85 backdrop-blur-md p-1.5 rounded-2xl border border-white shadow-2xs">
         <button
           onClick={() => setSelectedGame('crown')}
@@ -1632,7 +1832,7 @@ function MiniGameCenter({
 }
 
 // ==========================================
-// 7. 메인 애플리케이션
+// 10. 메인 애플리케이션
 // ==========================================
 export default function App() {
   const [publicData, setPublicData] = useState(INITIAL_PUBLIC_DATA);
@@ -1640,7 +1840,7 @@ export default function App() {
 
   const [isLoaded, setIsLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState('home');
-  const [showVersePopup, setShowVersePopup] = useState(false);
+  const [showVerseCard, setShowVerseCard] = useState(false);
 
   const [showLuckyWinPopup, setShowLuckyWinPopup] = useState(false);
   const [luckyWinnerInput, setLuckyWinnerInput] = useState('');
@@ -1667,55 +1867,195 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState(getLatestSundayStr());
 
   const [newStudent, setNewStudent] = useState({ name: '', birth: '', phone: '' });
+  const [editingStudentId, setEditingStudentId] = useState(null);
+  const [editStudentForm, setEditStudentForm] = useState({ name: '', birth: '', phone: '' });
   const [editingTeacher, setEditingTeacher] = useState(false);
   const [teacherNameInput, setTeacherNameInput] = useState('');
 
+  // 사진첩 다중 파일 업로드 & 상세 슬라이드 상태
   const [photoTitle, setPhotoTitle] = useState('');
   const [photoDesc, setPhotoDesc] = useState('');
-  const [photoFile, setPhotoFile] = useState(null);
+  const [photoFiles, setPhotoFiles] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState(null);
+  const [selectedPhotoIdx, setSelectedPhotoIdx] = useState(0);
 
+  // 학생용 퀴즈 참여 상태
   const [quizStudentName, setQuizStudentName] = useState('');
   const [quizAnswers, setQuizAnswers] = useState({});
   const [quizSubmitted, setQuizSubmitted] = useState(false);
 
+  // 관리자용 다중 문제 출제 상태
   const [newQuizTitle, setNewQuizTitle] = useState('');
   const [newQuizPassage, setNewQuizPassage] = useState('');
-  const [newQuizQ, setNewQuizQ] = useState('');
-  const [newQuizOpts, setNewQuizOpts] = useState(['', '', '', '']);
-  const [newQuizAns, setNewQuizAns] = useState(0);
+  const [draftQuestions, setDraftQuestions] = useState([
+    { q: '', options: ['', '', '', ''], answer: 0 }
+  ]);
+
+  // 스와이프 뒤로 가기 제스처용 터치 시작 좌표
+  const touchStartRef = useRef({ x: 0, y: 0, active: false });
+
+  // ==========================================
+  // 뒤로 가기 공통 핸들러 (스와이프 + 안드로이드 물리/제스처 버튼 연동)
+  // ==========================================
+  const handleGoBack = () => {
+    if (selectedPhoto) {
+      setSelectedPhoto(null);
+      return;
+    }
+    if (pinModalRole) {
+      setPinModalRole(null);
+      setPinInput('');
+      setPinError(false);
+      return;
+    }
+    if (activeTab === 'admin' && selectedClassId) {
+      setSelectedClassId(null);
+      setEditingStudentId(null);
+      return;
+    }
+    if (activeTab !== 'home') {
+      setActiveTab('home');
+      setSelectedClassId(null);
+      setIsEditingPraise(false);
+      setIsEditingOrder(false);
+      setIsEditingCalendar(false);
+    }
+  };
+
+  // 안드로이드 기기 뒤로 가기 버튼 연동 (History API)
+  useEffect(() => {
+    if (activeTab !== 'home' || selectedClassId || selectedPhoto) {
+      window.history.pushState({ view: activeTab, cls: selectedClassId, photo: !!selectedPhoto }, '');
+    }
+  }, [activeTab, selectedClassId, selectedPhoto]);
 
   useEffect(() => {
-    const unsubscribe = onSnapshot(PUBLIC_DOC_REF, async (snapshot) => {
-      if (snapshot.exists()) {
-        const raw = snapshot.data();
-        const mergedLucky = raw.luckyEvent ?? INITIAL_PUBLIC_DATA.luckyEvent;
-        setPublicData((prev) => ({
-          ...prev,
-          season: raw.season ?? prev.season,
-          praises: raw.praises ?? prev.praises,
-          calendar: raw.calendar ?? prev.calendar,
-          worshipOrder: raw.worshipOrder ?? prev.worshipOrder,
-          photos: raw.photos ?? prev.photos,
-          quiz: raw.quiz ?? prev.quiz,
-          gameRanking: raw.gameRanking ?? prev.gameRanking,
-          doveRanking: raw.doveRanking ?? prev.doveRanking,
-          babelRanking: raw.babelRanking ?? prev.babelRanking,
-          luckyEvent: mergedLucky,
-          monthlyBirthdays: raw.monthlyBirthdays ?? prev.monthlyBirthdays
-        }));
-        setEventPrizeInput(mergedLucky.prizeName || '빙그레 바나나우유 🍌');
-        setEventMaxInput(mergedLucky.maxWinners || 3);
-        setEventChanceInput(mergedLucky.winChance || 20);
-      } else {
-        await setDoc(PUBLIC_DOC_REF, INITIAL_PUBLIC_DATA);
+    const onPopState = () => {
+      if (selectedPhoto) {
+        setSelectedPhoto(null);
+      } else if (activeTab === 'admin' && selectedClassId) {
+        setSelectedClassId(null);
+        setEditingStudentId(null);
+      } else if (activeTab !== 'home') {
+        setActiveTab('home');
+        setIsEditingPraise(false);
+        setIsEditingOrder(false);
+        setIsEditingCalendar(false);
       }
-      setIsLoaded(true);
-    }, (error) => {
-      console.error("공개 데이터 연결 오류:", error);
-      setIsLoaded(true);
-    });
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, [activeTab, selectedClassId, selectedPhoto]);
+
+  // 아이폰식 좌 -> 우 엣지 스와이프 뒤로 가기 핸들러
+  const handleEdgeTouchStart = (e) => {
+    if (activeTab === 'home' || activeTab === 'game') return;
+    const t = e.touches?.[0];
+    if (!t) return;
+    if (t.clientX <= 42) {
+      touchStartRef.current = { x: t.clientX, y: t.clientY, active: true };
+    } else {
+      touchStartRef.current.active = false;
+    }
+  };
+
+  const handleEdgeTouchEnd = (e) => {
+    if (!touchStartRef.current.active) return;
+    const t = e.changedTouches?.[0];
+    if (!t) return;
+    const dx = t.clientX - touchStartRef.current.x;
+    const dy = Math.abs(t.clientY - touchStartRef.current.y);
+    touchStartRef.current.active = false;
+
+    if (dx > 75 && dy < 60) {
+      handleGoBack();
+    }
+  };
+
+  // ==========================================
+  // Firebase 실시간 구독 + 데이터 자동 초기화 완벽 차단
+  // ==========================================
+  useEffect(() => {
+    let isFirstCheckDone = false;
+
+    const unsubscribe = onSnapshot(
+      PUBLIC_DOC_REF,
+      async (snapshot) => {
+        if (snapshot.exists()) {
+          const raw = snapshot.data();
+          const mergedLucky = raw.luckyEvent ?? INITIAL_PUBLIC_DATA.luckyEvent;
+
+          // 주간 예배 섬김이 자동 이월 체크 (매주 월요일 00:00 기준)
+          let orderData = raw.worshipOrder ?? INITIAL_PUBLIC_DATA.worshipOrder;
+          const currentWeekKey = getMondayWeekKey();
+
+          if (orderData.weekKey && orderData.weekKey !== currentWeekKey) {
+            const promotedOrder = {
+              weekKey: currentWeekKey,
+              thisWeek: {
+                date: '이번 주일',
+                prayer: orderData.nextWeek?.prayer || '미정',
+                scripture: orderData.nextWeek?.scripture || '미정',
+                passage: orderData.nextWeek?.passage || '주일 예배 본문'
+              },
+              nextWeek: {
+                date: '다음 주일',
+                prayer: '미정 (입력 필요)',
+                scripture: '미정 (입력 필요)',
+                passage: '본문 미정'
+              }
+            };
+            orderData = promotedOrder;
+            setDoc(PUBLIC_DOC_REF, { worshipOrder: promotedOrder }, { merge: true }).catch(() => {});
+          } else if (!orderData.weekKey) {
+            orderData = { ...orderData, weekKey: currentWeekKey };
+            setDoc(PUBLIC_DOC_REF, { worshipOrder: orderData }, { merge: true }).catch(() => {});
+          }
+
+          setPublicData((prev) => ({
+            ...prev,
+            season: raw.season ?? prev.season,
+            praises: raw.praises ?? prev.praises,
+            calendar: raw.calendar ?? prev.calendar,
+            worshipOrder: orderData,
+            photos: raw.photos ?? prev.photos,
+            quiz: raw.quiz ?? prev.quiz,
+            gameRanking: raw.gameRanking ?? prev.gameRanking,
+            doveRanking: raw.doveRanking ?? prev.doveRanking,
+            babelRanking: raw.babelRanking ?? prev.babelRanking,
+            luckyEvent: mergedLucky,
+            monthlyBirthdays: raw.monthlyBirthdays ?? prev.monthlyBirthdays
+          }));
+          setEventPrizeInput(mergedLucky.prizeName || '빙그레 바나나우유 🍌');
+          setEventMaxInput(mergedLucky.maxWinners || 3);
+          setEventChanceInput(mergedLucky.winChance || 20);
+        } else if (!isFirstCheckDone) {
+          // 네트워크 지연이나 캐시 미스로 인한 오인 덮어쓰기 차단: getDoc으로 서버 이중 확인 후 진짜 비어있을 때만 초기화
+          isFirstCheckDone = true;
+          try {
+            const verifySnap = await getDoc(PUBLIC_DOC_REF);
+            if (!verifySnap.exists()) {
+              const initWithWeek = {
+                ...INITIAL_PUBLIC_DATA,
+                worshipOrder: {
+                  ...INITIAL_PUBLIC_DATA.worshipOrder,
+                  weekKey: getMondayWeekKey()
+                }
+              };
+              await setDoc(PUBLIC_DOC_REF, initWithWeek);
+            }
+          } catch (verifyErr) {
+            console.error("서버 초기 문서 확인 보류:", verifyErr);
+          }
+        }
+        setIsLoaded(true);
+      },
+      (error) => {
+        console.error("공개 데이터 연결 오류:", error);
+        setIsLoaded(true);
+      }
+    );
     return () => unsubscribe();
   }, []);
 
@@ -1745,23 +2085,28 @@ export default function App() {
     if (!authRoles.admin) return;
 
     const unsubscribePrivate = onSnapshot(PRIVATE_DOC_REF, async (snapshot) => {
-      let currentPriv = INITIAL_PRIVATE_DATA;
       if (snapshot.exists()) {
-        currentPriv = { ...INITIAL_PRIVATE_DATA, ...snapshot.data() };
+        const currentPriv = { ...INITIAL_PRIVATE_DATA, ...snapshot.data() };
         setPrivateData(currentPriv);
+        const extractedBdays = extractCurrentMonthBirthdays(currentPriv.classes);
+        await setDoc(PUBLIC_DOC_REF, { monthlyBirthdays: extractedBdays }, { merge: true });
       } else {
-        const legacySnap = await getDoc(PUBLIC_DOC_REF);
-        const legacy = legacySnap.exists() ? legacySnap.data() : {};
-        currentPriv = {
-          classes: legacy.classes || INITIAL_PRIVATE_DATA.classes,
-          attendanceRecords: legacy.attendanceRecords || {}
-        };
-        await setDoc(PRIVATE_DOC_REF, currentPriv);
-        setPrivateData(currentPriv);
+        try {
+          const verifyPriv = await getDoc(PRIVATE_DOC_REF);
+          if (!verifyPriv.exists()) {
+            const legacySnap = await getDoc(PUBLIC_DOC_REF);
+            const legacy = legacySnap.exists() ? legacySnap.data() : {};
+            const initialPriv = {
+              classes: legacy.classes || INITIAL_PRIVATE_DATA.classes,
+              attendanceRecords: legacy.attendanceRecords || {}
+            };
+            await setDoc(PRIVATE_DOC_REF, initialPriv);
+            setPrivateData(initialPriv);
+          }
+        } catch (err) {
+          console.error("비공개 데이터 초기 확인 오류:", err);
+        }
       }
-
-      const extractedBdays = extractCurrentMonthBirthdays(currentPriv.classes);
-      await setDoc(PUBLIC_DOC_REF, { monthlyBirthdays: extractedBdays }, { merge: true });
     });
 
     return () => unsubscribePrivate();
@@ -1771,7 +2116,7 @@ export default function App() {
     const nextData = { ...publicData, ...updatedFields };
     setPublicData(nextData);
     try {
-      await setDoc(PUBLIC_DOC_REF, nextData, { merge: true });
+      await setDoc(PUBLIC_DOC_REF, updatedFields, { merge: true });
     } catch (err) {
       console.error("공개 데이터 저장 실패:", err);
       alert("저장에 실패했습니다. 인터넷 연결을 확인해 주세요.");
@@ -1783,7 +2128,7 @@ export default function App() {
     const nextData = { ...privateData, ...updatedFields };
     setPrivateData(nextData);
     try {
-      await setDoc(PRIVATE_DOC_REF, nextData, { merge: true });
+      await setDoc(PRIVATE_DOC_REF, updatedFields, { merge: true });
       if (updatedFields.classes) {
         const extractedBdays = extractCurrentMonthBirthdays(updatedFields.classes);
         await setDoc(PUBLIC_DOC_REF, { monthlyBirthdays: extractedBdays }, { merge: true });
@@ -1797,7 +2142,7 @@ export default function App() {
   useEffect(() => {
     const today = getTodayStr();
     if (localStorage.getItem('onyang_verse_hidden_date') !== today) {
-      setShowVersePopup(true);
+      setShowVerseCard(true);
     }
   }, []);
 
@@ -1810,7 +2155,7 @@ export default function App() {
 
   const hideVerseForToday = () => {
     localStorage.setItem('onyang_verse_hidden_date', getTodayStr());
-    setShowVersePopup(false);
+    setShowVerseCard(false);
   };
 
   const currentSeason = SEASONS[publicData.season] || SEASONS.creation;
@@ -1963,6 +2308,7 @@ export default function App() {
     syncPublicData({
       worshipOrder: {
         ...publicData.worshipOrder,
+        weekKey: publicData.worshipOrder.weekKey || getMondayWeekKey(),
         [weekKey]: { ...publicData.worshipOrder[weekKey], [field]: val }
       }
     });
@@ -2014,13 +2360,44 @@ export default function App() {
     setNewStudent({ name: '', birth: '', phone: '' });
   };
 
+  const startEditingStudent = (stu) => {
+    setEditingStudentId(stu.id);
+    setEditStudentForm({
+      name: stu.name,
+      birth: stu.birth === '-' ? '' : stu.birth,
+      phone: stu.phone === '-' ? '' : stu.phone
+    });
+  };
+
+  const handleSaveEditedStudent = (studentId) => {
+    if (!editStudentForm.name.trim() || !selectedClassId) return;
+    const targetClass = privateData.classes[selectedClassId];
+    const updatedStudents = targetClass.students.map((s) =>
+      s.id === studentId
+        ? {
+            ...s,
+            name: editStudentForm.name.trim(),
+            birth: editStudentForm.birth.trim() || '-',
+            phone: editStudentForm.phone.trim() || '-'
+          }
+        : s
+    );
+    syncPrivateData({
+      classes: {
+        ...privateData.classes,
+        [selectedClassId]: { ...targetClass, students: updatedStudents }
+      }
+    });
+    setEditingStudentId(null);
+  };
+
   const handleDeleteStudent = (studentId) => {
     if (!window.confirm("정말 이 학생을 명단에서 삭제하시겠습니까?")) return;
     const targetClass = privateData.classes[selectedClassId];
     syncPrivateData({
       classes: {
         ...privateData.classes,
-        [selectedClassId]: { ...targetClass, students: targetClass.students.filter(s => s.id !== studentId) }
+        [selectedClassId]: { ...targetClass, students: targetClass.students.filter((s) => s.id !== studentId) }
       }
     });
   };
@@ -2036,37 +2413,43 @@ export default function App() {
     setEditingTeacher(false);
   };
 
+  // 사진첩 여러 장 동시 업로드
   const handlePhotoUpload = async (e) => {
     e.preventDefault();
-    if (!photoTitle.trim() || !photoFile) {
-      alert("사진 제목과 이미지 파일을 모두 선택해 주세요.");
+    if (!photoTitle.trim() || photoFiles.length === 0) {
+      alert("사진 제목과 이미지 파일을 1장 이상 선택해 주세요.");
       return;
     }
     setIsUploading(true);
     try {
-      const formData = new FormData();
-      formData.append('file', photoFile);
-      formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+      const uploadedUrls = [];
+      for (const file of photoFiles) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
 
-      const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
-        method: 'POST',
-        body: formData
-      });
-      const result = await res.json();
-      if (!result.secure_url) throw new Error("업로드 응답 오류");
+        const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
+          method: 'POST',
+          body: formData
+        });
+        const result = await res.json();
+        if (!result.secure_url) throw new Error("업로드 응답 오류");
+        uploadedUrls.push(result.secure_url);
+      }
 
       const newPhoto = {
         id: Date.now(),
         title: photoTitle.trim(),
         date: getTodayStr().replace(/-/g, '.'),
-        url: result.secure_url,
+        url: uploadedUrls[0],
+        urls: uploadedUrls,
         desc: photoDesc.trim() || '함께 지어져 가는 온양장로교회 청소년부 활동 사진입니다.'
       };
       await syncPublicData({ photos: [newPhoto, ...publicData.photos] });
       setPhotoTitle('');
       setPhotoDesc('');
-      setPhotoFile(null);
-      alert("사진첩에 성공적으로 등록되었습니다!");
+      setPhotoFiles([]);
+      alert(`사진 ${uploadedUrls.length}장이 사진첩에 성공적으로 등록되었습니다!`);
     } catch (err) {
       console.error(err);
       alert("사진 업로드 중 오류가 발생했습니다. 다시 시도해 주세요.");
@@ -2090,31 +2473,88 @@ export default function App() {
     setQuizSubmitted(true);
   };
 
+  // 관리자 다중 문제 퀴즈 출제 핸들러
+  const handleAddDraftQuestion = () => {
+    setDraftQuestions((prev) => [...prev, { q: '', options: ['', '', '', ''], answer: 0 }]);
+  };
+
+  const handleRemoveDraftQuestion = (idx) => {
+    if (draftQuestions.length <= 1) return;
+    setDraftQuestions((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleUpdateDraftQuestion = (idx, field, val) => {
+    setDraftQuestions((prev) =>
+      prev.map((item, i) => (i === idx ? { ...item, [field]: val } : item))
+    );
+  };
+
+  const handleUpdateDraftOption = (qIdx, optIdx, val) => {
+    setDraftQuestions((prev) =>
+      prev.map((item, i) => {
+        if (i !== qIdx) return item;
+        const nextOpts = [...item.options];
+        nextOpts[optIdx] = val;
+        return { ...item, options: nextOpts };
+      })
+    );
+  };
+
   const handlePublishNewQuiz = (e) => {
     e.preventDefault();
-    if (!newQuizTitle.trim() || !newQuizQ.trim()) return;
+    if (!newQuizTitle.trim() || draftQuestions.some((dq) => !dq.q.trim())) {
+      alert("퀴즈 제목과 모든 문제의 질문을 입력해 주세요.");
+      return;
+    }
+    const formattedQuestions = draftQuestions.map((dq) => ({
+      q: dq.q.trim(),
+      options: dq.options.map((o, i) => o.trim() || `보기 ${i + 1}`),
+      answer: Number(dq.answer)
+    }));
+
     syncPublicData({
       quiz: {
         title: newQuizTitle.trim(),
         passage: newQuizPassage.trim() || '주일 설교 본문',
-        questions: [{
-          q: newQuizQ.trim(),
-          options: newQuizOpts.map((o, i) => o.trim() || `보기 ${i + 1}`),
-          answer: Number(newQuizAns)
-        }],
+        questions: formattedQuestions,
         completers: []
       }
     });
     setNewQuizTitle('');
     setNewQuizPassage('');
-    setNewQuizQ('');
-    setNewQuizOpts(['', '', '', '']);
-    alert("새 설교 퀴즈가 등록되었으며 완료자 명단이 초기화되었습니다!");
+    setDraftQuestions([{ q: '', options: ['', '', '', ''], answer: 0 }]);
+    alert(`총 ${formattedQuestions.length}문제의 새 설교 퀴즈가 등록되었으며 완료자 명단이 초기화되었습니다!`);
   };
 
+  // 당일(selectedDate) 기준 전체 출석 인원 실시간 합계 계산
+  const dailyAttendanceSummary = useMemo(() => {
+    const orderedClasses = CLASS_SEQUENTIAL_ORDER.map((id) => privateData.classes[id]).filter(Boolean);
+    const allStudents = orderedClasses.flatMap((c) => c.students);
+    const dayRec = privateData.attendanceRecords[selectedDate] || {};
+
+    let presentOnly = 0;
+    let secondOnly = 0;
+    let absentCount = 0;
+
+    allStudents.forEach((stu) => {
+      const st = dayRec[stu.id]?.status;
+      if (st === 'present') presentOnly++;
+      else if (st === 'second') secondOnly++;
+      else if (st === 'absent') absentCount++;
+    });
+
+    return {
+      totalStudents: allStudents.length,
+      totalAttended: presentOnly + secondOnly,
+      presentOnly,
+      secondOnly,
+      absentCount
+    };
+  }, [privateData.classes, privateData.attendanceRecords, selectedDate]);
+
   const statsSummary = useMemo(() => {
-    const orderedClasses = CLASS_SEQUENTIAL_ORDER.map(id => privateData.classes[id]).filter(Boolean);
-    const allStudents = orderedClasses.flatMap(c => c.students.map(s => ({ ...s, grade: c.grade })));
+    const orderedClasses = CLASS_SEQUENTIAL_ORDER.map((id) => privateData.classes[id]).filter(Boolean);
+    const allStudents = orderedClasses.flatMap((c) => c.students.map((s) => ({ ...s, grade: c.grade })));
     const totalCount = allStudents.length;
     const dates = Object.keys(privateData.attendanceRecords).sort();
     const currentYear = new Date().getFullYear().toString();
@@ -2124,23 +2564,23 @@ export default function App() {
 
     const monthlyRates = Array.from({ length: 12 }, (_, idx) => {
       const mStr = `${currentYear}-${String(idx + 1).padStart(2, '0')}`;
-      const mDates = dates.filter(d => d.startsWith(mStr));
+      const mDates = dates.filter((d) => d.startsWith(mStr));
       if (mDates.length === 0 || totalCount === 0) return { month: `${idx + 1}월`, rate: 0 };
       let presentSum = 0;
-      mDates.forEach(d => {
-        presentSum += Object.values(privateData.attendanceRecords[d] || {}).filter(r => isAttended(r.status)).length;
+      mDates.forEach((d) => {
+        presentSum += Object.values(privateData.attendanceRecords[d] || {}).filter((r) => isAttended(r.status)).length;
       });
       return { month: `${idx + 1}월`, rate: Math.round((presentSum / (mDates.length * totalCount)) * 100) };
     });
 
-    const thisMonthDates = dates.filter(d => d.startsWith(currentMonth));
+    const thisMonthDates = dates.filter((d) => d.startsWith(currentMonth));
     const targetDates = thisMonthDates.length > 0 ? thisMonthDates : dates;
 
     let thisMonthRate = 0;
     if (thisMonthDates.length > 0 && totalCount > 0) {
       let sum = 0;
-      thisMonthDates.forEach(d => {
-        sum += Object.values(privateData.attendanceRecords[d] || {}).filter(r => isAttended(r.status)).length;
+      thisMonthDates.forEach((d) => {
+        sum += Object.values(privateData.attendanceRecords[d] || {}).filter((r) => isAttended(r.status)).length;
       });
       thisMonthRate = Math.round((sum / (thisMonthDates.length * totalCount)) * 100);
     }
@@ -2161,9 +2601,10 @@ export default function App() {
     });
 
     const recentTwoDates = dates.slice(-2);
-    const consecutiveAbsentees = recentTwoDates.length === 2
-      ? allStudents.filter(stu => recentTwoDates.every(d => privateData.attendanceRecords[d]?.[stu.id]?.status === 'absent'))
-      : [];
+    const consecutiveAbsentees =
+      recentTwoDates.length === 2
+        ? allStudents.filter((stu) => recentTwoDates.every((d) => privateData.attendanceRecords[d]?.[stu.id]?.status === 'absent'))
+        : [];
 
     return {
       totalCount,
@@ -2176,15 +2617,15 @@ export default function App() {
   }, [privateData.classes, privateData.attendanceRecords]);
 
   const downloadCSV = () => {
-    const orderedClasses = CLASS_SEQUENTIAL_ORDER.map(id => privateData.classes[id]).filter(Boolean);
-    const allStudents = orderedClasses.flatMap(c => c.students.map(s => ({ ...s, grade: c.grade })));
+    const orderedClasses = CLASS_SEQUENTIAL_ORDER.map((id) => privateData.classes[id]).filter(Boolean);
+    const allStudents = orderedClasses.flatMap((c) => c.students.map((s) => ({ ...s, grade: c.grade })));
     const dates = Object.keys(privateData.attendanceRecords).sort();
     let csv = '\uFEFF학년,이름,생일,연락처,총 출석(2부포함),총 결석,출석률(%),' + dates.join(',') + '\n';
 
-    allStudents.forEach(stu => {
+    allStudents.forEach((stu) => {
       let attendedCount = 0;
       let absentCount = 0;
-      const dateCols = dates.map(d => {
+      const dateCols = dates.map((d) => {
         const rec = privateData.attendanceRecords[d]?.[stu.id];
         if (!rec || !rec.status) {
           return rec?.reason ? `메모(${rec.reason.replace(/,/g, ' ')})` : '-';
@@ -2239,9 +2680,42 @@ export default function App() {
   const luckyWinners = Array.isArray(luckyEv.winners) ? luckyEv.winners : [];
   const luckyRemaining = Math.max(0, (luckyEv.maxWinners || 0) - luckyWinners.length);
 
+  const selectedPhotoImages = selectedPhoto
+    ? (Array.isArray(selectedPhoto.urls) && selectedPhoto.urls.length > 0
+        ? selectedPhoto.urls
+        : [selectedPhoto.url])
+    : [];
+
   return (
-    <div className={`min-h-screen ${currentSeason.outerBg} transition-colors duration-700 flex justify-center relative`}>
+    <div
+      onTouchStart={handleEdgeTouchStart}
+      onTouchEnd={handleEdgeTouchEnd}
+      className={`min-h-screen ${currentSeason.outerBg} transition-colors duration-700 flex justify-center relative`}
+    >
       <style>{`
+        .font-verse {
+          font-family: 'Gowun Batang', 'Noto Serif KR', serif;
+          word-break: keep-all;
+        }
+        .verse-card-layer {
+          opacity: 1;
+          transition: opacity 0.55s ease-out;
+          will-change: mask-image, -webkit-mask-image, opacity;
+        }
+        .verse-card-dissolving {
+          opacity: 0;
+          pointer-events: none;
+        }
+        @keyframes softWaterRing {
+          0% {
+            transform: translate(-50%, -50%) scale(0.15);
+            opacity: 0.55;
+          }
+          100% {
+            transform: translate(-50%, -50%) scale(1);
+            opacity: 0;
+          }
+        }
         @keyframes marqueeScroll {
           0% { transform: translateX(0%); }
           100% { transform: translateX(-50%); }
@@ -2283,7 +2757,7 @@ export default function App() {
           </button>
 
           <button
-            onClick={() => setShowVersePopup(true)}
+            onClick={() => setShowVerseCard(true)}
             className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200/80 text-xs font-semibold hover:bg-amber-100 transition shrink-0"
           >
             <Sun className="w-3.5 h-3.5 text-amber-500" />
@@ -2493,7 +2967,7 @@ export default function App() {
               onSaveCrown={handleSaveCrownScore}
               onSaveDove={handleSaveDoveScore}
               onSaveBabel={handleSaveBabelScore}
-              onBack={() => setActiveTab('home')}
+              onBack={handleGoBack}
             />
           )}
 
@@ -2503,8 +2977,12 @@ export default function App() {
           {activeTab === 'praise' && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <button onClick={() => { setActiveTab('home'); setIsEditingPraise(false); }} className="flex items-center gap-1 text-xs font-bold text-slate-600 bg-white/85 px-3 py-1.5 rounded-full">
-                  <ChevronLeft className="w-4 h-4" /> 홈으로
+                <button
+                  onClick={handleGoBack}
+                  aria-label="뒤로 가기"
+                  className="w-8 h-8 rounded-full bg-white/90 text-slate-700 flex items-center justify-center shadow-2xs hover:bg-white transition"
+                >
+                  <ChevronLeft className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => {
@@ -2626,8 +3104,12 @@ export default function App() {
           {activeTab === 'calendar' && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <button onClick={() => { setActiveTab('home'); setIsEditingCalendar(false); }} className="flex items-center gap-1 text-xs font-bold text-slate-600 bg-white/85 px-3 py-1.5 rounded-full">
-                  <ChevronLeft className="w-4 h-4" /> 홈으로
+                <button
+                  onClick={handleGoBack}
+                  aria-label="뒤로 가기"
+                  className="w-8 h-8 rounded-full bg-white/90 text-slate-700 flex items-center justify-center shadow-2xs hover:bg-white transition"
+                >
+                  <ChevronLeft className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => {
@@ -2701,8 +3183,12 @@ export default function App() {
           {activeTab === 'order' && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <button onClick={() => { setActiveTab('home'); setIsEditingOrder(false); }} className="flex items-center gap-1 text-xs font-bold text-slate-600 bg-white/85 px-3 py-1.5 rounded-full">
-                  <ChevronLeft className="w-4 h-4" /> 홈으로
+                <button
+                  onClick={handleGoBack}
+                  aria-label="뒤로 가기"
+                  className="w-8 h-8 rounded-full bg-white/90 text-slate-700 flex items-center justify-center shadow-2xs hover:bg-white transition"
+                >
+                  <ChevronLeft className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => {
@@ -2721,6 +3207,7 @@ export default function App() {
 
               <div className="bg-white/90 backdrop-blur-md p-4 rounded-2xl border border-white/80">
                 <h2 className="text-xl font-extrabold text-slate-900">성경봉독 및 대표기도</h2>
+                <p className="text-[11px] text-slate-500 mt-0.5">매주 월요일이 되면 다음 주일 섬김이가 이번 주일로 자동 이동합니다.</p>
               </div>
 
               {['thisWeek', 'nextWeek'].map((wk) => {
@@ -2784,31 +3271,46 @@ export default function App() {
           )}
 
           {/* ========================================== */}
-          {/* 4. 사진첩 화면 */}
+          {/* 4. 사진첩 화면 (여러 장 앨범 지원) */}
           {/* ========================================== */}
           {activeTab === 'photo' && (
             <div className="space-y-4">
-              <button onClick={() => setActiveTab('home')} className="flex items-center gap-1 text-xs font-bold text-slate-600 bg-white/85 px-3 py-1.5 rounded-full">
-                <ChevronLeft className="w-4 h-4" /> 홈으로 돌아가기
+              <button
+                onClick={handleGoBack}
+                aria-label="뒤로 가기"
+                className="w-8 h-8 rounded-full bg-white/90 text-slate-700 flex items-center justify-center shadow-2xs hover:bg-white transition"
+              >
+                <ChevronLeft className="w-4 h-4" />
               </button>
               <div className="bg-white/90 backdrop-blur-md p-4 rounded-2xl border border-white/80">
                 <h2 className="text-xl font-extrabold text-slate-900">청소년부 사진첩</h2>
-                <p className="text-xs text-slate-500 mt-1">사진을 누르면 크게 볼 수 있습니다.</p>
+                <p className="text-xs text-slate-500 mt-1">사진을 누르면 크게 보고 여러 장을 넘겨볼 수 있습니다.</p>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                {publicData.photos.map((photo) => (
-                  <div
-                    key={photo.id}
-                    onClick={() => setSelectedPhoto(photo)}
-                    className="cursor-pointer rounded-2xl overflow-hidden border border-white/80 bg-white/95 shadow-sm hover:shadow-md transition"
-                  >
-                    <img src={photo.url} alt={photo.title} className="w-full h-32 object-cover" />
-                    <div className="p-2.5">
-                      <div className="text-xs font-bold text-slate-800 truncate">{photo.title}</div>
-                      <div className="text-[10px] text-slate-400 mt-0.5">{photo.date}</div>
+                {publicData.photos.map((photo) => {
+                  const count = Array.isArray(photo.urls) ? photo.urls.length : 1;
+                  return (
+                    <div
+                      key={photo.id}
+                      onClick={() => {
+                        setSelectedPhoto(photo);
+                        setSelectedPhotoIdx(0);
+                      }}
+                      className="cursor-pointer rounded-2xl overflow-hidden border border-white/80 bg-white/95 shadow-sm hover:shadow-md transition relative"
+                    >
+                      <img src={photo.url} alt={photo.title} className="w-full h-32 object-cover" />
+                      {count > 1 && (
+                        <span className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-black/65 text-white text-[10px] font-bold">
+                          +{count}장
+                        </span>
+                      )}
+                      <div className="p-2.5">
+                        <div className="text-xs font-bold text-slate-800 truncate">{photo.title}</div>
+                        <div className="text-[10px] text-slate-400 mt-0.5">{photo.date}</div>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -2818,8 +3320,12 @@ export default function App() {
           {/* ========================================== */}
           {activeTab === 'quiz' && (
             <div className="space-y-4">
-              <button onClick={() => setActiveTab('home')} className="flex items-center gap-1 text-xs font-bold text-slate-600 bg-white/85 px-3 py-1.5 rounded-full">
-                <ChevronLeft className="w-4 h-4" /> 홈으로 돌아가기
+              <button
+                onClick={handleGoBack}
+                aria-label="뒤로 가기"
+                className="w-8 h-8 rounded-full bg-white/90 text-slate-700 flex items-center justify-center shadow-2xs hover:bg-white transition"
+              >
+                <ChevronLeft className="w-4 h-4" />
               </button>
               <div className="p-4 rounded-2xl bg-slate-900 text-white">
                 <div className="text-xs text-amber-300 font-semibold">{publicData.quiz.passage}</div>
@@ -2906,13 +3412,14 @@ export default function App() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <button
-                  onClick={() => { setActiveTab('home'); setSelectedClassId(null); }}
-                  className="flex items-center gap-1 text-xs font-bold text-slate-600 bg-white/85 px-3 py-1.5 rounded-full"
+                  onClick={handleGoBack}
+                  aria-label="뒤로 가기"
+                  className="w-8 h-8 rounded-full bg-white/90 text-slate-700 flex items-center justify-center shadow-2xs hover:bg-white transition"
                 >
-                  <ChevronLeft className="w-4 h-4" /> 학생 화면으로
+                  <ChevronLeft className="w-4 h-4" />
                 </button>
                 <span className="text-[11px] font-bold text-emerald-700 bg-white/90 px-2.5 py-1 rounded-full flex items-center gap-1">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> 비공개 보안 금고 연결됨
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> 보안 페이지
                 </span>
               </div>
 
@@ -2925,7 +3432,7 @@ export default function App() {
                 ].map((t) => (
                   <button
                     key={t.id}
-                    onClick={() => { setAdminTab(t.id); setSelectedClassId(null); }}
+                    onClick={() => { setAdminTab(t.id); setSelectedClassId(null); setEditingStudentId(null); }}
                     className={`py-2 rounded-lg text-xs font-bold transition ${
                       adminTab === t.id ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600'
                     }`}
@@ -2935,18 +3442,47 @@ export default function App() {
                 ))}
               </div>
 
+              {/* 학년 선택 전 화면 (출석체크 & 명단관리 공통) */}
               {(adminTab === 'attendance' || adminTab === 'roster') && !selectedClassId && (
                 <div className="space-y-3">
                   {adminTab === 'attendance' && (
-                    <div className="p-3 rounded-xl bg-white/95 border border-white flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-800">출석 기준일 선택</span>
-                      <input
-                        type="date"
-                        value={selectedDate}
-                        onChange={(e) => setSelectedDate(e.target.value)}
-                        className="text-xs font-bold px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-800"
-                      />
-                    </div>
+                    <>
+                      <div className="p-3 rounded-xl bg-white/95 border border-white flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-800">출석 기준일 선택</span>
+                        <input
+                          type="date"
+                          value={selectedDate}
+                          onChange={(e) => setSelectedDate(e.target.value)}
+                          className="text-xs font-bold px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-800"
+                        />
+                      </div>
+
+                      {/* 당일 총 출석 인원 실시간 합계 요약 카드 */}
+                      <div className="p-3.5 rounded-2xl bg-slate-900 text-white shadow-sm space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-bold text-emerald-300">
+                            📊 {selectedDate} 전체 출석 합계
+                          </span>
+                          <span className="text-xs font-extrabold bg-emerald-500/20 text-emerald-200 px-2.5 py-0.5 rounded-full">
+                            총 출석 {dailyAttendanceSummary.totalAttended}명 / 재적 {dailyAttendanceSummary.totalStudents}명
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 pt-1 text-center">
+                          <div className="bg-white/10 rounded-xl py-1.5">
+                            <div className="text-[10px] text-slate-300">1부 출석</div>
+                            <div className="text-sm font-extrabold text-emerald-400">{dailyAttendanceSummary.presentOnly}명</div>
+                          </div>
+                          <div className="bg-white/10 rounded-xl py-1.5">
+                            <div className="text-[10px] text-slate-300">2부 예배</div>
+                            <div className="text-sm font-extrabold text-sky-400">{dailyAttendanceSummary.secondOnly}명</div>
+                          </div>
+                          <div className="bg-white/10 rounded-xl py-1.5">
+                            <div className="text-[10px] text-slate-300">결석</div>
+                            <div className="text-sm font-extrabold text-rose-400">{dailyAttendanceSummary.absentCount}명</div>
+                          </div>
+                        </div>
+                      </div>
+                    </>
                   )}
 
                   <div className="grid grid-cols-2 gap-3">
@@ -2965,6 +3501,7 @@ export default function App() {
                             setSelectedClassId(cls.id);
                             setTeacherNameInput(cls.teacher);
                             setEditingTeacher(false);
+                            setEditingStudentId(null);
                           }}
                           className="p-4 rounded-2xl bg-white/95 border border-white hover:border-emerald-500 text-center transition shadow-sm flex flex-col items-center justify-center gap-1"
                         >
@@ -2982,13 +3519,15 @@ export default function App() {
                 </div>
               )}
 
+              {/* 1) 출석체크 상세 화면 */}
               {adminTab === 'attendance' && selectedClassId && (
                 <div className="space-y-3">
                   <button
                     onClick={() => setSelectedClassId(null)}
-                    className="flex items-center gap-1 text-xs font-bold text-slate-600 bg-white/85 px-3 py-1.5 rounded-full"
+                    aria-label="전체 학년 목록으로"
+                    className="w-8 h-8 rounded-full bg-white/90 text-slate-700 flex items-center justify-center shadow-2xs hover:bg-white transition"
                   >
-                    <ChevronLeft className="w-4 h-4" /> 전체 학년 목록으로
+                    <ChevronLeft className="w-4 h-4" />
                   </button>
 
                   <div className="p-3.5 rounded-2xl bg-slate-800 text-white">
@@ -3068,13 +3607,15 @@ export default function App() {
                 </div>
               )}
 
+              {/* 2) 명단 관리 상세 화면 (기존 학생 정보 수정 기능 포함) */}
               {adminTab === 'roster' && selectedClassId && (
                 <div className="space-y-4">
                   <button
-                    onClick={() => setSelectedClassId(null)}
-                    className="flex items-center gap-1 text-xs font-bold text-slate-600 bg-white/85 px-3 py-1.5 rounded-full"
+                    onClick={() => { setSelectedClassId(null); setEditingStudentId(null); }}
+                    aria-label="전체 학년 목록으로"
+                    className="w-8 h-8 rounded-full bg-white/90 text-slate-700 flex items-center justify-center shadow-2xs hover:bg-white transition"
                   >
-                    <ChevronLeft className="w-4 h-4" /> 전체 학년 목록으로
+                    <ChevronLeft className="w-4 h-4" />
                   </button>
 
                   <div className="p-4 rounded-2xl bg-white/95 border border-white">
@@ -3141,21 +3682,86 @@ export default function App() {
 
                   <div className="space-y-2">
                     <div className="text-xs font-bold text-slate-700">등록된 학생 ({privateData.classes[selectedClassId].students.length}명)</div>
-                    {privateData.classes[selectedClassId].students.map((stu) => (
-                      <div key={stu.id} className="p-3 rounded-xl bg-white/95 border border-white flex items-center justify-between">
-                        <div>
-                          <div className="text-sm font-bold text-slate-800">{stu.name}</div>
-                          <div className="text-[11px] text-slate-500">생일: {stu.birth} · {stu.phone}</div>
+                    {privateData.classes[selectedClassId].students.map((stu) => {
+                      const isEditing = editingStudentId === stu.id;
+                      return (
+                        <div key={stu.id} className="p-3 rounded-xl bg-white/95 border border-white">
+                          {isEditing ? (
+                            <div className="space-y-2">
+                              <div className="grid grid-cols-3 gap-1.5">
+                                <input
+                                  type="text"
+                                  value={editStudentForm.name}
+                                  onChange={(e) => setEditStudentForm({ ...editStudentForm, name: e.target.value })}
+                                  placeholder="이름"
+                                  className="px-2.5 py-1.5 rounded-lg border border-emerald-400 text-xs font-bold bg-white"
+                                />
+                                <input
+                                  type="text"
+                                  value={editStudentForm.birth}
+                                  onChange={(e) => setEditStudentForm({ ...editStudentForm, birth: e.target.value })}
+                                  placeholder="생일(5.12)"
+                                  className="px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs bg-white"
+                                />
+                                <input
+                                  type="text"
+                                  value={editStudentForm.phone}
+                                  onChange={(e) => setEditStudentForm({ ...editStudentForm, phone: e.target.value })}
+                                  placeholder="연락처"
+                                  className="px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs bg-white"
+                                />
+                              </div>
+                              <div className="flex justify-end gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingStudentId(null)}
+                                  className="px-3 py-1 rounded-lg bg-slate-100 text-slate-600 text-xs font-bold"
+                                >
+                                  취소
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleSaveEditedStudent(stu.id)}
+                                  className="px-3 py-1 rounded-lg bg-emerald-600 text-white text-xs font-bold flex items-center gap-1"
+                                >
+                                  <Check className="w-3 h-3" /> 저장
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <div className="text-sm font-bold text-slate-800">{stu.name}</div>
+                                <div className="text-[11px] text-slate-500">생일: {stu.birth} · {stu.phone}</div>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => startEditingStudent(stu)}
+                                  className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg"
+                                  title="학생 정보 수정"
+                                >
+                                  <Edit3 className="w-4 h-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteStudent(stu.id)}
+                                  className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg"
+                                  title="학생 삭제"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
-                        <button onClick={() => handleDeleteStudent(stu.id)} className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
 
+              {/* 3) 출석 통계 화면 */}
               {adminTab === 'stats' && (
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-3">
@@ -3235,7 +3841,7 @@ export default function App() {
                     </div>
                     {statsSummary.consecutiveAbsentees.length > 0 ? (
                       <div className="flex flex-wrap gap-1.5">
-                        {statsSummary.consecutiveAbsentees.map(stu => (
+                        {statsSummary.consecutiveAbsentees.map((stu) => (
                           <span key={stu.id} className="px-2.5 py-1 rounded-lg bg-rose-50 border border-rose-200 text-xs font-bold text-rose-700">
                             {stu.grade} {stu.name}
                           </span>
@@ -3252,6 +3858,7 @@ export default function App() {
                 </div>
               )}
 
+              {/* 4) 콘텐츠 관리 화면 (다중 사진 업로드 + 다중 문제 퀴즈 출제) */}
               {adminTab === 'content' && (
                 <div className="space-y-4">
                   <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 space-y-3 shadow-2xs">
@@ -3373,9 +3980,17 @@ export default function App() {
                     </div>
                   </div>
 
+                  {/* 활동 사진첩 다중 사진 업로드 */}
                   <form onSubmit={handlePhotoUpload} className="p-4 rounded-2xl bg-white/95 border border-white space-y-3">
-                    <div className="text-sm font-extrabold text-slate-900 flex items-center gap-1.5">
-                      <Camera className="w-4 h-4 text-rose-500" /> 활동 사진첩 새 사진 올리기
+                    <div className="text-sm font-extrabold text-slate-900 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <Camera className="w-4 h-4 text-rose-500" /> 활동 사진첩 올리기 (여러 장 가능)
+                      </span>
+                      {photoFiles.length > 0 && (
+                        <span className="text-[11px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full">
+                          {photoFiles.length}장 선택됨
+                        </span>
+                      )}
                     </div>
                     <input
                       type="text"
@@ -3395,8 +4010,9 @@ export default function App() {
                     <input
                       type="file"
                       accept="image/*"
+                      multiple
                       required
-                      onChange={(e) => setPhotoFile(e.target.files[0])}
+                      onChange={(e) => setPhotoFiles(Array.from(e.target.files || []))}
                       className="w-full text-xs text-slate-600 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-rose-50 file:text-rose-700"
                     />
                     <button
@@ -3404,18 +4020,29 @@ export default function App() {
                       disabled={isUploading}
                       className="w-full py-2.5 rounded-xl bg-rose-600 text-white text-xs font-bold hover:bg-rose-700 disabled:opacity-50"
                     >
-                      {isUploading ? '클라우드에 사진 업로드 중...' : '사진첩에 등록하기'}
+                      {isUploading ? `사진 ${photoFiles.length}장 업로드 중...` : '사진첩에 등록하기'}
                     </button>
                   </form>
 
+                  {/* 다중 문제 설교 퀴즈 출제 */}
                   <form onSubmit={handlePublishNewQuiz} className="p-4 rounded-2xl bg-white/95 border border-white space-y-3">
-                    <div className="text-sm font-extrabold text-slate-900 flex items-center gap-1.5">
-                      <Award className="w-4 h-4 text-amber-500" /> 새 주간 설교 퀴즈 출제
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm font-extrabold text-slate-900 flex items-center gap-1.5">
+                        <Award className="w-4 h-4 text-amber-500" /> 새 주간 설교 퀴즈 출제
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleAddDraftQuestion}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-100 text-amber-900 text-[11px] font-extrabold hover:bg-amber-200"
+                      >
+                        <Plus className="w-3.5 h-3.5" /> 문제 추가하기
+                      </button>
                     </div>
+
                     <input
                       type="text"
                       required
-                      placeholder="퀴즈 제목 (예: 11월 3주 설교 복습 퀴즈)"
+                      placeholder="퀴즈 제목 (예: 11월 4주 설교 복습 퀴즈)"
                       value={newQuizTitle}
                       onChange={(e) => setNewQuizTitle(e.target.value)}
                       className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs"
@@ -3427,46 +4054,62 @@ export default function App() {
                       onChange={(e) => setNewQuizPassage(e.target.value)}
                       className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs"
                     />
-                    <input
-                      type="text"
-                      required
-                      placeholder="질문 내용을 입력하세요"
-                      value={newQuizQ}
-                      onChange={(e) => setNewQuizQ(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs"
-                    />
-                    <div className="grid grid-cols-2 gap-2">
-                      {newQuizOpts.map((opt, idx) => (
-                        <input
-                          key={idx}
-                          type="text"
-                          required
-                          placeholder={`보기 ${idx + 1}`}
-                          value={opt}
-                          onChange={(e) => {
-                            const copy = [...newQuizOpts];
-                            copy[idx] = e.target.value;
-                            setNewQuizOpts(copy);
-                          }}
-                          className="px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs"
-                        />
+
+                    <div className="space-y-3">
+                      {draftQuestions.map((dq, qIdx) => (
+                        <div key={qIdx} className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-extrabold text-slate-700">문제 {qIdx + 1}</span>
+                            {draftQuestions.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveDraftQuestion(qIdx)}
+                                className="text-[11px] font-bold text-rose-500 hover:underline"
+                              >
+                                삭제
+                              </button>
+                            )}
+                          </div>
+                          <input
+                            type="text"
+                            required
+                            placeholder={`Q${qIdx + 1}. 질문 내용을 입력하세요`}
+                            value={dq.q}
+                            onChange={(e) => handleUpdateDraftQuestion(qIdx, 'q', e.target.value)}
+                            className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs"
+                          />
+                          <div className="grid grid-cols-2 gap-1.5">
+                            {dq.options.map((opt, optIdx) => (
+                              <input
+                                key={optIdx}
+                                type="text"
+                                required
+                                placeholder={`보기 ${optIdx + 1}`}
+                                value={opt}
+                                onChange={(e) => handleUpdateDraftOption(qIdx, optIdx, e.target.value)}
+                                className="px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs"
+                              />
+                            ))}
+                          </div>
+                          <div className="flex items-center justify-between text-xs pt-0.5">
+                            <span className="font-bold text-slate-600">정답 번호:</span>
+                            <select
+                              value={dq.answer}
+                              onChange={(e) => handleUpdateDraftQuestion(qIdx, 'answer', Number(e.target.value))}
+                              className="px-2.5 py-1 rounded-lg border border-slate-300 bg-white font-bold"
+                            >
+                              <option value={0}>1번 보기</option>
+                              <option value={1}>2번 보기</option>
+                              <option value={2}>3번 보기</option>
+                              <option value={3}>4번 보기</option>
+                            </select>
+                          </div>
+                        </div>
                       ))}
                     </div>
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-bold text-slate-600">정답 번호 선택:</span>
-                      <select
-                        value={newQuizAns}
-                        onChange={(e) => setNewQuizAns(Number(e.target.value))}
-                        className="px-2.5 py-1 rounded-lg border border-slate-300 bg-white font-bold"
-                      >
-                        <option value={0}>1번 보기</option>
-                        <option value={1}>2번 보기</option>
-                        <option value={2}>3번 보기</option>
-                        <option value={3}>4번 보기</option>
-                      </select>
-                    </div>
+
                     <button type="submit" className="w-full py-2.5 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800">
-                      새 퀴즈 발행 (완료자 명단 초기화)
+                      새 퀴즈 발행 ({draftQuestions.length}문제 · 완료자 초기화)
                     </button>
                   </form>
 
@@ -3534,46 +4177,13 @@ export default function App() {
           </div>
         </footer>
 
-        {/* 팝업 1: 매일 아침 오늘의 말씀 */}
-        {showVersePopup && (
-          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-            <div className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl space-y-4 relative">
-              <button
-                onClick={() => setShowVersePopup(false)}
-                className="absolute top-4 right-4 p-1.5 rounded-full bg-slate-100 text-slate-500"
-              >
-                <X className="w-4 h-4" />
-              </button>
-
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 text-amber-800 text-xs font-bold">
-                <Sparkles className="w-3.5 h-3.5" /> 오늘의 말씀
-              </div>
-
-              <blockquote className="text-base font-bold text-slate-900 leading-relaxed">
-                "{todayVerse.verse}"
-              </blockquote>
-              <div className="text-xs font-extrabold text-emerald-700">— {todayVerse.ref}</div>
-
-              <p className="text-xs text-slate-600 bg-slate-50 p-3 rounded-2xl leading-relaxed">
-                {todayVerse.note}
-              </p>
-
-              <div className="flex gap-2 pt-1">
-                <button
-                  onClick={hideVerseForToday}
-                  className="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-600 text-xs font-bold hover:bg-slate-200"
-                >
-                  오늘 하루 보지 않기
-                </button>
-                <button
-                  onClick={() => setShowVersePopup(false)}
-                  className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700"
-                >
-                  아멘!
-                </button>
-              </div>
-            </div>
-          </div>
+        {/* 전체화면 감성 말씀카드 (터치 시 수면처럼 찰랑이며 열림) */}
+        {showVerseCard && (
+          <FullscreenVerseCard
+            verseObj={todayVerse}
+            onClose={() => setShowVerseCard(false)}
+            onHideToday={hideVerseForToday}
+          />
         )}
 
         {/* 팝업 2: 깜짝 간식 당첨 축하 팝업 */}
@@ -3683,11 +4293,44 @@ export default function App() {
           </div>
         )}
 
-        {/* 팝업 4: 사진첩 크게 보기 */}
+        {/* 팝업 4: 사진첩 크게 보기 (여러 장 슬라이드 전환 지원) */}
         {selectedPhoto && (
-          <div className="fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4" onClick={() => setSelectedPhoto(null)}>
+          <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={() => setSelectedPhoto(null)}>
             <div className="w-full max-w-sm bg-white rounded-3xl overflow-hidden shadow-2xl" onClick={(e) => e.stopPropagation()}>
-              <img src={selectedPhoto.url} alt={selectedPhoto.title} className="w-full max-h-80 object-cover" />
+              <div className="relative bg-slate-900 flex items-center justify-center">
+                <img
+                  src={selectedPhotoImages[selectedPhotoIdx] || selectedPhoto.url}
+                  alt={selectedPhoto.title}
+                  className="w-full max-h-80 object-contain"
+                />
+
+                {selectedPhotoImages.length > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSelectedPhotoIdx((prev) => (prev - 1 + selectedPhotoImages.length) % selectedPhotoImages.length)
+                      }
+                      className="absolute left-2.5 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSelectedPhotoIdx((prev) => (prev + 1) % selectedPhotoImages.length)
+                      }
+                      className="absolute right-2.5 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                    <span className="absolute bottom-2.5 px-2.5 py-0.5 rounded-full bg-black/60 text-white text-[11px] font-bold">
+                      {selectedPhotoIdx + 1} / {selectedPhotoImages.length}
+                    </span>
+                  </>
+                )}
+              </div>
+
               <div className="p-4 space-y-1.5">
                 <div className="flex items-center justify-between">
                   <h3 className="font-extrabold text-sm text-slate-900">{selectedPhoto.title}</h3>
