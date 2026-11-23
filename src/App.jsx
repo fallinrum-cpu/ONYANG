@@ -6,8 +6,10 @@ import {
   ChevronRight, ChevronLeft, X, CheckCircle2, XCircle, Lock,
   Sun, UserPlus, Trash2, Edit3, BarChart3, AlertTriangle,
   Download, Award, Send, Camera, Phone, Cake, Globe, Loader2, Settings,
-  Gamepad2, Trophy, RotateCcw, Clock, ShieldCheck, Users, Gift, Play, Plus, Check
+  Gamepad2, Trophy, RotateCcw, Clock, ShieldCheck, Users, Gift, Play, Plus, Check,
+  Bell
 } from 'lucide-react';
+import { requestAndSaveFcmToken, listenForegroundMessages } from './fcm';
 
 // ==========================================
 // 1. 온양장로교회 & 클라우드 연동 설정
@@ -29,9 +31,9 @@ const CHURCH_LINKS = {
   homepage: "https://www.oych.org/",
   youtube: "https://www.youtube.com/@oychurch",
   instagram: "https://www.instagram.com/do_bbyyyyyyyyy?exln=N2hwc2FjZ2NsYjI4",
-  adminPin: "1234",    // 목사님 & 선생님 전용
+  adminPin: "0852",    // 교사 · 목사님 전용
   praisePin: "2222",   // 찬양팀 학생 전용
-  officerPin: "3333"   // 학생 임원 전용
+  officerPin: "2468"   // 학생 임원 전용
 };
 
 const app = initializeApp(firebaseConfig);
@@ -208,7 +210,7 @@ function formatKoreanVerseLines(rawText) {
 }
 
 // ==========================================
-// 4. 오늘의 말씀 150선
+// 4. 오늘의 말씀 50선
 // ==========================================
 const DAILY_VERSES = [
   { verse: "너희도 성령 안에서 하나님이 거하실 처소가 되기 위하여 그리스도 예수 안에서 함께 지어져 가느니라", ref: "에베소서 2:22", note: "우리 청소년부 한 사람 한 사람이 모여 아름다운 하나님의 집을 이루어 갑니다." },
@@ -384,10 +386,9 @@ const getLatestSundayStr = () => {
   return `${sun.getFullYear()}-${String(sun.getMonth() + 1).padStart(2, '0')}-${String(sun.getDate()).padStart(2, '0')}`;
 };
 
-// 매주 월요일 00:00 기준으로 바뀌는 주간 키 (예: "2026-11-23")
 const getMondayWeekKey = () => {
   const now = new Date();
-  const day = now.getDay(); // 0(일) ~ 6(토)
+  const day = now.getDay();
   const diffToMonday = day === 0 ? -6 : 1 - day;
   const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diffToMonday);
   return `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, '0')}-${String(monday.getDate()).padStart(2, '0')}`;
@@ -424,7 +425,7 @@ const extractCurrentMonthBirthdays = (classesObj) => {
 };
 
 // ==========================================
-// 7. 전체화면 감성 말씀카드 (터치 지점 수면 개방 전환 효과)
+// 7. 전체화면 감성 말씀카드
 // ==========================================
 function FullscreenVerseCard({ verseObj, onClose, onHideToday }) {
   const overlayRef = useRef(null);
@@ -464,7 +465,6 @@ function FullscreenVerseCard({ verseObj, onClose, onHideToday }) {
     const x = (typeof clientX === 'number' ? clientX : rect.left + rect.width / 2) - rect.left;
     const y = (typeof clientY === 'number' ? clientY : rect.top + rect.height / 2) - rect.top;
 
-    // 선/테두리 일그러짐 없이 터치 좌표에서 부드럽게 퍼지는 빛의 물결 고리
     if (rippleEl) {
       const glowRing = document.createElement('div');
       glowRing.style.cssText = `
@@ -532,7 +532,6 @@ function FullscreenVerseCard({ verseObj, onClose, onHideToday }) {
           onClick={handleCardTap}
           className="verse-card-layer absolute inset-0 cursor-pointer overflow-hidden flex flex-col justify-between p-6 text-white select-none"
         >
-          {/* 배경 사진 & 폴백 그라데이션 */}
           <div
             className="absolute inset-0 -z-20"
             style={{ background: dayTheme.grad }}
@@ -550,13 +549,11 @@ function FullscreenVerseCard({ verseObj, onClose, onHideToday }) {
             }}
           />
 
-          {/* 상단 날짜 & 교회 표기 */}
           <div className="relative z-10 flex items-center justify-between text-[11px] text-white/75 tracking-wide pt-1">
             <span>{getFormattedDateDot()}</span>
             <span>온양장로교회 청소년부</span>
           </div>
 
-          {/* 중앙 캘리그라피 말씀 구절 + 장절 + 짧은 묵상글 */}
           <div className="relative z-10 flex flex-col items-center text-center px-2 my-auto">
             <div className="font-verse text-[17px] leading-[1.95] tracking-[-0.01em] text-white/95 drop-shadow-[0_2px_10px_rgba(0,0,0,0.4)] space-y-0.5">
               {formattedLines.map((line, i) => (
@@ -570,7 +567,6 @@ function FullscreenVerseCard({ verseObj, onClose, onHideToday }) {
               — {verseObj?.ref}
             </p>
 
-            {/* 짧은 묵상글 반투명 유리 박스 */}
             {verseObj?.note && (
               <div className="mt-6 w-full max-w-[300px] px-4 py-3.5 rounded-2xl bg-black/25 backdrop-blur-md border border-white/15 shadow-lg">
                 <p className="text-[12.5px] leading-[1.65] text-white/90 font-normal break-keep">
@@ -580,7 +576,6 @@ function FullscreenVerseCard({ verseObj, onClose, onHideToday }) {
             )}
           </div>
 
-          {/* 하단 오늘 하루 보지 않기 */}
           <div className="relative z-10 flex justify-center pb-2">
             <button
               type="button"
@@ -592,7 +587,6 @@ function FullscreenVerseCard({ verseObj, onClose, onHideToday }) {
           </div>
         </div>
 
-        {/* 물결 빛 번짐 레이어 */}
         <div ref={rippleLayerRef} className="pointer-events-none absolute inset-0 z-10 overflow-hidden" />
       </div>
     </div>
@@ -1842,6 +1836,18 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('home');
   const [showVerseCard, setShowVerseCard] = useState(false);
 
+  // 알림 설정 팝업 & 등록 상태 (제안 1)
+  const [showPushPopup, setShowPushPopup] = useState(false);
+  const [pushEnabled, setPushEnabled] = useState(() => {
+    try {
+      return localStorage.getItem('onyang_push_registered') === '1';
+    } catch (_) {
+      return false;
+    }
+  });
+  const [pushBannerText, setPushBannerText] = useState('');
+  const pushPopupShownRef = useRef(false);
+
   const [showLuckyWinPopup, setShowLuckyWinPopup] = useState(false);
   const [luckyWinnerInput, setLuckyWinnerInput] = useState('');
   const [luckyClaimed, setLuckyClaimed] = useState(false);
@@ -1872,7 +1878,6 @@ export default function App() {
   const [editingTeacher, setEditingTeacher] = useState(false);
   const [teacherNameInput, setTeacherNameInput] = useState('');
 
-  // 사진첩 다중 파일 업로드 & 상세 슬라이드 상태
   const [photoTitle, setPhotoTitle] = useState('');
   const [photoDesc, setPhotoDesc] = useState('');
   const [photoFiles, setPhotoFiles] = useState([]);
@@ -1880,23 +1885,62 @@ export default function App() {
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [selectedPhotoIdx, setSelectedPhotoIdx] = useState(0);
 
-  // 학생용 퀴즈 참여 상태
   const [quizStudentName, setQuizStudentName] = useState('');
   const [quizAnswers, setQuizAnswers] = useState({});
   const [quizSubmitted, setQuizSubmitted] = useState(false);
 
-  // 관리자용 다중 문제 출제 상태
   const [newQuizTitle, setNewQuizTitle] = useState('');
   const [newQuizPassage, setNewQuizPassage] = useState('');
   const [draftQuestions, setDraftQuestions] = useState([
     { q: '', options: ['', '', '', ''], answer: 0 }
   ]);
 
-  // 스와이프 뒤로 가기 제스처용 터치 시작 좌표
-  const touchStartRef = useRef({ x: 0, y: 0, active: false });
+  const touchStartRef = useRef({ x: 0, y: 0, active: false, mode: 'back' });
+
+  // FCM 포그라운드 수신 & 알림 등록 핸들러
+  useEffect(() => {
+    const stopListen = listenForegroundMessages(({ title, body }) => {
+      setPushBannerText(`${title}: ${body}`);
+    });
+    return () => stopListen();
+  }, []);
+
+  const handleRegisterPush = async () => {
+    const roleLabel = authRoles.admin ? 'teacher' : authRoles.officer ? 'officer' : 'student';
+    const res = await requestAndSaveFcmToken(roleLabel);
+    if (res.ok) {
+      setPushEnabled(true);
+      try {
+        localStorage.setItem('onyang_push_registered', '1');
+      } catch (_) {}
+      setShowPushPopup(false);
+      alert("🔔 아침 말씀·새 퀴즈 알림이 등록되었습니다!");
+    } else {
+      alert(res.reason || "알림 설정을 완료하지 못했습니다.");
+    }
+  };
+
+  // 첫 접속 시 알림 팝업 노출 (말씀카드가 닫힌 뒤 미등록 기기 대상)
+  useEffect(() => {
+    if (!isLoaded || showVerseCard || pushEnabled || pushPopupShownRef.current) return;
+    const today = getTodayStr();
+    if (localStorage.getItem(`onyang_push_popup_dismissed_${today}`) === '1') return;
+    pushPopupShownRef.current = true;
+    const timer = setTimeout(() => {
+      setShowPushPopup(true);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [isLoaded, showVerseCard, pushEnabled]);
+
+  const dismissPushPopupToday = () => {
+    try {
+      localStorage.setItem(`onyang_push_popup_dismissed_${getTodayStr()}`, '1');
+    } catch (_) {}
+    setShowPushPopup(false);
+  };
 
   // ==========================================
-  // 뒤로 가기 공통 핸들러 (스와이프 + 안드로이드 물리/제스처 버튼 연동)
+  // 뒤로 가기 공통 핸들러 (관리실 학년 선택 화면 우선 복귀)
   // ==========================================
   const handleGoBack = () => {
     if (selectedPhoto) {
@@ -1912,6 +1956,7 @@ export default function App() {
     if (activeTab === 'admin' && selectedClassId) {
       setSelectedClassId(null);
       setEditingStudentId(null);
+      setEditingTeacher(false);
       return;
     }
     if (activeTab !== 'home') {
@@ -1923,7 +1968,6 @@ export default function App() {
     }
   };
 
-  // 안드로이드 기기 뒤로 가기 버튼 연동 (History API)
   useEffect(() => {
     if (activeTab !== 'home' || selectedClassId || selectedPhoto) {
       window.history.pushState({ view: activeTab, cls: selectedClassId, photo: !!selectedPhoto }, '');
@@ -1937,6 +1981,7 @@ export default function App() {
       } else if (activeTab === 'admin' && selectedClassId) {
         setSelectedClassId(null);
         setEditingStudentId(null);
+        setEditingTeacher(false);
       } else if (activeTab !== 'home') {
         setActiveTab('home');
         setIsEditingPraise(false);
@@ -1948,13 +1993,22 @@ export default function App() {
     return () => window.removeEventListener('popstate', onPopState);
   }, [activeTab, selectedClassId, selectedPhoto]);
 
-  // 아이폰식 좌 -> 우 엣지 스와이프 뒤로 가기 핸들러
+  // 스와이프 핸들러: 게임 화면 제외, 사진첩 모달 내 좌우 스와이프 및 좌측 엣지 뒤로 가기
   const handleEdgeTouchStart = (e) => {
-    if (activeTab === 'home' || activeTab === 'game') return;
+    if (activeTab === 'game') {
+      touchStartRef.current.active = false;
+      return;
+    }
     const t = e.touches?.[0];
     if (!t) return;
-    if (t.clientX <= 42) {
-      touchStartRef.current = { x: t.clientX, y: t.clientY, active: true };
+
+    if (selectedPhoto && Array.isArray(selectedPhoto.urls) && selectedPhoto.urls.length > 1) {
+      touchStartRef.current = { x: t.clientX, y: t.clientY, active: true, mode: 'photo' };
+      return;
+    }
+
+    if (activeTab !== 'home' && t.clientX <= 36) {
+      touchStartRef.current = { x: t.clientX, y: t.clientY, active: true, mode: 'back' };
     } else {
       touchStartRef.current.active = false;
     }
@@ -1966,9 +2020,20 @@ export default function App() {
     if (!t) return;
     const dx = t.clientX - touchStartRef.current.x;
     const dy = Math.abs(t.clientY - touchStartRef.current.y);
+    const mode = touchStartRef.current.mode;
     touchStartRef.current.active = false;
 
-    if (dx > 75 && dy < 60) {
+    if (mode === 'photo' && selectedPhoto && Math.abs(dx) > 45 && dy < 70) {
+      const imgs = selectedPhoto.urls;
+      if (dx < 0) {
+        setSelectedPhotoIdx((prev) => (prev + 1) % imgs.length);
+      } else {
+        setSelectedPhotoIdx((prev) => (prev - 1 + imgs.length) % imgs.length);
+      }
+      return;
+    }
+
+    if (mode === 'back' && dx > 75 && dy < 55) {
       handleGoBack();
     }
   };
@@ -1986,7 +2051,6 @@ export default function App() {
           const raw = snapshot.data();
           const mergedLucky = raw.luckyEvent ?? INITIAL_PUBLIC_DATA.luckyEvent;
 
-          // 주간 예배 섬김이 자동 이월 체크 (매주 월요일 00:00 기준)
           let orderData = raw.worshipOrder ?? INITIAL_PUBLIC_DATA.worshipOrder;
           const currentWeekKey = getMondayWeekKey();
 
@@ -2031,7 +2095,6 @@ export default function App() {
           setEventMaxInput(mergedLucky.maxWinners || 3);
           setEventChanceInput(mergedLucky.winChance || 20);
         } else if (!isFirstCheckDone) {
-          // 네트워크 지연이나 캐시 미스로 인한 오인 덮어쓰기 차단: getDoc으로 서버 이중 확인 후 진짜 비어있을 때만 초기화
           isFirstCheckDone = true;
           try {
             const verifySnap = await getDoc(PUBLIC_DOC_REF);
@@ -2413,7 +2476,6 @@ export default function App() {
     setEditingTeacher(false);
   };
 
-  // 사진첩 여러 장 동시 업로드
   const handlePhotoUpload = async (e) => {
     e.preventDefault();
     if (!photoTitle.trim() || photoFiles.length === 0) {
@@ -2458,6 +2520,16 @@ export default function App() {
     }
   };
 
+  const handleDeleteAlbum = async (albumId, albumTitle) => {
+    if (!window.confirm(`"${albumTitle}" 사진첩 앨범을 삭제할까요?`)) return;
+    const nextPhotos = (publicData.photos || []).filter((p) => p.id !== albumId);
+    if (selectedPhoto?.id === albumId) {
+      setSelectedPhoto(null);
+      setSelectedPhotoIdx(0);
+    }
+    await syncPublicData({ photos: nextPhotos });
+  };
+
   const handleQuizSubmit = (e) => {
     e.preventDefault();
     if (!quizStudentName.trim()) {
@@ -2473,7 +2545,6 @@ export default function App() {
     setQuizSubmitted(true);
   };
 
-  // 관리자 다중 문제 퀴즈 출제 핸들러
   const handleAddDraftQuestion = () => {
     setDraftQuestions((prev) => [...prev, { q: '', options: ['', '', '', ''], answer: 0 }]);
   };
@@ -2526,7 +2597,7 @@ export default function App() {
     alert(`총 ${formattedQuestions.length}문제의 새 설교 퀴즈가 등록되었으며 완료자 명단이 초기화되었습니다!`);
   };
 
-  // 당일(selectedDate) 기준 전체 출석 인원 실시간 합계 계산
+  // 당일(selectedDate) 기준 전체 출석 및 장결자 합계 계산
   const dailyAttendanceSummary = useMemo(() => {
     const orderedClasses = CLASS_SEQUENTIAL_ORDER.map((id) => privateData.classes[id]).filter(Boolean);
     const allStudents = orderedClasses.flatMap((c) => c.students);
@@ -2535,11 +2606,13 @@ export default function App() {
     let presentOnly = 0;
     let secondOnly = 0;
     let absentCount = 0;
+    let longAbsentCount = 0;
 
     allStudents.forEach((stu) => {
       const st = dayRec[stu.id]?.status;
       if (st === 'present') presentOnly++;
       else if (st === 'second') secondOnly++;
+      else if (st === 'long_absent') longAbsentCount++;
       else if (st === 'absent') absentCount++;
     });
 
@@ -2548,7 +2621,8 @@ export default function App() {
       totalAttended: presentOnly + secondOnly,
       presentOnly,
       secondOnly,
-      absentCount
+      absentCount,
+      longAbsentCount
     };
   }, [privateData.classes, privateData.attendanceRecords, selectedDate]);
 
@@ -2603,7 +2677,12 @@ export default function App() {
     const recentTwoDates = dates.slice(-2);
     const consecutiveAbsentees =
       recentTwoDates.length === 2
-        ? allStudents.filter((stu) => recentTwoDates.every((d) => privateData.attendanceRecords[d]?.[stu.id]?.status === 'absent'))
+        ? allStudents.filter((stu) =>
+            recentTwoDates.every((d) => {
+              const st = privateData.attendanceRecords[d]?.[stu.id]?.status;
+              return st === 'absent' || st === 'long_absent';
+            })
+          )
         : [];
 
     return {
@@ -2620,7 +2699,7 @@ export default function App() {
     const orderedClasses = CLASS_SEQUENTIAL_ORDER.map((id) => privateData.classes[id]).filter(Boolean);
     const allStudents = orderedClasses.flatMap((c) => c.students.map((s) => ({ ...s, grade: c.grade })));
     const dates = Object.keys(privateData.attendanceRecords).sort();
-    let csv = '\uFEFF학년,이름,생일,연락처,총 출석(2부포함),총 결석,출석률(%),' + dates.join(',') + '\n';
+    let csv = '\uFEFF학년,이름,생일,연락처,총 출석(2부포함),총 결석(장결포함),출석률(%),' + dates.join(',') + '\n';
 
     allStudents.forEach((stu) => {
       let attendedCount = 0;
@@ -2637,6 +2716,9 @@ export default function App() {
         } else if (rec.status === 'second') {
           attendedCount++;
           return `2부예배${memo}`;
+        } else if (rec.status === 'long_absent') {
+          absentCount++;
+          return `장결자${memo}`;
         } else {
           absentCount++;
           return `결석${memo || '(사유미입력)'}`;
@@ -2686,6 +2768,17 @@ export default function App() {
         : [selectedPhoto.url])
     : [];
 
+  // 챌린지 슬라이드 아이템이 적을 때도 끊기지 않도록 최소 8개 이상 채움
+  const challengeMarqueeItems = (() => {
+    const base = publicData.quiz?.completers || [];
+    if (base.length === 0) return [];
+    const repeated = [...base];
+    while (repeated.length < 8) {
+      repeated.push(...base);
+    }
+    return [...repeated, ...repeated];
+  })();
+
   return (
     <div
       onTouchStart={handleEdgeTouchStart}
@@ -2717,13 +2810,14 @@ export default function App() {
           }
         }
         @keyframes marqueeScroll {
-          0% { transform: translateX(0%); }
-          100% { transform: translateX(-50%); }
+          0% { transform: translate3d(0%, 0, 0); }
+          100% { transform: translate3d(-50%, 0, 0); }
         }
         .animate-marquee {
           display: flex;
           width: max-content;
-          animation: marqueeScroll 18s linear infinite;
+          animation: marqueeScroll 20s linear infinite;
+          will-change: transform;
         }
         .animate-marquee:hover {
           animation-play-state: paused;
@@ -2743,7 +2837,7 @@ export default function App() {
       <SeasonEffectOverlay type={currentSeason.effect} />
 
       <div className={`w-full max-w-md min-h-screen bg-gradient-to-b ${currentSeason.pageBg} transition-all duration-700 shadow-xl flex flex-col justify-between relative overflow-x-hidden`}>
-        
+
         {/* 상단 고정 헤더 */}
         <header className="sticky top-0 z-30 bg-white/85 backdrop-blur-md border-b border-slate-100/80 px-4 py-3 flex items-center justify-between">
           <button
@@ -2765,12 +2859,18 @@ export default function App() {
           </button>
         </header>
 
+        {pushBannerText && (
+          <div className="mx-4 mt-3 px-3.5 py-2.5 rounded-2xl bg-slate-900 text-white text-xs font-semibold flex items-center justify-between shadow-md">
+            <span className="truncate">{pushBannerText}</span>
+            <button type="button" onClick={() => setPushBannerText('')} className="ml-2 text-slate-300 hover:text-white">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
         {/* 메인 콘텐츠 영역 */}
         <main className="flex-1 p-4 space-y-4 pb-10">
-          
-          {/* ========================================== */}
-          {/* HOME 화면 */}
-          {/* ========================================== */}
+
           {activeTab === 'home' && (
             <>
               <div className={`rounded-3xl p-5 text-white bg-gradient-to-br ${currentSeason.bannerGradient} shadow-lg relative overflow-hidden transition-all duration-500`}>
@@ -2868,13 +2968,13 @@ export default function App() {
                   <div className="text-[10px] text-slate-400 mb-1.5">
                     🎉 이번 주 퀴즈 완료 친구들 ({publicData.quiz.completers.length}명)
                   </div>
-                  {publicData.quiz.completers.length > 0 ? (
+                  {challengeMarqueeItems.length > 0 ? (
                     <div className="overflow-hidden relative w-full">
                       <div className="animate-marquee gap-2">
-                        {[...publicData.quiz.completers, ...publicData.quiz.completers].map((name, i) => (
+                        {challengeMarqueeItems.map((name, i) => (
                           <span
                             key={i}
-                            className="inline-block px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-200 text-xs font-medium whitespace-nowrap"
+                            className="inline-block px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-200 text-xs font-medium whitespace-nowrap shrink-0"
                           >
                             ✨ {name}
                           </span>
@@ -2956,9 +3056,6 @@ export default function App() {
             </>
           )}
 
-          {/* ========================================== */}
-          {/* 0. 미니게임 3종 화면 */}
-          {/* ========================================== */}
           {activeTab === 'game' && (
             <MiniGameCenter
               crownRankings={publicData.gameRanking || []}
@@ -2971,9 +3068,6 @@ export default function App() {
             />
           )}
 
-          {/* ========================================== */}
-          {/* 1. 이번 달 찬양 화면 */}
-          {/* ========================================== */}
           {activeTab === 'praise' && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -3098,9 +3192,6 @@ export default function App() {
             </div>
           )}
 
-          {/* ========================================== */}
-          {/* 2. 이번 달 청소년부 (월력) 화면 */}
-          {/* ========================================== */}
           {activeTab === 'calendar' && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -3177,9 +3268,6 @@ export default function App() {
             </div>
           )}
 
-          {/* ========================================== */}
-          {/* 3. 성경봉독 / 기도자 화면 */}
-          {/* ========================================== */}
           {activeTab === 'order' && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -3270,9 +3358,6 @@ export default function App() {
             </div>
           )}
 
-          {/* ========================================== */}
-          {/* 4. 사진첩 화면 (여러 장 앨범 지원) */}
-          {/* ========================================== */}
           {activeTab === 'photo' && (
             <div className="space-y-4">
               <button
@@ -3284,7 +3369,7 @@ export default function App() {
               </button>
               <div className="bg-white/90 backdrop-blur-md p-4 rounded-2xl border border-white/80">
                 <h2 className="text-xl font-extrabold text-slate-900">청소년부 사진첩</h2>
-                <p className="text-xs text-slate-500 mt-1">사진을 누르면 크게 보고 여러 장을 넘겨볼 수 있습니다.</p>
+                <p className="text-xs text-slate-500 mt-1">사진을 누르면 크게 보고 좌우로 넘겨볼 수 있습니다.</p>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 {publicData.photos.map((photo) => {
@@ -3315,9 +3400,6 @@ export default function App() {
             </div>
           )}
 
-          {/* ========================================== */}
-          {/* 5. 주간 설교 말씀 퀴즈 참여 화면 */}
-          {/* ========================================== */}
           {activeTab === 'quiz' && (
             <div className="space-y-4">
               <button
@@ -3405,9 +3487,6 @@ export default function App() {
             </div>
           )}
 
-          {/* ========================================== */}
-          {/* 6. 교사 / 목사님 전용 전체 관리자 페이지 */}
-          {/* ========================================== */}
           {activeTab === 'admin' && authRoles.admin && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -3442,7 +3521,6 @@ export default function App() {
                 ))}
               </div>
 
-              {/* 학년 선택 전 화면 (출석체크 & 명단관리 공통) */}
               {(adminTab === 'attendance' || adminTab === 'roster') && !selectedClassId && (
                 <div className="space-y-3">
                   {adminTab === 'attendance' && (
@@ -3457,7 +3535,6 @@ export default function App() {
                         />
                       </div>
 
-                      {/* 당일 총 출석 인원 실시간 합계 요약 카드 */}
                       <div className="p-3.5 rounded-2xl bg-slate-900 text-white shadow-sm space-y-2">
                         <div className="flex items-center justify-between">
                           <span className="text-[11px] font-bold text-emerald-300">
@@ -3467,7 +3544,7 @@ export default function App() {
                             총 출석 {dailyAttendanceSummary.totalAttended}명 / 재적 {dailyAttendanceSummary.totalStudents}명
                           </span>
                         </div>
-                        <div className="grid grid-cols-3 gap-2 pt-1 text-center">
+                        <div className="grid grid-cols-4 gap-1.5 pt-1 text-center">
                           <div className="bg-white/10 rounded-xl py-1.5">
                             <div className="text-[10px] text-slate-300">1부 출석</div>
                             <div className="text-sm font-extrabold text-emerald-400">{dailyAttendanceSummary.presentOnly}명</div>
@@ -3479,6 +3556,10 @@ export default function App() {
                           <div className="bg-white/10 rounded-xl py-1.5">
                             <div className="text-[10px] text-slate-300">결석</div>
                             <div className="text-sm font-extrabold text-rose-400">{dailyAttendanceSummary.absentCount}명</div>
+                          </div>
+                          <div className="bg-white/10 rounded-xl py-1.5">
+                            <div className="text-[10px] text-slate-300">장결자</div>
+                            <div className="text-sm font-extrabold text-amber-300">{dailyAttendanceSummary.longAbsentCount}명</div>
                           </div>
                         </div>
                       </div>
@@ -3519,7 +3600,6 @@ export default function App() {
                 </div>
               )}
 
-              {/* 1) 출석체크 상세 화면 */}
               {adminTab === 'attendance' && selectedClassId && (
                 <div className="space-y-3">
                   <button
@@ -3555,36 +3635,46 @@ export default function App() {
                               </div>
                             </div>
 
-                            <div className="grid grid-cols-3 gap-1.5">
+                            <div className="grid grid-cols-4 gap-1">
                               <button
                                 onClick={() => setStudentAttendance(stu.id, 'present')}
-                                className={`py-1.5 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 border transition ${
+                                className={`py-1.5 px-1.5 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 border transition ${
                                   rec.status === 'present'
                                     ? 'bg-emerald-600 text-white border-emerald-600'
                                     : 'bg-slate-50 text-slate-600 border-slate-200'
                                 }`}
                               >
-                                <CheckCircle2 className="w-3.5 h-3.5" /> 출석
+                                <CheckCircle2 className="w-3 h-3 shrink-0" /> 출석
                               </button>
                               <button
                                 onClick={() => setStudentAttendance(stu.id, 'second')}
-                                className={`py-1.5 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 border transition ${
+                                className={`py-1.5 px-1.5 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 border transition ${
                                   rec.status === 'second'
                                     ? 'bg-sky-600 text-white border-sky-600'
                                     : 'bg-slate-50 text-slate-600 border-slate-200'
                                 }`}
                               >
-                                <Clock className="w-3.5 h-3.5" /> 2부예배
+                                <Clock className="w-3 h-3 shrink-0" /> 2부예배
                               </button>
                               <button
                                 onClick={() => setStudentAttendance(stu.id, 'absent')}
-                                className={`py-1.5 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 border transition ${
+                                className={`py-1.5 px-1.5 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 border transition ${
                                   rec.status === 'absent'
                                     ? 'bg-rose-600 text-white border-rose-600'
                                     : 'bg-slate-50 text-slate-600 border-slate-200'
                                 }`}
                               >
-                                <XCircle className="w-3.5 h-3.5" /> 결석
+                                <XCircle className="w-3 h-3 shrink-0" /> 결석
+                              </button>
+                              <button
+                                onClick={() => setStudentAttendance(stu.id, 'long_absent')}
+                                className={`py-1.5 px-1.5 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 border transition ${
+                                  rec.status === 'long_absent'
+                                    ? 'bg-amber-600 text-white border-amber-600'
+                                    : 'bg-slate-50 text-slate-600 border-slate-200'
+                                }`}
+                              >
+                                장결자
                               </button>
                             </div>
                           </div>
@@ -3595,7 +3685,7 @@ export default function App() {
                             value={rec.reason || ''}
                             onChange={(e) => setStudentNote(stu.id, e.target.value)}
                             className={`w-full px-3 py-2 rounded-xl border text-xs text-slate-800 focus:outline-none transition ${
-                              rec.status === 'absent'
+                              rec.status === 'absent' || rec.status === 'long_absent'
                                 ? 'bg-rose-50/70 border-rose-200 focus:border-rose-400'
                                 : 'bg-slate-50/80 border-slate-200 focus:border-emerald-400'
                             }`}
@@ -3607,7 +3697,6 @@ export default function App() {
                 </div>
               )}
 
-              {/* 2) 명단 관리 상세 화면 (기존 학생 정보 수정 기능 포함) */}
               {adminTab === 'roster' && selectedClassId && (
                 <div className="space-y-4">
                   <button
@@ -3761,7 +3850,6 @@ export default function App() {
                 </div>
               )}
 
-              {/* 3) 출석 통계 화면 */}
               {adminTab === 'stats' && (
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-3">
@@ -3858,7 +3946,6 @@ export default function App() {
                 </div>
               )}
 
-              {/* 4) 콘텐츠 관리 화면 (다중 사진 업로드 + 다중 문제 퀴즈 출제) */}
               {adminTab === 'content' && (
                 <div className="space-y-4">
                   <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 space-y-3 shadow-2xs">
@@ -3980,7 +4067,6 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* 활동 사진첩 다중 사진 업로드 */}
                   <form onSubmit={handlePhotoUpload} className="p-4 rounded-2xl bg-white/95 border border-white space-y-3">
                     <div className="text-sm font-extrabold text-slate-900 flex items-center justify-between">
                       <span className="flex items-center gap-1.5">
@@ -4022,9 +4108,31 @@ export default function App() {
                     >
                       {isUploading ? `사진 ${photoFiles.length}장 업로드 중...` : '사진첩에 등록하기'}
                     </button>
+
+                    {(publicData.photos || []).length > 0 && (
+                      <div className="pt-2 border-t border-slate-100 space-y-1.5">
+                        <div className="text-[11px] font-bold text-slate-500">등록된 사진첩 앨범 관리</div>
+                        {publicData.photos.map((alb) => (
+                          <div key={alb.id} className="flex items-center justify-between px-2.5 py-2 rounded-xl bg-slate-50 border border-slate-200/70">
+                            <div className="min-w-0">
+                              <div className="text-xs font-bold text-slate-800 truncate">{alb.title}</div>
+                              <div className="text-[10px] text-slate-400">
+                                {alb.date} · {(Array.isArray(alb.urls) ? alb.urls.length : 1)}장
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteAlbum(alb.id, alb.title)}
+                              className="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-600 text-[11px] font-bold hover:bg-rose-100 shrink-0 ml-2"
+                            >
+                              삭제
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </form>
 
-                  {/* 다중 문제 설교 퀴즈 출제 */}
                   <form onSubmit={handlePublishNewQuiz} className="p-4 rounded-2xl bg-white/95 border border-white space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="text-sm font-extrabold text-slate-900 flex items-center gap-1.5">
@@ -4133,9 +4241,9 @@ export default function App() {
           )}
         </main>
 
-        {/* 하단 푸터 */}
+        {/* 하단 푸터 (인스타그램 로고 옆 종 모양 알림 버튼) */}
         <footer className="bg-white/80 backdrop-blur-md border-t border-slate-200/60 px-4 py-5 text-center space-y-3.5">
-          <div className="flex items-center justify-center gap-5">
+          <div className="flex items-center justify-center gap-4">
             <a
               href={CHURCH_LINKS.homepage}
               target="_blank"
@@ -4163,6 +4271,19 @@ export default function App() {
             >
               <Instagram className="w-6 h-6" />
             </a>
+            <button
+              type="button"
+              onClick={() => (pushEnabled ? setShowPushPopup(true) : handleRegisterPush())}
+              aria-label="아침 말씀·퀴즈 알림 설정"
+              title={pushEnabled ? "알림 등록됨 (설정 확인)" : "아침 말씀·퀴즈 알림 받기"}
+              className={`w-12 h-12 rounded-full border shadow-sm flex items-center justify-center hover:scale-105 transition ${
+                pushEnabled
+                  ? 'bg-amber-50 border-amber-300 text-amber-600'
+                  : 'bg-white border-slate-200/80 text-slate-600'
+              }`}
+            >
+              <Bell className="w-6 h-6" />
+            </button>
           </div>
 
           <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-500">
@@ -4177,13 +4298,58 @@ export default function App() {
           </div>
         </footer>
 
-        {/* 전체화면 감성 말씀카드 (터치 시 수면처럼 찰랑이며 열림) */}
+        {/* 전체화면 감성 말씀카드 */}
         {showVerseCard && (
           <FullscreenVerseCard
             verseObj={todayVerse}
             onClose={() => setShowVerseCard(false)}
             onHideToday={hideVerseForToday}
           />
+        )}
+
+        {/* 첫 접속 알림 설정 팝업 (제안 1) */}
+        {showPushPopup && (
+          <div className="fixed inset-0 z-50 bg-black/55 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="w-full max-w-xs bg-white rounded-3xl p-6 shadow-2xl space-y-4 text-center">
+              <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center mx-auto">
+                <Bell className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="font-extrabold text-slate-900 text-base">
+                  {pushEnabled ? '알림이 켜져 있어요!' : '말씀과 퀴즈 알림을 받아볼까요?'}
+                </h3>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  매일 아침 7시 오늘의 말씀과 새 주일 설교 퀴즈 소식을 스마트폰으로 보내드립니다.
+                </p>
+              </div>
+              <div className="space-y-2">
+                {!pushEnabled ? (
+                  <button
+                    type="button"
+                    onClick={handleRegisterPush}
+                    className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-extrabold transition"
+                  >
+                    🔔 알림 켜기
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowPushPopup(false)}
+                    className="w-full py-2.5 rounded-xl bg-slate-900 text-white text-xs font-bold transition"
+                  >
+                    확인
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={dismissPushPopupToday}
+                  className="w-full py-2 rounded-xl bg-slate-100 text-slate-600 text-xs font-bold"
+                >
+                  오늘은 닫기
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* 팝업 2: 깜짝 간식 당첨 축하 팝업 */}
@@ -4293,7 +4459,7 @@ export default function App() {
           </div>
         )}
 
-        {/* 팝업 4: 사진첩 크게 보기 (여러 장 슬라이드 전환 지원) */}
+        {/* 팝업 4: 사진첩 크게 보기 (여러 장 슬라이드 & 좌우 스와이프 지원) */}
         {selectedPhoto && (
           <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={() => setSelectedPhoto(null)}>
             <div className="w-full max-w-sm bg-white rounded-3xl overflow-hidden shadow-2xl" onClick={(e) => e.stopPropagation()}>
@@ -4301,7 +4467,7 @@ export default function App() {
                 <img
                   src={selectedPhotoImages[selectedPhotoIdx] || selectedPhoto.url}
                   alt={selectedPhoto.title}
-                  className="w-full max-h-80 object-contain"
+                  className="w-full max-h-80 object-contain select-none"
                 />
 
                 {selectedPhotoImages.length > 1 && (
