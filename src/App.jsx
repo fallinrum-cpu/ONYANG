@@ -31,9 +31,9 @@ const CHURCH_LINKS = {
   homepage: "https://www.oych.org/",
   youtube: "https://www.youtube.com/@oychurch",
   instagram: "https://www.instagram.com/do_bbyyyyyyyyy?exln=N2hwc2FjZ2NsYjI4",
-  adminPin: "0852",
-  praisePin: "2222",
-  officerPin: "2468"
+  adminPin: "0852",    // 교사 · 목사님 전용
+  praisePin: "2222",   // 찬양팀 학생 전용
+  officerPin: "2468"   // 학생 임원 전용
 };
 
 const app = initializeApp(firebaseConfig);
@@ -1836,7 +1836,9 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('home');
   const [showVerseCard, setShowVerseCard] = useState(false);
 
-  const [showPushPopup, setShowPushPopup] = useState(false);
+  // 알림 팝업 & 종 버튼 상태
+  const [showWelcomeBellPopup, setShowWelcomeBellPopup] = useState(false);
+  const [showAlreadyOnPopup, setShowAlreadyOnPopup] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(() => {
     try {
       return localStorage.getItem('onyang_push_registered') === '1';
@@ -1845,7 +1847,7 @@ export default function App() {
     }
   });
   const [pushBannerText, setPushBannerText] = useState('');
-  const pushPopupShownRef = useRef(false);
+  const welcomeBellShownRef = useRef(false);
 
   const [showLuckyWinPopup, setShowLuckyWinPopup] = useState(false);
   const [luckyWinnerInput, setLuckyWinnerInput] = useState('');
@@ -1898,6 +1900,15 @@ export default function App() {
   const isPopStateNavRef = useRef(false);
   const pushedStateKeyRef = useRef('');
 
+  // 메뉴/상세 화면 전환 시 스크롤 위치를 맨 위로 초기화
+  useEffect(() => {
+    try {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    } catch (_) {
+      window.scrollTo(0, 0);
+    }
+  }, [activeTab, selectedClassId]);
+
   useEffect(() => {
     const stopListen = listenForegroundMessages(({ title, body }) => {
       setPushBannerText(`${title}: ${body}`);
@@ -1913,29 +1924,52 @@ export default function App() {
       try {
         localStorage.setItem('onyang_push_registered', '1');
       } catch (_) {}
-      setShowPushPopup(false);
-      alert("알림이 등록되었습니다.");
+      setShowWelcomeBellPopup(false);
+      setShowAlreadyOnPopup(false);
+      alert("알림이 켜졌습니다.");
     } else {
       alert(res.reason || "알림 설정을 완료하지 못했습니다.");
     }
   };
 
+  const handleTurnOffPush = () => {
+    setPushEnabled(false);
+    try {
+      localStorage.removeItem('onyang_push_registered');
+    } catch (_) {}
+    setShowAlreadyOnPopup(false);
+    alert("앱 알림 표시가 꺼졌습니다. 다시 켜려면 종 모양 버튼을 눌러주세요.");
+  };
+
+  const handleBellButtonClick = () => {
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'denied') {
+      alert("브라우저 설정에서 알림이 차단되어 있습니다. 설정에서 알림을 허용해 주세요.");
+      return;
+    }
+    if (pushEnabled) {
+      setShowAlreadyOnPopup(true);
+    } else {
+      handleRegisterPush();
+    }
+  };
+
+  // 첫 접속 시 안내 팝업 (알림 미등록 상태일 때만 노출)
   useEffect(() => {
-    if (!isLoaded || showVerseCard || pushEnabled || pushPopupShownRef.current) return;
+    if (!isLoaded || showVerseCard || pushEnabled || welcomeBellShownRef.current) return;
     const today = getTodayStr();
-    if (localStorage.getItem(`onyang_push_popup_dismissed_${today}`) === '1') return;
-    pushPopupShownRef.current = true;
+    if (localStorage.getItem(`onyang_bell_popup_dismissed_${today}`) === '1') return;
+    welcomeBellShownRef.current = true;
     const timer = setTimeout(() => {
-      setShowPushPopup(true);
-    }, 350);
+      setShowWelcomeBellPopup(true);
+    }, 300);
     return () => clearTimeout(timer);
   }, [isLoaded, showVerseCard, pushEnabled]);
 
-  const dismissPushPopupToday = () => {
+  const dismissWelcomeBellToday = () => {
     try {
-      localStorage.setItem(`onyang_push_popup_dismissed_${getTodayStr()}`, '1');
+      localStorage.setItem(`onyang_bell_popup_dismissed_${getTodayStr()}`, '1');
     } catch (_) {}
-    setShowPushPopup(false);
+    setShowWelcomeBellPopup(false);
   };
 
   // ==========================================
@@ -2008,7 +2042,7 @@ export default function App() {
     return () => window.removeEventListener('popstate', onPopState);
   }, [activeTab, selectedClassId, selectedPhoto]);
 
-  // 좌/우 스와이프 핸들러 (사진첩 넘기기 + 화면 뒤로 가기)
+  // 스와이프 핸들러 (출석·명단 상세에서 스와이프 시 학년 선택 목록으로 한 단계 복귀)
   const handleEdgeTouchStart = (e) => {
     if (activeTab === 'game') {
       touchStartRef.current.active = false;
@@ -2038,7 +2072,7 @@ export default function App() {
     const mode = touchStartRef.current.mode;
     touchStartRef.current.active = false;
 
-    if (mode === 'photo' && selectedPhoto && Math.abs(dx) > 45 && dy < 75) {
+    if (mode === 'photo' && selectedPhoto && Math.abs(dx) > 40 && dy < 80) {
       const imgs = selectedPhoto.urls;
       if (dx < 0) {
         setSelectedPhotoIdx((prev) => (prev + 1) % imgs.length);
@@ -2048,7 +2082,7 @@ export default function App() {
       return;
     }
 
-    if (mode === 'nav' && Math.abs(dx) > 70 && dy < 55) {
+    if (mode === 'nav' && Math.abs(dx) > 60 && dy < 65) {
       handleGoBack();
     }
   };
@@ -4283,7 +4317,7 @@ export default function App() {
             </a>
             <button
               type="button"
-              onClick={() => (pushEnabled ? setShowPushPopup(true) : handleRegisterPush())}
+              onClick={handleBellButtonClick}
               aria-label="알림 설정"
               className={`w-12 h-12 rounded-full border shadow-sm flex items-center justify-center hover:scale-105 transition ${
                 pushEnabled
@@ -4315,7 +4349,8 @@ export default function App() {
           />
         )}
 
-        {showPushPopup && (
+        {/* 첫 접속 안내 팝업 (미등록 상태 전용) */}
+        {showWelcomeBellPopup && (
           <div className="fixed inset-0 z-50 bg-black/55 backdrop-blur-xs flex items-center justify-center p-4">
             <div className="w-full max-w-xs bg-white rounded-3xl p-6 shadow-2xl space-y-4 text-center">
               <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center mx-auto">
@@ -4325,21 +4360,49 @@ export default function App() {
                 하단의 종모양을 눌러 알림을 켜주세요
               </p>
               <div className="space-y-2">
-                {!pushEnabled && (
-                  <button
-                    type="button"
-                    onClick={handleRegisterPush}
-                    className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-extrabold transition"
-                  >
-                    알림 켜기
-                  </button>
-                )}
                 <button
                   type="button"
-                  onClick={dismissPushPopupToday}
+                  onClick={handleRegisterPush}
+                  className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-extrabold transition"
+                >
+                  알림 켜기
+                </button>
+                <button
+                  type="button"
+                  onClick={dismissWelcomeBellToday}
                   className="w-full py-2 rounded-xl bg-slate-100 text-slate-600 text-xs font-bold"
                 >
                   닫기
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 이미 알림이 켜진 상태에서 하단 종 버튼을 다시 눌렀을 때 팝업 */}
+        {showAlreadyOnPopup && (
+          <div className="fixed inset-0 z-50 bg-black/55 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="w-full max-w-xs bg-white rounded-3xl p-6 shadow-2xl space-y-4 text-center">
+              <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center mx-auto">
+                <Bell className="w-6 h-6" />
+              </div>
+              <p className="text-sm font-extrabold text-slate-900">
+                이미 알림이 켜져 있습니다
+              </p>
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAlreadyOnPopup(false)}
+                  className="w-full py-2.5 rounded-xl bg-slate-900 text-white text-xs font-bold transition"
+                >
+                  확인
+                </button>
+                <button
+                  type="button"
+                  onClick={handleTurnOffPush}
+                  className="w-full py-2 rounded-xl bg-slate-100 text-slate-600 text-xs font-bold"
+                >
+                  알림 끄기
                 </button>
               </div>
             </div>
